@@ -1,0 +1,46 @@
+.{
+    .version = 1,
+    .items = .{
+        // Floor
+        .{
+            .type = "cuboid_brush",
+            .min = .{ -256.0, -256.0, -64.0 },
+            .max = .{ 256.0, 256.0, 0.0 },
+        },
+
+        // Ceiling
+        .{
+            .type = "cuboid_brush",
+            .min = .{ -256.0, -256.0, 128.0 },
+            .max = .{ 256.0, 256.0, 192.0 },
+        },
+
+        // North wall
+        .{
+            .type = "cuboid_brush",
+            .min = .{ -256.0, 256.0, 0.0 },
+            .max = .{ 256.0, 320.0, 128.0 },
+        },
+
+        // South wall
+        .{
+            .type = "cuboid_brush",
+            .min = .{ -256.0, -320.0, 0.0 },
+            .max = .{ 256.0, -256.0, 128.0 },
+        },
+
+        // East wall
+        .{
+            .type = "cuboid_brush",
+            .min = .{ 256.0, -256.0, 0.0 },
+            .max = .{ 320.0, 256.0, 128.0 },
+        },
+
+        // West wall
+        .{
+            .type = "cuboid_brush",
+            .min = .{ -320.0, -256.0, 0.0 },
+            .max = .{ -256.0, 256.0, 128.0 },
+        },
+    },
+}
