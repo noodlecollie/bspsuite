@@ -1,3 +1,6 @@
 pub const Float = f64;
-pub const Vec3 = @Vector(3, Float);
-pub const AVec3 = [3]Float;
+
+// We *shouldn't* need to use an explicit @Vector() for this,
+// since apparently the compiler is pretty good at automatically
+// applying vector operations where possible.
+pub const Vec3 = [3]Float;
