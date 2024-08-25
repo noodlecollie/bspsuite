@@ -2,7 +2,7 @@
 pub const dummyfunc = @import("dummyfunc.zig");
 
 pub const math = @import("math.zig");
-pub usingnamespace @import("winding.zig");
+pub usingnamespace @import("Winding.zig");
 
 // Import all the tests that we want to run
 test {
