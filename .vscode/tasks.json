@@ -32,6 +32,19 @@
 				"cwd": "${workspaceFolder}"
 			},
 			"problemMatcher": "$zig",
+		},
+		{
+			"label": "Build and run tests",
+			"type": "shell",
+			"command": "zig",
+			"args": [
+				"build",
+				"test"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": "$zig",
 		}
 	]
 }

@@ -20,13 +20,21 @@ pub fn build(b: *std.Build) !void {
     in_optimize = b.standardOptimizeOption(.{});
 
     lib_bspsuite = b.addStaticLibrary(.{
-        .name = "myproject",
+        .name = "bspsuite",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = b.path("src/myproject/root.zig"),
+        .root_source_file = b.path("src/bspsuite/root.zig"),
         .target = in_target,
         .optimize = in_optimize,
     });
+
+    const lib_unit_tests = b.addTest(.{
+        .root_source_file = b.path("src/bspsuite/root.zig"),
+        .target = in_target,
+        .optimize = in_optimize,
+    });
+
+    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 
     // This declares intent for the library to be installed into the standard
     // location when the user invokes the "install" step (the default step when
@@ -70,30 +78,22 @@ pub fn build(b: *std.Build) !void {
 
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
-    const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("tests/myproject/all.zig"),
+    const separate_unit_tests = b.addTest(.{
+        .root_source_file = b.path("tests/bspsuite/all.zig"),
         .target = in_target,
         .optimize = in_optimize,
     });
 
-    lib_unit_tests.root_module.addImport("myproject", &lib_bspsuite.root_module);
+    separate_unit_tests.root_module.addImport("bspsuite", &lib_bspsuite.root_module);
 
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
-
-    // const exe_unit_tests = b.addTest(.{
-    //     .root_source_file = b.path("src/main.zig"),
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-
-    // const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+    const run_separate_unit_tests = b.addRunArtifact(separate_unit_tests);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_separate_unit_tests.step);
     test_step.dependOn(&run_lib_unit_tests.step);
-    // test_step.dependOn(&run_exe_unit_tests.step);
 
     try addDemos(b);
 }
@@ -113,12 +113,9 @@ fn addDemos(b: *std.Build) !void {
             continue;
         }
 
-        // This is not freed as the path is used later for building
-        const program_path = b.path(b.pathJoin(&.{ demos_root, entry.name, "root.zig" }));
-
         const demo_exe = b.addExecutable(.{
             .name = entry.name,
-            .root_source_file = program_path,
+            .root_source_file = b.path(b.pathJoin(&.{ demos_root, entry.name, "root.zig" })),
             .target = in_target,
             .optimize = in_optimize,
         });
