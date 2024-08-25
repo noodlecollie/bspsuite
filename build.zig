@@ -19,20 +19,24 @@ pub fn build(b: *std.Build) !void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     in_optimize = b.standardOptimizeOption(.{});
 
+    const zlm = b.dependency("zlm", .{});
+
     lib_bspsuite = b.addStaticLibrary(.{
         .name = "bspsuite",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
         .root_source_file = b.path("src/bspsuite/root.zig"),
         .target = in_target,
         .optimize = in_optimize,
     });
+
+    lib_bspsuite.root_module.addImport("zlm", zlm.module("zlm"));
 
     const lib_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/bspsuite/root.zig"),
         .target = in_target,
         .optimize = in_optimize,
     });
+
+    lib_unit_tests.root_module.addImport("zlm", zlm.module("zlm"));
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 

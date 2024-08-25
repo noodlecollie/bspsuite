@@ -72,24 +72,24 @@ test "An empty winding holds zero points" {
 
 test "A winding initialised with a slice of points holds these points" {
     var winding = try initPoints(std.testing.allocator, &.{
-        .{ 0.0, 0.0, 0.0 },
-        .{ 1.0, 1.0, 1.0 },
-        .{ 2.0, 2.0, 2.0 },
+        math.Vec3.new(0.0, 0.0, 0.0),
+        math.Vec3.new(1.0, 1.0, 1.0),
+        math.Vec3.new(2.0, 2.0, 2.0),
     });
 
     defer winding.deinit();
 
     try testing.expectEqual(3, winding.pointCount());
-    try testing.expectEqual(math.Vec3{ 0.0, 0.0, 0.0 }, winding.getPoint(0));
-    try testing.expectEqual(math.Vec3{ 1.0, 1.0, 1.0 }, winding.getPoint(1));
-    try testing.expectEqual(math.Vec3{ 2.0, 2.0, 2.0 }, winding.getPoint(2));
+    try testing.expectEqual(math.Vec3.new(0.0, 0.0, 0.0), winding.getPoint(0));
+    try testing.expectEqual(math.Vec3.new(1.0, 1.0, 1.0), winding.getPoint(1));
+    try testing.expectEqual(math.Vec3.new(2.0, 2.0, 2.0), winding.getPoint(2));
 }
 
 test "A duplicated winding holds a duplicated set of points from the original winding" {
     var winding = try initPoints(std.testing.allocator, &.{
-        .{ 0.0, 0.0, 0.0 },
-        .{ 1.0, 1.0, 1.0 },
-        .{ 2.0, 2.0, 2.0 },
+        math.Vec3.new(0.0, 0.0, 0.0),
+        math.Vec3.new(1.0, 1.0, 1.0),
+        math.Vec3.new(2.0, 2.0, 2.0),
     });
 
     defer winding.deinit();
@@ -98,7 +98,7 @@ test "A duplicated winding holds a duplicated set of points from the original wi
     defer winding2.deinit();
 
     try testing.expectEqual(3, winding2.pointCount());
-    try testing.expectEqual(math.Vec3{ 0.0, 0.0, 0.0 }, winding2.getPoint(0));
-    try testing.expectEqual(math.Vec3{ 1.0, 1.0, 1.0 }, winding2.getPoint(1));
-    try testing.expectEqual(math.Vec3{ 2.0, 2.0, 2.0 }, winding2.getPoint(2));
+    try testing.expectEqual(math.Vec3.new(0.0, 0.0, 0.0), winding2.getPoint(0));
+    try testing.expectEqual(math.Vec3.new(1.0, 1.0, 1.0), winding2.getPoint(1));
+    try testing.expectEqual(math.Vec3.new(2.0, 2.0, 2.0), winding2.getPoint(2));
 }
