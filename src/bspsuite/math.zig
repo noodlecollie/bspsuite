@@ -1,1 +1,2 @@
-pub usingnamespace @import("zlm").SpecializeOn(f64);
+pub usingnamespace @import("math/types.zig");
+pub usingnamespace @import("math/Plane3.zig");
