@@ -7,7 +7,7 @@ const testing = std.testing;
 
 const This = @This();
 
-const PointClassification = enum(i2) {
+pub const PointClassification = enum(i2) {
     behind_plane = -1,
     on_plane = 0,
     in_front_of_plane = 1,
@@ -19,19 +19,36 @@ const default_epsilon_point_on_plane: Float = 0.1;
 normal: Vec3 = Vec3.zero,
 dist: Float = 0.0,
 
+// Asserts that normal vector is normalised
 pub fn new(normal: Vec3, dist: Float) This {
+    // We use length2() for this check since 1 squared is just 1 anyway,
+    // so saves us a redundant sqrt.
+    std.debug.assert(std.math.approxEqRel(Float, normal.length2(), 1.0, types.zero_epsilon));
+
     return .{
-        .normal = normal,
+        .normal = normal.normalize(),
         .dist = dist,
     };
 }
 
+// Dir vector is normalised as part of this call.
+// If your direction is already normalised, just
+// call new().
+pub fn newFromDir(dir: Vec3, dist: Float) This {
+    const normal = dir.normalize();
+    return if (types.vec3ApproxZero(normal)) This.null_plane else new(normal, dist);
+}
+
 pub fn eql(this: This, other: This) bool {
+    if (this.isNull() and other.isNull()) {
+        return true;
+    }
+
     return this.normal.eql(other.normal) and this.dist == other.dist;
 }
 
 pub fn isNull(this: This) bool {
-    return this.eql(This.null_plane);
+    return types.vec3ApproxZero(this.normal);
 }
 
 pub fn origin(this: This) Vec3 {
@@ -40,6 +57,16 @@ pub fn origin(this: This) Vec3 {
 
 pub fn distanceToPoint(this: This, point: Vec3) Float {
     return point.dot(this.normal) - this.dist;
+}
+
+pub fn projectPointOnPlane(this: This, point: Vec3) Vec3 {
+    if (this.isNull()) {
+        return Vec3.zero;
+    }
+
+    const point_to_plane_origin = point.sub(this.origin());
+    const dot_product = point_to_plane_origin.dot(this.normal);
+    return point.sub(this.normal.scale(dot_product));
 }
 
 pub fn classifyPoint(this: This, point: Vec3) PointClassification {
