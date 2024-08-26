@@ -14,7 +14,7 @@ const PointClassification = enum(i2) {
 };
 
 const null_plane: This = .{};
-const epsilon_point_on_plane: Float = 0.1;
+const default_epsilon_point_on_plane: Float = 0.1;
 
 normal: Vec3 = Vec3.zero,
 dist: Float = 0.0,
@@ -43,11 +43,11 @@ pub fn distanceToPoint(this: This, point: Vec3) Float {
 }
 
 pub fn classifyPoint(this: This, point: Vec3) PointClassification {
-    return classifyPointCustom(this, point, This.epsilon_point_on_plane);
+    return classifyPointCustom(this, point, This.default_epsilon_point_on_plane);
 }
 
 pub fn classifyPointCustom(this: This, point: Vec3, epsilon: Float) PointClassification {
-    const dist = this.distanceTo(point);
+    const dist = this.distanceToPoint(point);
 
     if (dist < -epsilon) {
         return .behind_plane;
@@ -68,4 +68,20 @@ test "Null plane contains only zero values" {
 
     try testing.expectEqual(Vec3.zero, plane.origin());
     try testing.expect(plane.isNull());
+    try testing.expect(plane.eql(This.null_plane));
+}
+
+test "Plane origin is defined by its normal and distance" {
+    const plane = This.new(Vec3.new(0.0, 0.0, 1.0), 12.0);
+    try testing.expectEqual(Vec3.new(0.0, 0.0, 12.0), plane.origin());
+}
+
+test "Points can be classified as in front of, behind, or on a plane" {
+    const plane = This.new(Vec3.new(1.0, 0.0, 0.0), 10.0);
+
+    try testing.expectEqual(PointClassification.in_front_of_plane, plane.classifyPoint(Vec3.new(12.0, 1.0, 5.0)));
+    try testing.expectEqual(PointClassification.behind_plane, plane.classifyPoint(Vec3.new(-2.0, 1.0, 5.0)));
+    try testing.expectEqual(PointClassification.on_plane, plane.classifyPoint(Vec3.new(10.0, 1.0, 5.0)));
+
+    try testing.expectEqual(PointClassification.on_plane, plane.classifyPointCustom(Vec3.new(10.1, 1.0, 5.0), 0.2));
 }
