@@ -66,6 +66,11 @@ pub fn projectPointOnPlane(this: This, point: Vec3) Vec3 {
 
     const point_to_plane_origin = point.sub(this.origin());
     const dot_product = point_to_plane_origin.dot(this.normal);
+
+    // TODO: Quake code has tweaks here to mitigate some rounding errors:
+    // https://github.com/ericwa/ericw-tools/blob/brushbsp/include/common/polylib.hh#L988
+    // Annoyingly, the function to index a vector is private,
+    // so we'll have to make our own >:c
     return point.sub(this.normal.scale(dot_product));
 }
 
