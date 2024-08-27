@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) !void {
     lib_unit_tests.root_module.addImport("zlm", zlm.module("zlm"));
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
+    const install_lib_unit_tests = b.addInstallArtifact(lib_unit_tests, .{});
 
     // This declares intent for the library to be installed into the standard
     // location when the user invokes the "install" step (the default step when
@@ -98,6 +99,7 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_separate_unit_tests.step);
     test_step.dependOn(&run_lib_unit_tests.step);
+    test_step.dependOn(&install_lib_unit_tests.step);
 
     try addDemos(b);
 }
