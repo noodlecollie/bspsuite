@@ -81,26 +81,26 @@ pub const Vec3Normal = union(Axial) {
         // so saves us a redundant sqrt.
         std.debug.assert(std.math.approxEqRel(Float, vec.length2(), 1.0, types.zero_epsilon));
 
-        const x_is_zero: bool = std.math.approxEqAbs(vec.x, 0.0, tolerance);
-        const y_is_zero: bool = std.math.approxEqAbs(vec.y, 0.0, tolerance);
-        const z_is_zero: bool = std.math.approxEqAbs(vec.z, 0.0, tolerance);
+        const x_is_zero: bool = std.math.approxEqAbs(Float, vec.x, 0.0, tolerance);
+        const y_is_zero: bool = std.math.approxEqAbs(Float, vec.y, 0.0, tolerance);
+        const z_is_zero: bool = std.math.approxEqAbs(Float, vec.z, 0.0, tolerance);
 
         if (y_is_zero and z_is_zero) {
-            if (std.math.approxEqAbs(vec.x - 1.0, 0.0, tolerance)) {
+            if (std.math.approxEqAbs(Float, vec.x - 1.0, 0.0, tolerance)) {
                 return .{ .axial = Axis.xpos };
-            } else if (std.math.approxEqAbs(vec.x + 1.0, 0.0, tolerance)) {
+            } else if (std.math.approxEqAbs(Float, vec.x + 1.0, 0.0, tolerance)) {
                 return .{ .axial = Axis.xneg };
             }
         } else if (x_is_zero and z_is_zero) {
-            if (std.math.approxEqAbs(vec.y - 1.0, 0.0, tolerance)) {
+            if (std.math.approxEqAbs(Float, vec.y - 1.0, 0.0, tolerance)) {
                 return .{ .axial = Axis.ypos };
-            } else if (std.math.approxEqAbs(vec.y + 1.0, 0.0, tolerance)) {
+            } else if (std.math.approxEqAbs(Float, vec.y + 1.0, 0.0, tolerance)) {
                 return .{ .axial = Axis.yneg };
             }
         } else if (x_is_zero and y_is_zero) {
-            if (std.math.approxEqAbs(vec.z - 1.0, 0.0, tolerance)) {
+            if (std.math.approxEqAbs(Float, vec.z - 1.0, 0.0, tolerance)) {
                 return .{ .axial = Axis.zpos };
-            } else if (std.math.approxEqAbs(vec.z + 1.0, 0.0, tolerance)) {
+            } else if (std.math.approxEqAbs(Float, vec.z + 1.0, 0.0, tolerance)) {
                 return .{ .axial = Axis.zneg };
             }
         }
@@ -121,6 +121,21 @@ pub const Vec3Normal = union(Axial) {
     // generates an axial normal.
     pub fn createFromVectorApprox(vec: Vec3, tolerance: Float) Vec3Normal {
         return createFromUnitVectorApprox(vec.normalize(), tolerance);
+    }
+
+    // Explicitly creates a non-axial normal, even if the vector does
+    // lie along an axis.
+    // Asserts that the vector is null, or of length 1.
+    pub fn createNonAxialFromUnitVector(vec: Vec3) Vec3Normal {
+        std.debug.assert(vec.eql(Vec3.zero) or std.math.approxEqRel(Float, vec.length2(), 1.0, types.zero_epsilon));
+        return .{ .nonaxial = vec };
+    }
+
+    // Explicitly creates a non-axial normal (which is automatically
+    // converted to be of unit length), even if the vector does
+    // lie along an axis.
+    pub fn createNonAxialFromVector(vec: Vec3) Vec3Normal {
+        return createNonAxialFromUnitVector(vec.normalize());
     }
 
     // Returns the vector representation of this normal.
@@ -229,4 +244,31 @@ test "An axial normal represents a unit vector in a specific axis" {
     try testing.expectEqual(Vec3Normal.createOnAxis(.xneg).toVector(), Vec3.new(-1.0, 0.0, 0.0));
     try testing.expectEqual(Vec3Normal.createOnAxis(.yneg).toVector(), Vec3.new(0.0, -1.0, 0.0));
     try testing.expectEqual(Vec3Normal.createOnAxis(.zneg).toVector(), Vec3.new(0.0, 0.0, -1.0));
+}
+
+test "A normal from a vector close to a unit vector can create an axial normal if desired" {
+    const normal: Vec3Normal = Vec3Normal.createFromVectorApprox(Vec3.new(0.99, 0.01, 0.0), 0.05);
+    try testing.expect(normal.isAxial());
+    try testing.expectEqual(normal.toVector(), Vec3.unitX);
+}
+
+test "A normal from a vector close to a unit vector can also create a non-axial normal if desired" {
+    const normal: Vec3Normal = Vec3Normal.createFromVector(Vec3.new(0.99, 0.1, 0.0));
+
+    try testing.expect(!normal.isAxial());
+    try testing.expectEqual(normal.toVector(), Vec3.new(0.99, 0.1, 0.0).normalize());
+}
+
+test "A non-axial normal can be created from a vector on an axis" {
+    const normal: Vec3Normal = Vec3Normal.createNonAxialFromVector(Vec3.unitZ);
+
+    try testing.expect(!normal.isAxial());
+    try testing.expectEqual(normal.toVector(), Vec3.unitZ);
+}
+
+test "Normals can be compared for equality" {
+    const normal1: Vec3Normal = Vec3Normal.createOnAxis(.ypos);
+    const normal2: Vec3Normal = Vec3Normal.createFromVector(Vec3.unitY);
+
+    try testing.expect(normal1.eql(normal2));
 }
