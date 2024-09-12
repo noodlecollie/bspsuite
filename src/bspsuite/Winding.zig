@@ -109,7 +109,7 @@ pub fn initEmpty(allocator: Allocator) Allocator.Error!This {
     };
 }
 
-pub fn initPoints(allocator: Allocator, points: []const Vec3) Error!This {
+pub fn initPoints(allocator: Allocator, points: []const Vec3) This.Error!This {
     if (points.len > This.max_points) {
         return error.TooManyPoints;
     }
@@ -125,7 +125,7 @@ pub fn initPoints(allocator: Allocator, points: []const Vec3) Error!This {
     return winding;
 }
 
-pub fn duplicate(this: This) Error!This {
+pub fn duplicate(this: This) This.Error!This {
     return initPoints(this.allocator, this.points.items);
 }
 
@@ -137,7 +137,7 @@ pub fn pointCount(this: This) usize {
     return this.points.items.len;
 }
 
-pub fn addPoint(this: *This, point: Vec3) Error!void {
+pub fn addPoint(this: *This, point: Vec3) This.Error!void {
     if (this.pointCount() >= This.max_points) {
         return error.TooManyPoints;
     }
@@ -150,11 +150,13 @@ pub fn getPoint(this: This, index: usize) Vec3 {
     return this.points.items[index];
 }
 
-pub fn getEdge(this: This, index: usize) Edge {
+pub fn getEdge(this: This, index: usize) This.Edge {
     return .{ this.points.items[index], this.points.items[(index + 1) % this.pointCount()] };
 }
 
 // Removes any points on the winding that are strictly in front of the plane.
+// TODO: Replace this with a more generic function which can return a new winding
+// for the points which would be clipped away.
 pub fn clip(this: *This, plane: Plane3) Error!void {
     if (plane.isNull()) {
         return error.InvalidPlane;
