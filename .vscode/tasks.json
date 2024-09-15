@@ -39,7 +39,22 @@
 			"command": "zig",
 			"args": [
 				"build",
-				"test"
+				"test",
+				"-Doptimize=Debug"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": "$zig",
+		},
+		{
+			"label": "Build tests without running",
+			"type": "shell",
+			"command": "zig",
+			"args": [
+				"build",
+				"test-build-only",
+				"-Doptimize=Debug"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"

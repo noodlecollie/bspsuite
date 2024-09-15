@@ -96,10 +96,15 @@ pub fn build(b: *std.Build) !void {
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
-    const test_step = b.step("test", "Run unit tests");
+    const test_step = b.step("test", "Build and run all unit tests");
     test_step.dependOn(&run_separate_unit_tests.step);
     test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&install_lib_unit_tests.step);
+
+    const test_build_only = b.step("test-build-only", "Build unit tests without running them");
+    test_build_only.dependOn(&lib_unit_tests.step);
+    test_build_only.dependOn(&separate_unit_tests.step);
+    test_build_only.dependOn(&install_lib_unit_tests.step);
 
     try addDemos(b);
 }

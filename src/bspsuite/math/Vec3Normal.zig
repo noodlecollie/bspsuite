@@ -220,6 +220,21 @@ pub const Vec3Normal = union(Axial) {
             .nonaxial => |vec| vec.scale(value),
         };
     }
+
+    pub fn dot(this: Vec3Normal, other: Vec3) Float {
+        return switch (this) {
+            .axial => |axis| switch (axis) {
+                .null_axis => 0,
+                .xpos => other.x,
+                .ypos => other.y,
+                .zpos => other.z,
+                .xneg => -other.x,
+                .yneg => -other.y,
+                .zneg => -other.z,
+            },
+            .nonaxial => |vec| vec.dot(other),
+        };
+    }
 };
 
 test "A null normal represents a zero vector" {

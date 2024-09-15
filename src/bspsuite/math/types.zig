@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const Float = f64;
 pub usingnamespace @import("zlm").SpecializeOn(Float);
 
@@ -5,6 +7,10 @@ pub usingnamespace @import("zlm").SpecializeOn(Float);
 // tolerance for comparing a floating
 // point value against zero.
 pub const zero_epsilon: Float = 0.0001;
+
+pub fn floatApproxZero(value: Float) bool {
+    return std.math.approxEqAbs(Float, value, 0.0, zero_epsilon);
+}
 
 pub fn vec3ApproxZero(vec: @This().Vec3) bool {
     return vec.approxEqAbs(@This().Vec3.zero, zero_epsilon);
