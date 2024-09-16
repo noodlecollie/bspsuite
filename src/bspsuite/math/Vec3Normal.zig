@@ -1,5 +1,6 @@
 const std = @import("std");
 const types = @import("types.zig");
+const constants = @import("constants.zig");
 
 const Vec3 = types.Vec3;
 const Float = types.Float;
@@ -43,7 +44,7 @@ pub const Vec3Normal = union(Axial) {
 
         // We use length2() for this check since 1 squared is just 1 anyway,
         // so saves us a redundant sqrt.
-        std.debug.assert(std.math.approxEqRel(Float, vec.length2(), 1.0, types.zero_epsilon));
+        std.debug.assert(std.math.approxEqRel(Float, vec.length2(), 1.0, constants.zero_epsilon));
 
         if (vec.y == 0 and vec.z == 0) {
             if (vec.x == 1.0) {
@@ -79,7 +80,7 @@ pub const Vec3Normal = union(Axial) {
 
         // We use length2() for this check since 1 squared is just 1 anyway,
         // so saves us a redundant sqrt.
-        std.debug.assert(std.math.approxEqRel(Float, vec.length2(), 1.0, types.zero_epsilon));
+        std.debug.assert(std.math.approxEqRel(Float, vec.length2(), 1.0, constants.zero_epsilon));
 
         const x_is_zero: bool = std.math.approxEqAbs(Float, vec.x, 0.0, tolerance);
         const y_is_zero: bool = std.math.approxEqAbs(Float, vec.y, 0.0, tolerance);
@@ -127,7 +128,7 @@ pub const Vec3Normal = union(Axial) {
     // lie along an axis.
     // Asserts that the vector is null, or of length 1.
     pub fn createNonAxialFromUnitVector(vec: Vec3) Vec3Normal {
-        std.debug.assert(vec.eql(Vec3.zero) or std.math.approxEqRel(Float, vec.length2(), 1.0, types.zero_epsilon));
+        std.debug.assert(vec.eql(Vec3.zero) or std.math.approxEqRel(Float, vec.length2(), 1.0, constants.zero_epsilon));
         return .{ .nonaxial = vec };
     }
 

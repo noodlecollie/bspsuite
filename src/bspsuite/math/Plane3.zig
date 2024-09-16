@@ -1,5 +1,7 @@
 const std = @import("std");
 const types = @import("types.zig");
+const constants = @import("constants.zig");
+const utils = @import("utils.zig");
 
 const Vec3 = types.Vec3;
 const Vec3Normal = @import("Vec3Normal.zig").Vec3Normal;
@@ -24,7 +26,7 @@ dist: Float = 0.0,
 pub fn new(normal: Vec3, dist: Float) This {
     // We use length2() for this check since 1 squared is just 1 anyway,
     // so saves us a redundant sqrt.
-    std.debug.assert(std.math.approxEqRel(Float, normal.length2(), 1.0, types.zero_epsilon));
+    std.debug.assert(std.math.approxEqRel(Float, normal.length2(), 1.0, constants.zero_epsilon));
 
     return .{
         .normal = Vec3Normal.createFromUnitVector(normal),
@@ -37,7 +39,7 @@ pub fn new(normal: Vec3, dist: Float) This {
 // call new().
 pub fn newFromDir(dir: Vec3, dist: Float) This {
     const normal = dir.normalize();
-    return if (types.vec3ApproxZero(normal)) This.null_plane else new(normal, dist);
+    return if (utils.vec3ApproxZero(normal)) This.null_plane else new(normal, dist);
 }
 
 pub fn eql(this: This, other: This) bool {
@@ -101,7 +103,7 @@ pub fn intersectionPointWithLine(this: This, p0: Vec3, p1: Vec3) ?Vec3 {
 
     const normal_dot_line_dir = this.normal.dot(line_dir);
 
-    if (types.floatApproxZero(normal_dot_line_dir)) {
+    if (utils.floatApproxZero(normal_dot_line_dir)) {
         // Line is perpendicular to normal, so parallel to plane.
         return null;
     }
@@ -138,7 +140,7 @@ pub fn basisVectors(this: This) [2]Vec3 {
             .zneg => .{ Vec3.new(1.0, 0.0, 0.0), Vec3.new(0.0, -1.0, 0.0) },
         },
         .nonaxial => |norm_vec| {
-            if (types.vec3ApproxZero(norm_vec)) {
+            if (utils.vec3ApproxZero(norm_vec)) {
                 return .{ Vec3.new(0.0, 0.0, 0.0), Vec3.new(0.0, 0.0, 0.0) };
             }
 
@@ -160,7 +162,7 @@ pub fn basisVectors(this: This) [2]Vec3 {
             const first_plane_point = this.projectPointOnPlane(plane_origin.add(first_basis_dir));
             const first_basis = first_plane_point.sub(plane_origin).normalize();
 
-            std.debug.assert(!types.vec3ApproxZero(first_basis));
+            std.debug.assert(!utils.vec3ApproxZero(first_basis));
 
             return .{ first_basis, norm_vec.cross(first_basis) };
         },
@@ -219,7 +221,7 @@ test "Points can be projected onto a plane via its normal" {
     const expected_projected_point = Vec3.new(-1.5, 1.5, 1.0);
     const actual_projected_point = plane.projectPointOnPlane(point);
 
-    try testing.expect(expected_projected_point.approxEqRel(actual_projected_point, types.zero_epsilon));
+    try testing.expect(expected_projected_point.approxEqRel(actual_projected_point, constants.zero_epsilon));
 }
 
 test "The intersection point can be determined between the plane and a line" {
@@ -232,7 +234,7 @@ test "The intersection point can be determined between the plane and a line" {
     const expected_intersection_point = Vec3.new(-1.5, 1.5, 1.0);
     const actual_intersection_point: Vec3 = plane.intersectionPointWithLine(p0, p1) orelse unreachable;
 
-    try testing.expect(expected_intersection_point.approxEqRel(actual_intersection_point, types.zero_epsilon));
+    try testing.expect(expected_intersection_point.approxEqRel(actual_intersection_point, constants.zero_epsilon));
 
     const p2 = Vec3.new(-2.0, 3.0, 2.0);
     const no_intersection_point: ?Vec3 = plane.intersectionPointWithLine(p0, p2);
@@ -252,8 +254,8 @@ test "Basis vectors can be generated from a plane" {
         const expected_basis_right = Vec3.new(-1.0, 1.0, 0.0).normalize();
         const expected_basis_up = Vec3.unitZ;
 
-        try testing.expect(basis_vectors[0].approxEqRel(expected_basis_right, types.zero_epsilon));
-        try testing.expect(basis_vectors[1].approxEqRel(expected_basis_up, types.zero_epsilon));
+        try testing.expect(basis_vectors[0].approxEqRel(expected_basis_right, constants.zero_epsilon));
+        try testing.expect(basis_vectors[1].approxEqRel(expected_basis_up, constants.zero_epsilon));
     }
 
     {
@@ -262,7 +264,7 @@ test "Basis vectors can be generated from a plane" {
         const expected_basis_right = Vec3.new(1.0, -1.0, 0.0).normalize();
         const expected_basis_up = Vec3.unitZ;
 
-        try testing.expect(basis_vectors[0].approxEqRel(expected_basis_right, types.zero_epsilon));
-        try testing.expect(basis_vectors[1].approxEqRel(expected_basis_up, types.zero_epsilon));
+        try testing.expect(basis_vectors[0].approxEqRel(expected_basis_right, constants.zero_epsilon));
+        try testing.expect(basis_vectors[1].approxEqRel(expected_basis_up, constants.zero_epsilon));
     }
 }

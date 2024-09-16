@@ -1,5 +1,5 @@
 pub const math = @import("math.zig");
-pub usingnamespace @import("Winding.zig");
+pub const Winding = @import("Winding.zig");
 
 // Import all the tests that we want to run
 test {

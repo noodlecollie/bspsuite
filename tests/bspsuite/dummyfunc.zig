@@ -1,6 +1,9 @@
 const std = @import("std");
-const dummyfunc = @import("bspsuite").dummyfunc;
+const Winding = @import("bspsuite").Winding;
 
 test "Dummy test" {
-    try std.testing.expectEqual(1, dummyfunc.return1());
+    var winding = Winding.initEmpty(std.testing.allocator);
+    defer winding.deinit();
+
+    try std.testing.expectEqual(0, winding.pointCount());
 }
