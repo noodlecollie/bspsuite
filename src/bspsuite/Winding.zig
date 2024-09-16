@@ -4,255 +4,235 @@ const testing = std.testing;
 
 const This = @This();
 const Allocator = std.mem.Allocator;
-const ArrayType = std.ArrayListUnmanaged(math.Vec3);
+const ArrayType = std.ArrayList(math.Vec3);
 const Plane3 = math.Plane3;
 const Vec3 = math.Vec3;
+const Float = math.Float;
 
 pub const Edge = [2]Vec3;
 
 pub const Error = Allocator.Error || error{
     TooManyPoints,
-    InvalidPlane,
+    OutOfRange,
 };
 
-// Helper for computing new points when a winding is split by a plane.
-const WindingClipper = struct {
-    pub const ClipPointTag = enum {
-        existing_index,
-        new_point,
-    };
+// Max number of points allowed on a winding
+pub const max_points: usize = 96;
 
-    pub const ClipPoint = union(ClipPointTag) {
-        existing_index: usize,
-        new_point: Vec3,
+// This is used as the max absolute value for certain
+// attributes of a winding:
+// - The maximum distance that the plane origin is allowed to be from (0,0,0).
+// - The maximum distance that a point is allowed to be from the plane origin
+//   along any basis vector.
+pub const max_extent: Float = @as(Float, std.math.maxInt(i32));
+pub const invalid_extent = max_extent + 1.0;
 
-        pub fn isNewPoint(this: ClipPoint) bool {
-            return switch (this) {
-                .existing_index => false,
-                .new_point => true,
-            };
-        }
-
-        pub fn getPoint(this: ClipPoint, existing_points: []Vec3) Vec3 {
-            return switch (this) {
-                .existing_index => |index| existing_points[index],
-                .new_point => |value| value,
-            };
-        }
-    };
-
-    pub const ClipEdge = [2]ClipPoint;
-    pub const EdgeArrayType = std.ArrayListUnmanaged(ClipEdge);
-
-    allocator: Allocator,
-    edges: EdgeArrayType,
-
-    pub fn init(allocator: Allocator, capacity: usize) Allocator.Error!WindingClipper {
-        return .{
-            .allocator = allocator,
-            .edges = try EdgeArrayType.initCapacity(allocator, capacity),
-        };
-    }
-
-    pub fn deinit(this: *WindingClipper) void {
-        this.edges.deinit(this.allocator);
-    }
-
-    pub fn splitEdgeByPlane(this: *WindingClipper, edge: Edge, point_indices: [2]usize, plane: Plane3) Allocator.Error!void {
-        const discard_point: [2]bool = .{
-            plane.classifyPoint(edge[0]) == .in_front_of_plane,
-            plane.classifyPoint(edge[1]) == .in_front_of_plane,
-        };
-
-        if (discard_point[0] and discard_point[1]) {
-            // Nothing to add.
-            return;
-        }
-
-        const new_edge: *ClipEdge = try this.edges.addOne(this.allocator);
-
-        if (discard_point[0] and !discard_point[1]) {
-            new_edge[0] = .{ .new_point = plane.projectPointOnPlane(edge[0]) };
-            new_edge[1] = .{ .existing_index = point_indices[1] };
-        } else if (discard_point[1] and !discard_point[0]) {
-            new_edge[0] = .{ .existing_index = point_indices[0] };
-            new_edge[1] = .{ .new_point = plane.projectPointOnPlane(edge[1]) };
-        } else {
-            new_edge[0] = .{ .existing_index = point_indices[0] };
-            new_edge[1] = .{ .existing_index = point_indices[1] };
-        }
-    }
-
-    pub fn pointCount(this: WindingClipper) usize {
-        var count: usize = 0;
-
-        // For an edge where the end point is new, we need to count
-        // both points. Otherwise, we can just count the first point,
-        // as the second will be catered for by the next edge.
-        for (this.edges.items) |edge| {
-            count += if (!edge[0].isNewPoint() and edge[1].isNewPoint()) 2 else 1;
-        }
-
-        return count;
-    }
-};
-
-const max_points: usize = 96;
-
-allocator: Allocator,
 points: ArrayType,
 
-pub fn initEmpty(allocator: Allocator) Allocator.Error!This {
+pub fn initEmpty(allocator: Allocator) This {
     return .{
-        .allocator = allocator,
-        .points = try ArrayType.initCapacity(allocator, 0),
+        .points = ArrayType.init(allocator),
     };
 }
 
-pub fn initPoints(allocator: Allocator, points: []const Vec3) This.Error!This {
-    if (points.len > This.max_points) {
-        return error.TooManyPoints;
+pub fn initFromPlane(allocator: Allocator, plane: Plane3) !This {
+    if (plane.isNull()) {
+        return initEmpty(allocator);
     }
 
+    if (plane.origin().length() > max_extent) {
+        return Error.OutOfRange;
+    }
+
+    const basis_vectors = plane.basisVectors();
+
+    std.debug.assert(!basis_vectors[0].eql(Vec3.zero));
+    std.debug.assert(!basis_vectors[1].eql(Vec3.zero));
+
     var winding: This = .{
-        .allocator = allocator,
-        .points = try ArrayType.initCapacity(allocator, points.len),
+        .points = try ArrayType.initCapacity(allocator, 4),
     };
 
-    errdefer winding.deinit();
+    // These points are specified in clockwise order.
+    winding.points.appendSliceAssumeCapacity(&.{
+        basis_vectors[0].scale(-invalid_extent).add(basis_vectors[1].scale(invalid_extent)),
+        basis_vectors[0].scale(invalid_extent).add(basis_vectors[1].scale(invalid_extent)),
+        basis_vectors[0].scale(invalid_extent).add(basis_vectors[1].scale(-invalid_extent)),
+        basis_vectors[0].scale(-invalid_extent).add(basis_vectors[1].scale(-invalid_extent)),
+    });
 
-    try winding.points.appendSlice(winding.allocator, points);
     return winding;
 }
 
-pub fn duplicate(this: This) This.Error!This {
-    return initPoints(this.allocator, this.points.items);
+pub fn duplicate(this: This) Allocator.Error!This {
+    return .{
+        .allocator = this.allocator,
+        .points = try this.points.clone(),
+    };
 }
 
 pub fn deinit(this: *This) void {
-    this.points.deinit(this.allocator);
+    this.points.deinit();
 }
 
 pub fn pointCount(this: This) usize {
     return this.points.items.len;
 }
 
-pub fn addPoint(this: *This, point: Vec3) This.Error!void {
-    if (this.pointCount() >= This.max_points) {
-        return error.TooManyPoints;
-    }
-
-    const new_item = try this.points.addOne(this.allocator);
-    new_item = point;
+pub fn isEmpty(this: This) bool {
+    return this.points.items.len < 1;
 }
 
 pub fn getPoint(this: This, index: usize) Vec3 {
     return this.points.items[index];
 }
 
-pub fn getEdge(this: This, index: usize) This.Edge {
-    return .{ this.points.items[index], this.points.items[(index + 1) % this.pointCount()] };
-}
-
-// Removes any points on the winding that are strictly in front of the plane.
-// TODO: Replace this with a more generic function which can return a new winding
-// for the points which would be clipped away.
-pub fn clip(this: *This, plane: Plane3) Error!void {
-    if (plane.isNull()) {
-        return error.InvalidPlane;
+// Splits this winding and returns another winding containing
+// the points that were in front of the plane, or null if there
+// were no points in front of the plane.
+pub fn split(this: *This, plane: Plane3) !?This {
+    if (this.isEmpty() or plane.isNull()) {
+        // No change, and no additional winding.
+        return null;
     }
 
-    var clipper: WindingClipper = try WindingClipper.init(this.allocator, this.pointCount());
-    defer clipper.deinit();
+    // Keep capacity for all existing points, to avoid reallocations
+    // most of the time.
 
-    for (0..this.pointCount()) |index| {
-        const next_index: usize = (index + 1) % this.pointCount();
-        const edge: Edge = this.getEdge(index);
+    var this_points = ArrayType.initCapacity(this.points.allocator, this.points.items.len);
+    errdefer this_points.deinit();
 
-        try clipper.splitEdgeByPlane(edge, .{ index, next_index }, plane);
-    }
+    var other_points = ArrayType.init(this.points.allocator, this.points.items.len);
+    errdefer other_points.deinit();
 
-    const new_point_count: usize = clipper.pointCount();
+    // For each edge, we add all points but the last to the relevant lists,
+    // as the last point is guaranteed to be used in the next iteration
+    // (or to wrap around to the first point).
+    for (this.points.items, 0..) |_, index| {
+        const edge = this.getEdgeRef(index);
+        const split_result = this.performEdgeSplit(edge, plane);
 
-    if (new_point_count > This.max_points) {
-        return error.TooManyPoints;
-    }
+        switch (split_result) {
+            .no_split => |edge_classification| switch (edge_classification) {
+                .behind_plane, .on_plane => {
+                    this_points.append(edge[0].pos);
+                },
+                .in_front_of_plane => {
+                    other_points.append(edge[0].pos);
+                },
+            },
+            .split => |split_info| {
+                if (split_info.first_point_is_behind_plane) {
+                    this_points.append(edge[0].pos);
+                    this_points.append(split_info.split_point);
 
-    var new_points: ArrayType = try ArrayType.initCapacity(this.allocator, new_point_count);
-    errdefer new_points.deinit(this.allocator);
+                    other_points.append(split_info.split_point);
+                } else {
+                    other_points.append(edge[0].pos);
+                    other_points.append(split_info.split_point);
 
-    const existing_points_slice: []Vec3 = this.points.items[0..this.points.items.len];
+                    this_points.append(split_info.split_point);
+                }
+            },
+        }
 
-    for (clipper.edges.items) |edge| {
-        const first_point: *Vec3 = new_points.addOneAssumeCapacity();
-        first_point.* = edge[0].getPoint(existing_points_slice);
-
-        if (!edge[0].isNewPoint() and edge[1].isNewPoint()) {
-            const second_point: *Vec3 = new_points.addOneAssumeCapacity();
-            second_point.* = edge[1].getPoint(existing_points_slice);
+        if (this_points.items.len > max_points or other_points.items.len > max_points) {
+            return Error.TooManyPoints;
         }
     }
 
-    this.points.deinit(this.allocator);
-    this.points = new_points;
+    // Reallocate capacity to length we actually got.
+    this_points.shrinkAndFree(this_points.items.len);
+    other_points.shrinkAndFree(other_points.items.len);
+
+    this.points.deinit();
+    this.points = this_points;
+
+    if (other_points.items.len < 1) {
+        other_points.deinit();
+        return null;
+    }
+
+    return .{ .points = other_points };
+}
+
+const SplitEdgeInfo = struct {
+    first_point_is_behind_plane: bool,
+    split_point: Vec3,
+};
+
+const SplitResultTag = enum {
+    no_split,
+    split,
+};
+
+const SplitResult = union(SplitResultTag) {
+    no_split: Plane3.PointClassification,
+    split: SplitEdgeInfo,
+};
+
+const EdgeRef = [2]struct {
+    pos: Vec3,
+    index: usize,
+};
+
+fn initFromPoints(points: ArrayType) This {
+    return .{
+        .allocator = points.allocator,
+        .points = points,
+    };
+}
+
+fn getEdgeRef(this: This, index: usize) EdgeRef {
+    const next_index = (index + 1) % this.pointCount();
+
+    return .{
+        .{ .pos = this.points.items[index], .index = index },
+        .{ .pos = this.points.items[next_index], .index = next_index },
+    };
+}
+
+fn performEdgeSplit(edge: EdgeRef, plane: Plane3) SplitResult {
+    const classifications: [2]Plane3.PointClassification = .{
+        plane.classifyPoint(edge[0]),
+        plane.classifyPoint(edge[1]),
+    };
+
+    if (classifications[0] == classifications[1] or //
+        math.floatApproxZero((edge[1].pos.sub(edge[0].pos)).length()))
+    {
+        // There was no split.
+        return .{ .no_split = classifications[0] };
+    }
+
+    // If a single point is on the plane, we just return the classification
+    // of the other point, since the plane doesn't technically split the edge.
+    if (classifications[0] == .on_plane) {
+        return .{ .no_split = classifications[1] };
+    } else if (classifications[1] == .on_plane) {
+        return .{ .no_split = classifications[0] };
+    }
+
+    // The only option left here is for one point to be behind
+    // the plane and the other point to be in front.
+    const intersection_point = plane.intersectionPointWithLine(edge[0].pos, edge[1].pos) orelse unreachable;
+
+    return .{ .split = .{
+        .first_point_is_behind_plane = classifications[0] == .behind_plane,
+        .split_point = intersection_point,
+    } };
 }
 
 test "An empty winding holds zero points" {
-    var winding = try initEmpty(std.testing.allocator);
+    var winding = initEmpty(std.testing.allocator);
     defer winding.deinit();
 
     try testing.expectEqual(0, winding.pointCount());
 }
 
-test "A winding initialised with a slice of points holds these points" {
-    var winding = try initPoints(std.testing.allocator, &.{
-        Vec3.new(0.0, 0.0, 0.0),
-        Vec3.new(1.0, 1.0, 1.0),
-        Vec3.new(2.0, 2.0, 2.0),
-    });
-
+test "A winding can be created from a plane" {
+    var winding = try initFromPlane(std.testing.allocator, Plane3.newFromDir(Vec3.unitZ, 10.0));
     defer winding.deinit();
-
-    try testing.expectEqual(3, winding.pointCount());
-    try testing.expectEqual(Vec3.new(0.0, 0.0, 0.0), winding.getPoint(0));
-    try testing.expectEqual(Vec3.new(1.0, 1.0, 1.0), winding.getPoint(1));
-    try testing.expectEqual(Vec3.new(2.0, 2.0, 2.0), winding.getPoint(2));
-}
-
-test "A duplicated winding holds a duplicated set of points from the original winding" {
-    var winding = try initPoints(std.testing.allocator, &.{
-        Vec3.new(0.0, 0.0, 0.0),
-        Vec3.new(1.0, 1.0, 1.0),
-        Vec3.new(2.0, 2.0, 2.0),
-    });
-
-    defer winding.deinit();
-
-    var winding2 = try winding.duplicate();
-    defer winding2.deinit();
-
-    try testing.expectEqual(3, winding2.pointCount());
-    try testing.expectEqual(Vec3.new(0.0, 0.0, 0.0), winding2.getPoint(0));
-    try testing.expectEqual(Vec3.new(1.0, 1.0, 1.0), winding2.getPoint(1));
-    try testing.expectEqual(Vec3.new(2.0, 2.0, 2.0), winding2.getPoint(2));
-}
-
-test "Clipping a winding creates new points appropriately" {
-    var winding = try initPoints(std.testing.allocator, &.{
-        Vec3.new(-1.0, -1.0, 0.0),
-        Vec3.new(1.0, -1.0, 0.0),
-        Vec3.new(1.0, 1.0, 0.0),
-        Vec3.new(-1.0, 1.0, 0.0),
-    });
-
-    defer winding.deinit();
-
-    const clip_plane: Plane3 = Plane3.new(Vec3.new(1.0, 0.0, 0.0), 0.0);
-    try winding.clip(clip_plane);
 
     try testing.expectEqual(4, winding.pointCount());
-    try testing.expectEqual(Vec3.new(-1.0, -1.0, 0.0), winding.getPoint(0));
-    try testing.expectEqual(Vec3.new(0.0, -1.0, 0.0), winding.getPoint(1));
-    try testing.expectEqual(Vec3.new(0.0, 1.0, 0.0), winding.getPoint(2));
-    try testing.expectEqual(Vec3.new(-1.0, 1.0, 0.0), winding.getPoint(3));
 }

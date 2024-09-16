@@ -56,6 +56,10 @@ pub fn origin(this: This) Vec3 {
     return this.normal.scale(this.dist);
 }
 
+pub fn negate(this: This) This {
+    return .{ .normal = this.normal.negate(), .dist = this.dist };
+}
+
 // Returns the perpendicular distance from the plane to the point,
 // in the direction of the plane's normal.
 pub fn distanceToPoint(this: This, point: Vec3) Float {

@@ -235,6 +235,21 @@ pub const Vec3Normal = union(Axial) {
             .nonaxial => |vec| vec.dot(other),
         };
     }
+
+    pub fn negate(this: Vec3Normal) Vec3Normal {
+        return switch (this.normal) {
+            .axial => |axis| switch (axis) {
+                .null_axis => .{ .axial = .null_axis },
+                .xpos => .{ .axial = .xneg },
+                .ypos => .{ .axial = .yneg },
+                .zpos => .{ .axial = .zneg },
+                .xneg => .{ .axial = .xpos },
+                .yneg => .{ .axial = .ypos },
+                .zneg => .{ .axial = .zpos },
+            },
+            .nonaxial => |norm_vec| .{ .nonaxial = norm_vec.neg() },
+        };
+    }
 };
 
 test "A null normal represents a zero vector" {
