@@ -1,5 +1,5 @@
 const std = @import("std");
-const math = @import("math.zig");
+const math = @import("../math.zig");
 const testing = std.testing;
 
 const This = @This();

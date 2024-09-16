@@ -1,5 +1,5 @@
 const std = @import("std");
-const Winding = @import("bspsuite").Winding;
+const Winding = @import("bspsuite").geometry.Winding;
 
 test "Dummy test" {
     var winding = Winding.initEmpty(std.testing.allocator);
