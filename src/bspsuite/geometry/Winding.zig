@@ -4,12 +4,11 @@ const testing = std.testing;
 
 const This = @This();
 const Allocator = std.mem.Allocator;
-const ArrayType = std.ArrayList(math.Vec3);
+const PointArray = std.ArrayList(math.Vec3);
 const Plane3 = math.Plane3;
 const Vec3 = math.Vec3;
+const Vec3Normal = math.Vec3Normal;
 const Float = math.Float;
-
-pub const Edge = [2]Vec3;
 
 pub const Error = Allocator.Error || error{
     TooManyPoints,
@@ -27,11 +26,13 @@ pub const max_points: usize = 96;
 pub const max_extent: Float = @as(Float, std.math.maxInt(i32));
 pub const invalid_extent = max_extent + 1.0;
 
-points: ArrayType,
+normal: Vec3Normal,
+points: PointArray,
 
 pub fn initEmpty(allocator: Allocator) This {
     return .{
-        .points = ArrayType.init(allocator),
+        .normal = Vec3Normal.null_normal,
+        .points = PointArray.init(allocator),
     };
 }
 
@@ -50,15 +51,17 @@ pub fn initFromPlane(allocator: Allocator, plane: Plane3) !This {
     std.debug.assert(!basis_vectors[1].eql(Vec3.zero));
 
     var winding: This = .{
-        .points = try ArrayType.initCapacity(allocator, 4),
+        .normal = plane.normal,
+        .points = try PointArray.initCapacity(allocator, 4),
     };
 
-    // These points are specified in clockwise order.
+    // These points are specified in anticlockwise order,
+    // so that the cross product matches the normal direction.
     winding.points.appendSliceAssumeCapacity(&.{
         basis_vectors[0].scale(-invalid_extent).add(basis_vectors[1].scale(invalid_extent)),
-        basis_vectors[0].scale(invalid_extent).add(basis_vectors[1].scale(invalid_extent)),
-        basis_vectors[0].scale(invalid_extent).add(basis_vectors[1].scale(-invalid_extent)),
         basis_vectors[0].scale(-invalid_extent).add(basis_vectors[1].scale(-invalid_extent)),
+        basis_vectors[0].scale(invalid_extent).add(basis_vectors[1].scale(-invalid_extent)),
+        basis_vectors[0].scale(invalid_extent).add(basis_vectors[1].scale(invalid_extent)),
     });
 
     return winding;
@@ -99,10 +102,10 @@ pub fn split(this: *This, plane: Plane3) !?This {
     // Keep capacity for all existing points, to avoid reallocations
     // most of the time.
 
-    var this_points = ArrayType.initCapacity(this.points.allocator, this.points.items.len);
+    var this_points = PointArray.initCapacity(this.points.allocator, this.points.items.len);
     errdefer this_points.deinit();
 
-    var other_points = ArrayType.init(this.points.allocator, this.points.items.len);
+    var other_points = PointArray.init(this.points.allocator, this.points.items.len);
     errdefer other_points.deinit();
 
     // For each edge, we add all points but the last to the relevant lists,
@@ -141,14 +144,14 @@ pub fn split(this: *This, plane: Plane3) !?This {
         }
     }
 
-    // Reallocate capacity to length we actually got.
-    this_points.shrinkAndFree(this_points.items.len);
-    other_points.shrinkAndFree(other_points.items.len);
+    finalisePoints(&this_points);
+    finalisePoints(&other_points);
 
     this.points.deinit();
     this.points = this_points;
 
     if (other_points.items.len < 1) {
+        // There was no other winding, so don't return anything.
         other_points.deinit();
         return null;
     }
@@ -176,7 +179,7 @@ const EdgeRef = [2]struct {
     index: usize,
 };
 
-fn initFromPoints(points: ArrayType) This {
+fn initFromPoints(points: PointArray) This {
     return .{
         .allocator = points.allocator,
         .points = points,
@@ -223,6 +226,16 @@ fn performEdgeSplit(edge: EdgeRef, plane: Plane3) SplitResult {
     } };
 }
 
+fn finalisePoints(points: *PointArray) void {
+    if (points.items.len < 3) {
+        // Not enough points to be valid, so clear out the list.
+        points.clearAndFree();
+    } else {
+        // Reallocate capacity to length we actually got.
+        points.shrinkAndFree(points.items.len);
+    }
+}
+
 test "An empty winding holds zero points" {
     var winding = initEmpty(std.testing.allocator);
     defer winding.deinit();
@@ -235,4 +248,11 @@ test "A winding can be created from a plane" {
     defer winding.deinit();
 
     try testing.expectEqual(4, winding.pointCount());
+    try testing.expect(winding.normal.eql(Vec3Normal.createFromUnitVector(Vec3.unitZ)));
+
+    const dir0 = winding.points.items[1].sub(winding.points.items[0]);
+    const dir1 = winding.points.items[2].sub(winding.points.items[0]);
+    const computed_normal = dir0.cross(dir1).normalize();
+
+    try testing.expect(winding.normal.toVector().eql(computed_normal));
 }
