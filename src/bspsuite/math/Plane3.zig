@@ -4,7 +4,7 @@ const constants = @import("constants.zig");
 const utils = @import("utils.zig");
 
 const Vec3 = types.Vec3;
-const Vec3Normal = @import("Vec3Normal.zig").Vec3Normal;
+const Vec3Normal = @import("vec3normal.zig").Vec3Normal;
 const Float = types.Float;
 const testing = std.testing;
 

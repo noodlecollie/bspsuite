@@ -24,6 +24,8 @@ pub const Axial = enum {
 // A class to represent a normal, with specific optimisations
 // for normals which lie exactly in X, Y or Z. These optimisations
 // help avoid rounding errors
+// This is a nested type here, rather than the file itself representing
+// the type, because it's a union and not a struct.
 pub const Vec3Normal = union(Axial) {
     axial: Axis,
     nonaxial: Vec3,
