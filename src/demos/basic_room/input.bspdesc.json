@@ -1,0 +1,42 @@
+{
+    "version": 1,
+    "items":
+    [
+        {
+            "comment": "Floor",
+            "type": "cuboid_brush",
+            "min": [ -256.0, -256.0, -64.0 ],
+            "max": [ 256.0, 256.0, 0.0 ]
+        },
+        {
+            "comment": "Ceiling",
+            "type": "cuboid_brush",
+            "min": [ -256.0, -256.0, 128.0 ],
+            "max": [ 256.0, 256.0, 192.0 ]
+        },
+        {
+            "comment": "North wall",
+            "type": "cuboid_brush",
+            "min": [ -256.0, 256.0, 0.0 ],
+            "max": [ 256.0, 320.0, 128.0 ]
+        },
+        {
+            "comment": "South wall",
+            "type": "cuboid_brush",
+            "min": [ -256.0, -320.0, 0.0 ],
+            "max": [ 256.0, -256.0, 128.0 ]
+        },
+        {
+            "comment": "East wall",
+            "type": "cuboid_brush",
+            "min": [ 256.0, -256.0, 0.0 ],
+            "max": [ 320.0, 256.0, 128.0 ]
+        },
+        {
+            "comment": "West wall",
+            "type": "cuboid_brush",
+            "min": [ -320.0, -256.0, 0.0 ],
+            "max": [ -256.0, 256.0, 128.0 ]
+        }
+    ]
+}
