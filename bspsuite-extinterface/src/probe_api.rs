@@ -71,6 +71,7 @@ pub mod internal
 {
 	use super::*;
 	use crate::api_info::ApiInfo;
+	use crate::map_format_api;
 
 	#[doc(hidden)]
 	#[repr(C)]
@@ -106,6 +107,7 @@ pub mod internal
 	{
 		pub log_api: ApiProvider<log_api::LogApi>,
 		pub dummy_api: CallbacksContainer<dummy_api::DummyCallbacks>,
+		pub map_format_api: CallbacksContainer<map_format_api::MapFormatCallbacks>,
 	}
 
 	#[doc(hidden)]

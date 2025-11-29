@@ -2,7 +2,6 @@
 
 use super::api_info::ApiInfo;
 use std::ffi::c_void;
-use std::marker::{PhantomData, PhantomPinned};
 
 // Each API has a name and a version.
 pub const API_INFO: ApiInfo = ApiInfo::new("DummyApi", 1);

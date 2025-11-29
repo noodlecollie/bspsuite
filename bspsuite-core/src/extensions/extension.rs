@@ -4,7 +4,7 @@ use bspextifc::probe_api::ProbeResult;
 use bspextifc::probe_api::internal::{ApiProvider, CallbacksContainer, ExportedApis};
 use bspextifc::{
 	EXTENSION_INFO_VERSION, ExtensionInfo, ExtensionInfoVersionType, SYMBOL_EXTENSION_INFO,
-	SYMBOL_EXTENSION_INFO_VERSION, dummy_api, log_api, probe_api,
+	SYMBOL_EXTENSION_INFO_VERSION, dummy_api, log_api, map_format_api, probe_api,
 };
 use libloading::{Library, Symbol};
 use log::{debug, trace};
@@ -19,6 +19,7 @@ pub use libloading::os::windows::Symbol as UnsafeSymbol;
 pub struct ApiCallbacks
 {
 	pub dummy_api_callbacks: Option<dummy_api::DummyCallbacks>,
+	pub map_format_api_callbacks: Option<map_format_api::MapFormatCallbacks>,
 }
 
 impl Default for ApiCallbacks
@@ -27,6 +28,7 @@ impl Default for ApiCallbacks
 	{
 		return Self {
 			dummy_api_callbacks: None,
+			map_format_api_callbacks: None,
 		};
 	}
 }
@@ -133,6 +135,7 @@ impl Extension
 
 		self.api_callbacks = result.map_or(ApiCallbacks::default(), |callbacks| ApiCallbacks {
 			dummy_api_callbacks: callbacks.dummy_api.take_callbacks(),
+			map_format_api_callbacks: callbacks.map_format_api.take_callbacks(),
 		});
 
 		return Ok(());
@@ -159,6 +162,7 @@ impl Extension
 		return ExportedApis {
 			log_api: ApiProvider::new(&log_api::API_INFO, api_impl::log_api::create_api()),
 			dummy_api: CallbacksContainer::new(&dummy_api::API_INFO),
+			map_format_api: CallbacksContainer::new(&map_format_api::API_INFO),
 		};
 	}
 

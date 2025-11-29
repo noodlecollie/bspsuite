@@ -1,10 +1,12 @@
 use crate::extensions::dummy_api::call_dummy_api;
+use crate::extensions::map_format_api::register_map_formats;
 use crate::toolchain::Toolchain;
 use std::path::PathBuf;
 
 pub enum ExtensionFeature
 {
 	DummyFeature,
+	MapFormatFeature,
 }
 
 pub struct PipelineBuilder
@@ -38,6 +40,7 @@ impl PipelineBuilder
 		return match feature
 		{
 			ExtensionFeature::DummyFeature => self.set_up_dummy_feature(),
+			ExtensionFeature::MapFormatFeature => self.register_map_formats(),
 		};
 	}
 
@@ -47,6 +50,18 @@ impl PipelineBuilder
 			if let Some(callbacks) = &extension.get_api_callbacks().dummy_api_callbacks
 			{
 				call_dummy_api(callbacks.entry_point);
+			}
+		});
+
+		return self;
+	}
+
+	fn register_map_formats(self) -> Self
+	{
+		self.toolchain.extensions().iter().for_each(|extension| {
+			if let Some(callbacks) = &extension.get_api_callbacks().map_format_api_callbacks
+			{
+				register_map_formats(extension.get_name(), callbacks.register_map_formats);
 			}
 		});
 
