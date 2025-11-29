@@ -1,6 +1,6 @@
+use super::opaque_ptr::OpaqueMutPtr;
 use bspextifc::dummy_api;
 use std::ffi::c_void;
-use std::marker::PhantomData;
 
 struct DummyApiImpl
 {
@@ -32,14 +32,15 @@ impl DummyApiImpl
 pub fn call_dummy_api(entry_point: dummy_api::EntryPointFn)
 {
 	let mut api_impl: DummyApiImpl = DummyApiImpl::new(42);
-	let mut core_fns: dummy_api::internal::DummyApiCoreFns = dummy_api::internal::DummyApiCoreFns {
-		context: &mut api_impl as *mut DummyApiImpl as *mut c_void,
-		phantom: PhantomData,
+	let mut context: OpaqueMutPtr<DummyApiImpl> = OpaqueMutPtr::new(&mut api_impl);
+
+	let core_fns: dummy_api::internal::DummyApiCoreFns = dummy_api::internal::DummyApiCoreFns {
+		context: context.as_mut_void_ref(),
 		store_number_fn: store_number,
 		get_magic_number_fn: get_magic_number,
 	};
 
-	let mut api: dummy_api::DummyApi = dummy_api::internal::create_dummy_api(&mut core_fns);
+	let mut api: dummy_api::DummyApi = dummy_api::internal::create_dummy_api(core_fns);
 	entry_point(&mut api);
 }
 
