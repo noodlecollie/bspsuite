@@ -1,6 +1,6 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use crate::extensions::extension::ExtensionRc;
-use crate::extensions::strong_callbacks::StrongCallbacks as InnerCb;
+use crate::extensions::extension_resource::ExtensionResource as InnerCb;
 use bspextifc::dummy_api;
 use std::ffi::c_void;
 

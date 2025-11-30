@@ -1,13 +1,13 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use crate::extensions::extension::ExtensionRc;
-use crate::extensions::strong_callbacks::StrongCallbacks as InnerCb;
+use crate::extensions::extension_resource::ExtensionResource as StrongCb;
 use bspextifc::{StringRef, map_format_api};
 use log::{debug, warn};
 use std::ffi::c_void;
 
 pub struct StrongCallbacks
 {
-	cb: InnerCb<map_format_api::Callbacks>,
+	cb: StrongCb<map_format_api::Callbacks>,
 }
 
 impl StrongCallbacks
@@ -15,14 +15,14 @@ impl StrongCallbacks
 	pub fn new(extension: ExtensionRc, callbacks: map_format_api::Callbacks) -> Self
 	{
 		return Self {
-			cb: InnerCb::new(extension, callbacks),
+			cb: StrongCb::new(extension, callbacks),
 		};
 	}
 
 	pub fn register_map_formats(&self) -> Vec<MapFormatEntry>
 	{
-		let mut api_impl: MapFormatApiImpl = MapFormatApiImpl::new(self.cb.extension().get_name());
-		let mut context: OpaqueMutPtr<MapFormatApiImpl> = OpaqueMutPtr::new(&mut api_impl);
+		let mut api_impl: ApiImpl = ApiImpl::new(self.cb.extension_rc());
+		let mut context: OpaqueMutPtr<ApiImpl> = OpaqueMutPtr::new(&mut api_impl);
 
 		let core_fns: map_format_api::internal::CoreFns = map_format_api::internal::CoreFns {
 			context: context.as_mut_void_ref(),
@@ -40,32 +40,36 @@ impl StrongCallbacks
 pub struct MapFormatEntry
 {
 	pub format_name: String,
-	pub parse_fn: map_format_api::MapParseFn,
+	pub parse_fn: StrongCb<map_format_api::MapParseFn>,
 }
 
-struct MapFormatApiImpl<'l>
+struct ApiImpl
 {
-	extension_name: &'l str,
+	extension: ExtensionRc,
 	formats: Vec<MapFormatEntry>,
 }
 
 impl MapFormatEntry
 {
-	pub fn new(format_name: String, parse_fn: map_format_api::MapParseFn) -> Self
+	pub fn new(
+		extension: ExtensionRc,
+		format_name: String,
+		parse_fn: map_format_api::MapParseFn,
+	) -> Self
 	{
 		return Self {
 			format_name: format_name,
-			parse_fn: parse_fn,
+			parse_fn: StrongCb::new(extension, parse_fn),
 		};
 	}
 }
 
-impl<'l> MapFormatApiImpl<'l>
+impl ApiImpl
 {
-	pub fn new(extension_name: &'l str) -> Self
+	pub fn new(extesion: ExtensionRc) -> Self
 	{
 		return Self {
-			extension_name: extension_name,
+			extension: extesion,
 			formats: Vec::new(),
 		};
 	}
@@ -79,19 +83,22 @@ impl<'l> MapFormatApiImpl<'l>
 		{
 			warn!(
 				"Overriding existing registered parse function for extension {} map format {format_name}",
-				self.extension_name
+				self.extension.get_name()
 			);
-			entry.parse_fn = parse_fn;
+			entry.parse_fn = StrongCb::new(self.extension.clone(), parse_fn);
 		}
 		else
 		{
 			debug!(
 				"Extension {} registered support for map format {format_name}",
-				self.extension_name
+				self.extension.get_name()
 			);
 
-			self.formats
-				.push(MapFormatEntry::new(format_name, parse_fn));
+			self.formats.push(MapFormatEntry::new(
+				self.extension.clone(),
+				format_name,
+				parse_fn,
+			));
 		}
 	}
 
@@ -108,7 +115,6 @@ unsafe extern "C" fn register_map_format(
 )
 {
 	unsafe {
-		(*context.cast::<MapFormatApiImpl>())
-			.register_map_format(format_name.to_string(), parse_fn);
+		(*context.cast::<ApiImpl>()).register_map_format(format_name.to_string(), parse_fn);
 	};
 }

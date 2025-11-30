@@ -1,6 +1,6 @@
 mod extension;
 mod extension_list;
-mod strong_callbacks;
+mod extension_resource;
 
 mod api_impl;
 
