@@ -1,4 +1,4 @@
-use super::api_impl;
+use crate::extensions::api_impl::{dummy_api_impl, log_api_impl, map_format_api_impl};
 use anyhow::{Context, Result, bail};
 use bspextifc::probe_api::ProbeResult;
 use bspextifc::probe_api::internal::{ApiProvider, CallbacksContainer, ExportedApis};
@@ -13,16 +13,16 @@ use std::rc::Rc;
 use target_lexicon::{HOST, OperatingSystem};
 
 #[cfg(target_os = "linux")]
-pub use libloading::os::unix::Symbol as UnsafeSymbol;
+use libloading::os::unix::Symbol as UnsafeSymbol;
 #[cfg(target_os = "windows")]
-pub use libloading::os::windows::Symbol as UnsafeSymbol;
+use libloading::os::windows::Symbol as UnsafeSymbol;
 
 pub type ExtensionRc = Rc<Extension>;
 
 pub struct ApiCallbacks
 {
-	pub dummy_api_callbacks: Option<api_impl::dummy_api::DummyApiStrongCallbacks>,
-	pub map_format_api_callbacks: Option<api_impl::map_format_api::MapFormatStrongCallbacks>,
+	pub dummy_api_callbacks: Option<dummy_api_impl::DummyApiStrongCallbacks>,
+	pub map_format_api_callbacks: Option<map_format_api_impl::MapFormatStrongCallbacks>,
 }
 
 impl Default for ApiCallbacks
@@ -142,11 +142,12 @@ impl Extension
 
 		let api_callbacks: ApiCallbacks =
 			result.map_or(ApiCallbacks::default(), |callbacks| ApiCallbacks {
-				dummy_api_callbacks: callbacks.dummy_api.take_callbacks().map(|cb| {
-					api_impl::dummy_api::DummyApiStrongCallbacks::new(ext_rc.clone(), cb)
-				}),
+				dummy_api_callbacks: callbacks
+					.dummy_api
+					.take_callbacks()
+					.map(|cb| dummy_api_impl::DummyApiStrongCallbacks::new(ext_rc.clone(), cb)),
 				map_format_api_callbacks: callbacks.map_format_api.take_callbacks().map(|cb| {
-					api_impl::map_format_api::MapFormatStrongCallbacks::new(ext_rc.clone(), cb)
+					map_format_api_impl::MapFormatStrongCallbacks::new(ext_rc.clone(), cb)
 				}),
 			});
 
@@ -174,7 +175,7 @@ impl Extension
 	fn create_exported_apis() -> ExportedApis
 	{
 		return ExportedApis {
-			log_api: ApiProvider::new(&log_api::API_INFO, api_impl::log_api::create_api()),
+			log_api: ApiProvider::new(&log_api::API_INFO, log_api_impl::create_api()),
 			dummy_api: CallbacksContainer::new(&dummy_api::API_INFO),
 			map_format_api: CallbacksContainer::new(&map_format_api::API_INFO),
 		};
