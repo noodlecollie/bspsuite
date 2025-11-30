@@ -9,12 +9,15 @@ use bspextifc::{
 use libloading::{Library, Symbol};
 use log::{debug, trace};
 use std::path::PathBuf;
+use std::rc::Rc;
 use target_lexicon::{HOST, OperatingSystem};
 
 #[cfg(target_os = "linux")]
 pub use libloading::os::unix::Symbol as UnsafeSymbol;
 #[cfg(target_os = "windows")]
 pub use libloading::os::windows::Symbol as UnsafeSymbol;
+
+pub type ExtensionRc = Rc<Extension>;
 
 pub struct ApiCallbacks
 {
