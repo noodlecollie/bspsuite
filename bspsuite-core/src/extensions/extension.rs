@@ -21,8 +21,8 @@ pub type ExtensionRc = Rc<Extension>;
 
 pub struct ApiCallbacks
 {
-	pub dummy_api_callbacks: Option<dummy_api::DummyCallbacks>,
-	pub map_format_api_callbacks: Option<map_format_api::MapFormatCallbacks>,
+	pub dummy_api_callbacks: Option<api_impl::dummy_api::DummyApiStrongCallbacks>,
+	pub map_format_api_callbacks: Option<api_impl::map_format_api::MapFormatStrongCallbacks>,
 }
 
 impl Default for ApiCallbacks
@@ -127,19 +127,30 @@ impl Extension
 		return &self.api_callbacks;
 	}
 
-	pub fn probe(&mut self) -> Result<()>
+	pub fn probe(extension: &mut ExtensionRc) -> Result<()>
 	{
-		let result: Result<ExportedApis> = self.probe_and_return_callbacks();
+		let ext_rc: ExtensionRc = extension.clone();
+		let ext_mut = Rc::get_mut(extension)
+			.ok_or_else(|| anyhow::Error::msg("Could not get mutable reference to extension"))?;
+
+		let result: Result<ExportedApis> = ext_mut.probe_and_return_callbacks();
 
 		if let Err(err) = result
 		{
 			return Err(err);
 		}
 
-		self.api_callbacks = result.map_or(ApiCallbacks::default(), |callbacks| ApiCallbacks {
-			dummy_api_callbacks: callbacks.dummy_api.take_callbacks(),
-			map_format_api_callbacks: callbacks.map_format_api.take_callbacks(),
-		});
+		let api_callbacks: ApiCallbacks =
+			result.map_or(ApiCallbacks::default(), |callbacks| ApiCallbacks {
+				dummy_api_callbacks: callbacks.dummy_api.take_callbacks().map(|cb| {
+					api_impl::dummy_api::DummyApiStrongCallbacks::new(ext_rc.clone(), cb)
+				}),
+				map_format_api_callbacks: callbacks.map_format_api.take_callbacks().map(|cb| {
+					api_impl::map_format_api::MapFormatStrongCallbacks::new(ext_rc.clone(), cb)
+				}),
+			});
+
+		ext_mut.api_callbacks = api_callbacks;
 
 		return Ok(());
 	}

@@ -77,17 +77,14 @@ impl ExtensionList
 
 		// Retain only the extensions where probe succeeds.
 		extensions.retain_mut(|ext_rc| {
-			// There should be no other mutable references to the extension
-			// at this stage, so we can expect() here.
-			let ext: &mut Extension = Rc::get_mut(ext_rc)
-				.expect("Expected to be able to get mutable reference to extension");
+			debug!("Probing extension {}", ext_rc.get_name());
 
-			debug!("Probing extension {}", ext.get_name());
-
-			ext.probe().map(|_| true).unwrap_or_else(|err| {
-				warn!("Probe failed for extension {}. {err}", ext.get_name());
-				false
-			})
+			Extension::probe(ext_rc)
+				.map(|_| true)
+				.unwrap_or_else(|err| {
+					warn!("Probe failed for extension {}. {err}", ext_rc.get_name());
+					false
+				})
 		});
 
 		self.extensions = extensions;

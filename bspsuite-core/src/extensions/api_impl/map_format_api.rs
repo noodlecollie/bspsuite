@@ -1,8 +1,42 @@
 use super::opaque_ptr::OpaqueMutPtr;
-use bspextifc::map_format_api::{MapFormatApi, MapParseFn, RegisterMapFormatsFn};
+use crate::extensions::extension::ExtensionRc;
+use crate::extensions::strong_callbacks::StrongCallbacks;
+use bspextifc::map_format_api::{MapFormatApi, MapParseFn};
 use bspextifc::{StringRef, map_format_api};
 use log::{debug, warn};
 use std::ffi::c_void;
+
+pub struct MapFormatStrongCallbacks
+{
+	cb: StrongCallbacks<map_format_api::MapFormatCallbacks>,
+}
+
+impl MapFormatStrongCallbacks
+{
+	pub fn new(extension: ExtensionRc, callbacks: map_format_api::MapFormatCallbacks) -> Self
+	{
+		return Self {
+			cb: StrongCallbacks::new(extension, callbacks),
+		};
+	}
+
+	pub fn register_map_formats(&self) -> Vec<MapFormatEntry>
+	{
+		let mut api_impl: MapFormatApiImpl = MapFormatApiImpl::new(self.cb.extension().get_name());
+		let mut context: OpaqueMutPtr<MapFormatApiImpl> = OpaqueMutPtr::new(&mut api_impl);
+
+		let core_fns: map_format_api::internal::MapFormatApiCoreFns =
+			map_format_api::internal::MapFormatApiCoreFns {
+				context: context.as_mut_void_ref(),
+				register_map_format_fn: register_map_format,
+			};
+
+		let mut api: MapFormatApi = map_format_api::internal::create_map_format_api(core_fns);
+		(self.cb.register_map_formats)(&mut api);
+
+		return api_impl.finish();
+	}
+}
 
 pub struct MapFormatEntry
 {
@@ -66,26 +100,6 @@ impl<'l> MapFormatApiImpl<'l>
 	{
 		return self.formats;
 	}
-}
-
-pub fn register_map_formats(
-	extension_name: &str,
-	registration_fn: RegisterMapFormatsFn,
-) -> Vec<MapFormatEntry>
-{
-	let mut api_impl: MapFormatApiImpl = MapFormatApiImpl::new(extension_name);
-	let mut context: OpaqueMutPtr<MapFormatApiImpl> = OpaqueMutPtr::new(&mut api_impl);
-
-	let core_fns: map_format_api::internal::MapFormatApiCoreFns =
-		map_format_api::internal::MapFormatApiCoreFns {
-			context: context.as_mut_void_ref(),
-			register_map_format_fn: register_map_format,
-		};
-
-	let mut api: MapFormatApi = map_format_api::internal::create_map_format_api(core_fns);
-	registration_fn(&mut api);
-
-	return api_impl.finish();
 }
 
 unsafe extern "C" fn register_map_format(
