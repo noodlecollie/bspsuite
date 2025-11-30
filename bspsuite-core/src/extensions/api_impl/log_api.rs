@@ -1,11 +1,11 @@
 use std::fmt::Arguments;
 
-use bspextifc::log_api::{LogApi, LogMessageArgs};
+use bspextifc::log_api;
 use log::{Record, RecordBuilder};
 
-pub fn create_api() -> LogApi
+pub fn create_api() -> log_api::Api
 {
-	return LogApi {
+	return log_api::Api {
 		get_log_level_filter_fn: get_log_level_filter,
 		log_fn: log_message,
 	};
@@ -16,7 +16,7 @@ extern "C" fn get_log_level_filter() -> log::LevelFilter
 	return log::max_level();
 }
 
-extern "C" fn log_message(args: &LogMessageArgs)
+extern "C" fn log_message(args: &log_api::LogMessageArgs)
 {
 	let msg_string: String = args.msg.to_string();
 	let msg_args: Arguments = format_args!("{}", msg_string);

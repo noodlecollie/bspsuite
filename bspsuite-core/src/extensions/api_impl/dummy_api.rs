@@ -6,12 +6,12 @@ use std::ffi::c_void;
 
 pub struct DummyApiStrongCallbacks
 {
-	cb: StrongCallbacks<dummy_api::DummyCallbacks>,
+	cb: StrongCallbacks<dummy_api::Callbacks>,
 }
 
 impl DummyApiStrongCallbacks
 {
-	pub fn new(extension: ExtensionRc, callbacks: dummy_api::DummyCallbacks) -> Self
+	pub fn new(extension: ExtensionRc, callbacks: dummy_api::Callbacks) -> Self
 	{
 		return Self {
 			cb: StrongCallbacks::new(extension, callbacks),
@@ -23,13 +23,13 @@ impl DummyApiStrongCallbacks
 		let mut api_impl: DummyApiImpl = DummyApiImpl::new(42);
 		let mut context: OpaqueMutPtr<DummyApiImpl> = OpaqueMutPtr::new(&mut api_impl);
 
-		let core_fns: dummy_api::internal::DummyApiCoreFns = dummy_api::internal::DummyApiCoreFns {
+		let core_fns: dummy_api::internal::CoreFns = dummy_api::internal::CoreFns {
 			context: context.as_mut_void_ref(),
 			store_number_fn: store_number,
 			get_magic_number_fn: get_magic_number,
 		};
 
-		let mut api: dummy_api::DummyApi = dummy_api::internal::create_dummy_api(core_fns);
+		let mut api: dummy_api::Api = dummy_api::internal::create_dummy_api(core_fns);
 		(self.cb.entry_point)(&mut api);
 	}
 }

@@ -143,12 +143,12 @@ impl Extension
 		let api_callbacks: ApiCallbacks =
 			result.map_or(ApiCallbacks::default(), |callbacks| ApiCallbacks {
 				dummy_api_callbacks: callbacks
-					.dummy_api
+					.dummy_callbacks
 					.take_callbacks()
 					.map(|cb| dummy_api_impl::DummyApiStrongCallbacks::new(ext_rc.clone(), cb)),
-				map_format_api_callbacks: callbacks.map_format_api.take_callbacks().map(|cb| {
-					map_format_api_impl::MapFormatStrongCallbacks::new(ext_rc.clone(), cb)
-				}),
+				map_format_api_callbacks: callbacks.map_format_callbacks.take_callbacks().map(
+					|cb| map_format_api_impl::MapFormatStrongCallbacks::new(ext_rc.clone(), cb),
+				),
 			});
 
 		ext_mut.api_callbacks = api_callbacks;
@@ -176,8 +176,8 @@ impl Extension
 	{
 		return ExportedApis {
 			log_api: ApiProvider::new(&log_api::API_INFO, log_api_impl::create_api()),
-			dummy_api: CallbacksContainer::new(&dummy_api::API_INFO),
-			map_format_api: CallbacksContainer::new(&map_format_api::API_INFO),
+			dummy_callbacks: CallbacksContainer::new(&dummy_api::API_INFO),
+			map_format_callbacks: CallbacksContainer::new(&map_format_api::API_INFO),
 		};
 	}
 

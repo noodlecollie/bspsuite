@@ -1,19 +1,18 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use crate::extensions::extension::ExtensionRc;
 use crate::extensions::strong_callbacks::StrongCallbacks;
-use bspextifc::map_format_api::{MapFormatApi, MapParseFn};
 use bspextifc::{StringRef, map_format_api};
 use log::{debug, warn};
 use std::ffi::c_void;
 
 pub struct MapFormatStrongCallbacks
 {
-	cb: StrongCallbacks<map_format_api::MapFormatCallbacks>,
+	cb: StrongCallbacks<map_format_api::Callbacks>,
 }
 
 impl MapFormatStrongCallbacks
 {
-	pub fn new(extension: ExtensionRc, callbacks: map_format_api::MapFormatCallbacks) -> Self
+	pub fn new(extension: ExtensionRc, callbacks: map_format_api::Callbacks) -> Self
 	{
 		return Self {
 			cb: StrongCallbacks::new(extension, callbacks),
@@ -25,13 +24,13 @@ impl MapFormatStrongCallbacks
 		let mut api_impl: MapFormatApiImpl = MapFormatApiImpl::new(self.cb.extension().get_name());
 		let mut context: OpaqueMutPtr<MapFormatApiImpl> = OpaqueMutPtr::new(&mut api_impl);
 
-		let core_fns: map_format_api::internal::MapFormatApiCoreFns =
-			map_format_api::internal::MapFormatApiCoreFns {
-				context: context.as_mut_void_ref(),
-				register_map_format_fn: register_map_format,
-			};
+		let core_fns: map_format_api::internal::CoreFns = map_format_api::internal::CoreFns {
+			context: context.as_mut_void_ref(),
+			register_map_format_fn: register_map_format,
+		};
 
-		let mut api: MapFormatApi = map_format_api::internal::create_map_format_api(core_fns);
+		let mut api: map_format_api::Api =
+			map_format_api::internal::create_map_format_api(core_fns);
 		(self.cb.register_map_formats)(&mut api);
 
 		return api_impl.finish();
@@ -41,7 +40,7 @@ impl MapFormatStrongCallbacks
 pub struct MapFormatEntry
 {
 	pub format_name: String,
-	pub parse_fn: MapParseFn,
+	pub parse_fn: map_format_api::MapParseFn,
 }
 
 struct MapFormatApiImpl<'l>
@@ -52,7 +51,7 @@ struct MapFormatApiImpl<'l>
 
 impl MapFormatEntry
 {
-	pub fn new(format_name: String, parse_fn: MapParseFn) -> Self
+	pub fn new(format_name: String, parse_fn: map_format_api::MapParseFn) -> Self
 	{
 		return Self {
 			format_name: format_name,
@@ -71,7 +70,7 @@ impl<'l> MapFormatApiImpl<'l>
 		};
 	}
 
-	pub fn register_map_format(&mut self, format_name: String, parse_fn: MapParseFn)
+	pub fn register_map_format(&mut self, format_name: String, parse_fn: map_format_api::MapParseFn)
 	{
 		if let Some(entry) = self
 			.formats
@@ -105,7 +104,7 @@ impl<'l> MapFormatApiImpl<'l>
 unsafe extern "C" fn register_map_format(
 	context: *mut c_void,
 	format_name: &StringRef,
-	parse_fn: MapParseFn,
+	parse_fn: map_format_api::MapParseFn,
 )
 {
 	unsafe {

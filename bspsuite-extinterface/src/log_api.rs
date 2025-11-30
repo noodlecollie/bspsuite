@@ -6,7 +6,7 @@ pub const API_INFO: ApiInfo = ApiInfo::new("LogApi", 1);
 
 #[repr(C)]
 #[derive(Clone)]
-pub struct LogApi
+pub struct Api
 {
 	pub get_log_level_filter_fn: extern "C" fn() -> log::LevelFilter,
 	pub log_fn: extern "C" fn(&LogMessageArgs),
@@ -25,12 +25,12 @@ pub struct LogMessageArgs<'l>
 
 pub struct ExtensionLogger
 {
-	log_api: LogApi,
+	log_api: Api,
 }
 
 impl ExtensionLogger
 {
-	pub fn assign_static_logger(log_api: LogApi) -> Result<(), log::SetLoggerError>
+	pub fn assign_static_logger(log_api: Api) -> Result<(), log::SetLoggerError>
 	{
 		let filter: log::LevelFilter = (log_api.get_log_level_filter_fn)();
 

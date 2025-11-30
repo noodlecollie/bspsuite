@@ -1,5 +1,5 @@
 use super::string_ref::StringRef;
-use super::{dummy_api, log_api};
+use super::{dummy_api, log_api, map_format_api};
 use log::{error, trace};
 use std::result::Result;
 
@@ -42,7 +42,7 @@ impl<'l> ProbeApi<'l>
 	pub fn request_log_api(
 		&mut self,
 		requested_version: usize,
-	) -> Result<log_api::LogApi, RequestError>
+	) -> Result<log_api::Api, RequestError>
 	{
 		return internal::ExportedApis::request_get_api(
 			self.extension_name.to_string().as_str(),
@@ -54,12 +54,26 @@ impl<'l> ProbeApi<'l>
 	pub fn register_dummy_api_callbacks(
 		&mut self,
 		requested_version: usize,
-		callbacks: dummy_api::DummyCallbacks,
+		callbacks: dummy_api::Callbacks,
 	) -> Result<(), RequestError>
 	{
 		return internal::ExportedApis::request_set_callbacks(
 			self.extension_name.to_string().as_str(),
-			&mut self.apis.dummy_api,
+			&mut self.apis.dummy_callbacks,
+			requested_version,
+			callbacks,
+		);
+	}
+
+	pub fn register_map_format_api_callbacks(
+		&mut self,
+		requested_version: usize,
+		callbacks: map_format_api::Callbacks,
+	) -> Result<(), RequestError>
+	{
+		return internal::ExportedApis::request_set_callbacks(
+			self.extension_name.to_string().as_str(),
+			&mut self.apis.map_format_callbacks,
 			requested_version,
 			callbacks,
 		);
@@ -105,9 +119,9 @@ pub mod internal
 	#[repr(C)]
 	pub struct ExportedApis
 	{
-		pub log_api: ApiProvider<log_api::LogApi>,
-		pub dummy_api: CallbacksContainer<dummy_api::DummyCallbacks>,
-		pub map_format_api: CallbacksContainer<map_format_api::MapFormatCallbacks>,
+		pub log_api: ApiProvider<log_api::Api>,
+		pub dummy_callbacks: CallbacksContainer<dummy_api::Callbacks>,
+		pub map_format_callbacks: CallbacksContainer<map_format_api::Callbacks>,
 	}
 
 	#[doc(hidden)]

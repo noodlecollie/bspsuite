@@ -13,7 +13,7 @@ extern "C" fn probe(api: &mut probe_api::ProbeApi) -> probe_api::ProbeResult
 		return probe_api::ProbeResult::Failure;
 	}
 
-	let dummy_callbacks: dummy_api::DummyCallbacks = dummy_api::DummyCallbacks {
+	let dummy_callbacks: dummy_api::Callbacks = dummy_api::Callbacks {
 		entry_point: dummyapi_entry_point,
 	};
 
@@ -26,7 +26,7 @@ extern "C" fn probe(api: &mut probe_api::ProbeApi) -> probe_api::ProbeResult
 	return probe_api::ProbeResult::Success;
 }
 
-extern "C" fn dummyapi_entry_point(api: &mut dummy_api::DummyApi)
+extern "C" fn dummyapi_entry_point(api: &mut dummy_api::Api)
 {
 	let magic_number: i32 = api.get_magic_number();
 	info!("Magic number from dummy API: {magic_number}");

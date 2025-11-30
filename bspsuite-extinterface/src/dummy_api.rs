@@ -10,24 +10,24 @@ pub const API_INFO: ApiInfo = ApiInfo::new("DummyApi", 1);
 // The core API calls a function like this on the
 // extension in order to run extension code for
 // this API.
-pub type EntryPointFn = extern "C" fn(&mut DummyApi);
+pub type EntryPointFn = extern "C" fn(&mut Api);
 
 // The functions an extension can call to interact with the
 // core library are on a struct named "<api name>Api".
 #[repr(C)]
-pub struct DummyApi<'l>
+pub struct Api<'l>
 {
 	// This struct owns the internal, unsafe implementation of the
 	// functions defined in the core API, and it wraps them for
 	// the extension to call them.
-	fns: internal::DummyApiCoreFns<'l>,
+	fns: internal::CoreFns<'l>,
 }
 
 // The functions the core library can call to interact with
 // the extension are on a struct named "<api name>Callbacks".
 #[repr(C)]
 #[derive(Clone)]
-pub struct DummyCallbacks
+pub struct Callbacks
 {
 	// This function is called by the core library.
 	// It executes code in the extension library.
@@ -37,7 +37,7 @@ pub struct DummyCallbacks
 
 // Shim wrapper functions for calling into the core library from
 // the extension.
-impl<'l> DummyApi<'l>
+impl<'l> Api<'l>
 {
 	// Store a number in the core library.
 	pub fn store_number(&mut self, value: i32)
@@ -70,7 +70,7 @@ pub mod internal
 	// - Functions stored in the struct convert the context pointer to the correct
 	//   type before they use it.
 	#[repr(C)]
-	pub struct DummyApiCoreFns<'l>
+	pub struct CoreFns<'l>
 	{
 		// Arbitrary context pointer for the core library functions.
 		// The lifetime indicates that the context must live at least
@@ -83,8 +83,8 @@ pub mod internal
 	}
 
 	// Called by the core library in order to create the dummy API struct.
-	pub fn create_dummy_api<'l>(fns: internal::DummyApiCoreFns<'l>) -> DummyApi<'l>
+	pub fn create_dummy_api<'l>(fns: internal::CoreFns<'l>) -> Api<'l>
 	{
-		return DummyApi { fns: fns };
+		return Api { fns: fns };
 	}
 }
