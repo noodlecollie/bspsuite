@@ -1,27 +1,27 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use crate::extensions::extension::ExtensionRc;
-use crate::extensions::strong_callbacks::StrongCallbacks;
+use crate::extensions::strong_callbacks::StrongCallbacks as InnerCb;
 use bspextifc::dummy_api;
 use std::ffi::c_void;
 
-pub struct DummyApiStrongCallbacks
+pub struct StrongCallbacks
 {
-	cb: StrongCallbacks<dummy_api::Callbacks>,
+	cb: InnerCb<dummy_api::Callbacks>,
 }
 
-impl DummyApiStrongCallbacks
+impl StrongCallbacks
 {
 	pub fn new(extension: ExtensionRc, callbacks: dummy_api::Callbacks) -> Self
 	{
 		return Self {
-			cb: StrongCallbacks::new(extension, callbacks),
+			cb: InnerCb::new(extension, callbacks),
 		};
 	}
 
 	pub fn entry_point(&self)
 	{
-		let mut api_impl: DummyApiImpl = DummyApiImpl::new(42);
-		let mut context: OpaqueMutPtr<DummyApiImpl> = OpaqueMutPtr::new(&mut api_impl);
+		let mut api_impl: ApiImpl = ApiImpl::new(42);
+		let mut context: OpaqueMutPtr<ApiImpl> = OpaqueMutPtr::new(&mut api_impl);
 
 		let core_fns: dummy_api::internal::CoreFns = dummy_api::internal::CoreFns {
 			context: context.as_mut_void_ref(),
@@ -34,13 +34,13 @@ impl DummyApiStrongCallbacks
 	}
 }
 
-struct DummyApiImpl
+struct ApiImpl
 {
 	magic_number: i32,
 	numbers: Vec<i32>,
 }
 
-impl DummyApiImpl
+impl ApiImpl
 {
 	pub fn new(magic_number: i32) -> Self
 	{
@@ -63,10 +63,10 @@ impl DummyApiImpl
 
 unsafe extern "C" fn store_number(context: *mut c_void, value: i32)
 {
-	unsafe { (*context.cast::<DummyApiImpl>()).store_number(value) };
+	unsafe { (*context.cast::<ApiImpl>()).store_number(value) };
 }
 
 unsafe extern "C" fn get_magic_number(context: *const c_void) -> i32
 {
-	return unsafe { (*context.cast::<DummyApiImpl>()).get_magic_number() };
+	return unsafe { (*context.cast::<ApiImpl>()).get_magic_number() };
 }

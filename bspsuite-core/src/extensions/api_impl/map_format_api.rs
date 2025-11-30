@@ -1,21 +1,21 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use crate::extensions::extension::ExtensionRc;
-use crate::extensions::strong_callbacks::StrongCallbacks;
+use crate::extensions::strong_callbacks::StrongCallbacks as InnerCb;
 use bspextifc::{StringRef, map_format_api};
 use log::{debug, warn};
 use std::ffi::c_void;
 
-pub struct MapFormatStrongCallbacks
+pub struct StrongCallbacks
 {
-	cb: StrongCallbacks<map_format_api::Callbacks>,
+	cb: InnerCb<map_format_api::Callbacks>,
 }
 
-impl MapFormatStrongCallbacks
+impl StrongCallbacks
 {
 	pub fn new(extension: ExtensionRc, callbacks: map_format_api::Callbacks) -> Self
 	{
 		return Self {
-			cb: StrongCallbacks::new(extension, callbacks),
+			cb: InnerCb::new(extension, callbacks),
 		};
 	}
 

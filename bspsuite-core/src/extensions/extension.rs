@@ -21,8 +21,8 @@ pub type ExtensionRc = Rc<Extension>;
 
 pub struct ApiCallbacks
 {
-	pub dummy_api_callbacks: Option<dummy_api_impl::DummyApiStrongCallbacks>,
-	pub map_format_api_callbacks: Option<map_format_api_impl::MapFormatStrongCallbacks>,
+	pub dummy_api_callbacks: Option<dummy_api_impl::StrongCallbacks>,
+	pub map_format_api_callbacks: Option<map_format_api_impl::StrongCallbacks>,
 }
 
 impl Default for ApiCallbacks
@@ -145,10 +145,11 @@ impl Extension
 				dummy_api_callbacks: callbacks
 					.dummy_callbacks
 					.take_callbacks()
-					.map(|cb| dummy_api_impl::DummyApiStrongCallbacks::new(ext_rc.clone(), cb)),
-				map_format_api_callbacks: callbacks.map_format_callbacks.take_callbacks().map(
-					|cb| map_format_api_impl::MapFormatStrongCallbacks::new(ext_rc.clone(), cb),
-				),
+					.map(|cb| dummy_api_impl::StrongCallbacks::new(ext_rc.clone(), cb)),
+				map_format_api_callbacks: callbacks
+					.map_format_callbacks
+					.take_callbacks()
+					.map(|cb| map_format_api_impl::StrongCallbacks::new(ext_rc.clone(), cb)),
 			});
 
 		ext_mut.api_callbacks = api_callbacks;
