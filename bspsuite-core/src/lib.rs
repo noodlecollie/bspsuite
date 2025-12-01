@@ -3,6 +3,7 @@ use constcat::concat;
 
 mod compiler_error;
 mod extensions;
+mod map_format_registry;
 mod model;
 mod pipeline;
 mod toolchain;

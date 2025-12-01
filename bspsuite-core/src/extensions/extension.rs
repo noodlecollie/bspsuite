@@ -127,10 +127,10 @@ impl Extension
 		return &self.api_callbacks;
 	}
 
-	pub fn probe(extension: &mut ExtensionRc) -> Result<()>
+	pub fn probe(extension: &ExtensionRc) -> Result<()>
 	{
-		let ext_rc: ExtensionRc = extension.clone();
-		let ext_mut = Rc::get_mut(extension)
+		let mut ext_rc: ExtensionRc = extension.clone();
+		let ext_mut = Rc::get_mut(&mut ext_rc)
 			.ok_or_else(|| anyhow::Error::msg("Could not get mutable reference to extension"))?;
 
 		let result: Result<ExportedApis> = ext_mut.probe_and_return_callbacks();
@@ -145,11 +145,11 @@ impl Extension
 				dummy_api_callbacks: callbacks
 					.dummy_callbacks
 					.take_callbacks()
-					.map(|cb| dummy_api_impl::StrongCallbacks::new(ext_rc.clone(), cb)),
+					.map(|cb| dummy_api_impl::StrongCallbacks::new(extension.clone(), cb)),
 				map_format_api_callbacks: callbacks
 					.map_format_callbacks
 					.take_callbacks()
-					.map(|cb| map_format_api_impl::StrongCallbacks::new(ext_rc.clone(), cb)),
+					.map(|cb| map_format_api_impl::StrongCallbacks::new(extension.clone(), cb)),
 			});
 
 		ext_mut.api_callbacks = api_callbacks;
