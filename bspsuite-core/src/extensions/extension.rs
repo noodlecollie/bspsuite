@@ -8,6 +8,7 @@ use bspextifc::{
 };
 use libloading::{Library, Symbol};
 use log::{debug, trace};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use target_lexicon::{HOST, OperatingSystem};
@@ -17,12 +18,12 @@ use libloading::os::unix::Symbol as UnsafeSymbol;
 #[cfg(target_os = "windows")]
 use libloading::os::windows::Symbol as UnsafeSymbol;
 
-pub type ExtensionRc = Rc<Extension>;
+type MapFormatParsers = HashMap<String, map_format_api::MapParseFn>;
 
 pub struct ApiCallbacks
 {
-	pub dummy_api_callbacks: Option<dummy_api_impl::StrongCallbacks>,
-	pub map_format_api_callbacks: Option<map_format_api_impl::StrongCallbacks>,
+	pub dummy_api_callbacks: Option<dummy_api_impl::Callbacks>,
+	pub map_format_api_callbacks: Option<map_format_api_impl::Callbacks>,
 }
 
 impl Default for ApiCallbacks
@@ -53,6 +54,7 @@ pub struct Extension
 	extension_info: UnsafeSymbol<&'static bspextifc::ExtensionInfo>,
 
 	api_callbacks: ApiCallbacks,
+	map_formats: MapFormatParsers,
 }
 
 impl Extension
@@ -122,11 +124,6 @@ impl Extension
 		return &self.name;
 	}
 
-	pub fn get_api_callbacks(&self) -> &ApiCallbacks
-	{
-		return &self.api_callbacks;
-	}
-
 	pub fn probe(extension: &ExtensionRc) -> Result<()>
 	{
 		let mut ext_rc: ExtensionRc = extension.clone();
@@ -145,11 +142,11 @@ impl Extension
 				dummy_api_callbacks: callbacks
 					.dummy_callbacks
 					.take_callbacks()
-					.map(|cb| dummy_api_impl::StrongCallbacks::new(extension.clone(), cb)),
+					.map(|cb| dummy_api_impl::Callbacks::new(cb)),
 				map_format_api_callbacks: callbacks
 					.map_format_callbacks
 					.take_callbacks()
-					.map(|cb| map_format_api_impl::StrongCallbacks::new(extension.clone(), cb)),
+					.map(|cb| map_format_api_impl::Callbacks::new(cb)),
 			});
 
 		ext_mut.api_callbacks = api_callbacks;

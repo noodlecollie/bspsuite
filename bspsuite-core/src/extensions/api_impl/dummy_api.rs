@@ -1,21 +1,17 @@
 use super::opaque_ptr::OpaqueMutPtr;
-use crate::extensions::extension::ExtensionRc;
-use crate::extensions::extension_resource::ExtensionResource as InnerCb;
 use bspextifc::dummy_api;
 use std::ffi::c_void;
 
-pub struct StrongCallbacks
+pub struct Callbacks
 {
-	cb: InnerCb<dummy_api::Callbacks>,
+	inner: dummy_api::Callbacks,
 }
 
-impl StrongCallbacks
+impl Callbacks
 {
-	pub fn new(extension: ExtensionRc, callbacks: dummy_api::Callbacks) -> Self
+	pub fn new(callbacks: dummy_api::Callbacks) -> Self
 	{
-		return Self {
-			cb: InnerCb::new(extension, callbacks),
-		};
+		return Self { inner: callbacks };
 	}
 
 	pub fn entry_point(&self)
@@ -30,7 +26,7 @@ impl StrongCallbacks
 		};
 
 		let mut api: dummy_api::Api = dummy_api::internal::create_dummy_api(core_fns);
-		(self.cb.entry_point)(&mut api);
+		(self.inner.entry_point)(&mut api);
 	}
 }
 
