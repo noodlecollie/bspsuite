@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
+use std::cell::RefMut;
 use std::fs;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::slice::{Iter, IterMut};
 
 use crate::extensions::extension::{Extension, ExtensionRef};
@@ -22,6 +22,11 @@ impl ExtensionList
 
 		out.load_extensions_from(toolchain_root);
 		return out;
+	}
+
+	pub fn len(&self) -> usize
+	{
+		return self.extensions.len();
 	}
 
 	pub fn iter(&self) -> Iter<'_, ExtensionRef>
@@ -78,17 +83,17 @@ impl ExtensionList
 
 		// Retain only the extensions where probe succeeds.
 		extensions.retain_mut(|ext_ref| {
-			let ext_name: String = String::from(ext_ref.borrow().get_name());
+			let mut ext: RefMut<'_, Extension> = ext_ref
+				.try_borrow_mut()
+				.expect("Could not access extension for probe");
+
+			let ext_name: String = String::from(ext.get_name());
 			debug!("Probing extension {ext_name}");
 
-			ext_ref
-				.borrow_mut()
-				.probe()
-				.map(|_| true)
-				.unwrap_or_else(|err| {
-					warn!("Probe failed for extension {ext_name}. {err}");
-					false
-				})
+			ext.probe().map(|_| true).unwrap_or_else(|err| {
+				warn!("Probe failed for extension {ext_name}. {err}");
+				false
+			})
 		});
 
 		self.extensions = extensions;
