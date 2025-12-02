@@ -44,9 +44,14 @@ impl PipelineBuilder
 	fn set_up_dummy_feature(self) -> Self
 	{
 		self.toolchain.extensions().iter().for_each(|extension| {
-			if let Some(callbacks) = &extension.borrow().get_dummy_api_callbacks()
+			if let Some(callbacks) = extension
+				.get_dummy_api_callbacks()
+				.expect("Could not get dummy API callbacks from extension")
 			{
-				callbacks.entry_point();
+				callbacks
+					.try_borrow_mut()
+					.expect("Could not get reference to dummy API callbacks")
+					.entry_point();
 			}
 		});
 

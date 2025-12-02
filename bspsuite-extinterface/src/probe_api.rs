@@ -211,7 +211,7 @@ pub mod internal
 		}
 
 		#[doc(hidden)]
-		pub fn take_callbacks(self) -> Option<T>
+		pub fn take(self) -> Option<T>
 		{
 			return self.callbacks;
 		}

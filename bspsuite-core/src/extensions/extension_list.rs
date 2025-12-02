@@ -4,12 +4,12 @@ use std::fs;
 use std::path::PathBuf;
 use std::slice::{Iter, IterMut};
 
-use crate::extensions::extension::{Extension, ExtensionRef};
+use crate::extensions::extension::Extension;
 use log::{debug, warn};
 
 pub struct ExtensionList
 {
-	extensions: Vec<ExtensionRef>,
+	extensions: Vec<Extension>,
 }
 
 impl ExtensionList
@@ -29,12 +29,12 @@ impl ExtensionList
 		return self.extensions.len();
 	}
 
-	pub fn iter(&self) -> Iter<'_, ExtensionRef>
+	pub fn iter(&self) -> Iter<'_, Extension>
 	{
 		return self.extensions.iter();
 	}
 
-	pub fn iter_mut(&mut self) -> IterMut<'_, ExtensionRef>
+	pub fn iter_mut(&mut self) -> IterMut<'_, Extension>
 	{
 		return self.extensions.iter_mut();
 	}
@@ -59,8 +59,7 @@ impl ExtensionList
 			extensions_dir.to_str().unwrap()
 		);
 
-		let extensions: Vec<Result<ExtensionRef>> =
-			ExtensionList::load_extensions(&extension_paths);
+		let extensions: Vec<Result<Extension>> = ExtensionList::load_extensions(&extension_paths);
 
 		for extension in extensions.iter().filter(|ext| ext.is_err())
 		{
@@ -78,15 +77,11 @@ impl ExtensionList
 			}
 		}
 
-		let mut extensions: Vec<ExtensionRef> =
+		let mut extensions: Vec<Extension> =
 			extensions.into_iter().filter_map(|ext| ext.ok()).collect();
 
 		// Retain only the extensions where probe succeeds.
-		extensions.retain_mut(|ext_ref| {
-			let mut ext: RefMut<'_, Extension> = ext_ref
-				.try_borrow_mut()
-				.expect("Could not access extension for probe");
-
+		extensions.retain_mut(|ext| {
 			let ext_name: String = String::from(ext.get_name());
 			debug!("Probing extension {ext_name}");
 
@@ -128,7 +123,7 @@ impl ExtensionList
 		return Ok(out_paths);
 	}
 
-	fn load_extensions(paths: &Vec<PathBuf>) -> Vec<Result<ExtensionRef>>
+	fn load_extensions(paths: &Vec<PathBuf>) -> Vec<Result<Extension>>
 	{
 		return paths
 			.iter()
