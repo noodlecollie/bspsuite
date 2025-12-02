@@ -8,6 +8,7 @@ use bspextifc::{
 };
 use libloading::{Library, Symbol};
 use log::{debug, trace};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -37,6 +38,8 @@ impl Default for ApiCallbacks
 	}
 }
 
+pub type ExtensionRef = Rc<RefCell<Extension>>;
+
 pub struct Extension
 {
 	name: String,
@@ -59,7 +62,7 @@ pub struct Extension
 
 impl Extension
 {
-	pub fn load(path: &PathBuf) -> Result<Self>
+	pub fn load(path: &PathBuf) -> Result<ExtensionRef>
 	{
 		let library: Library = unsafe { Library::new(path.as_os_str()) }?;
 
@@ -108,6 +111,7 @@ impl Extension
 			library: library,
 			extension_info: extension_info_symbol,
 			api_callbacks: ApiCallbacks::default(),
+			map_formats: MapFormatParsers::new(),
 		};
 
 		debug!(
@@ -116,7 +120,7 @@ impl Extension
 			path.to_str().unwrap()
 		);
 
-		return Ok(extension);
+		return Ok(Extension::new_ref(extension));
 	}
 
 	pub fn get_name(&self) -> &str
@@ -124,13 +128,9 @@ impl Extension
 		return &self.name;
 	}
 
-	pub fn probe(extension: &ExtensionRc) -> Result<()>
+	pub fn probe(&mut self) -> Result<()>
 	{
-		let mut ext_rc: ExtensionRc = extension.clone();
-		let ext_mut = Rc::get_mut(&mut ext_rc)
-			.ok_or_else(|| anyhow::Error::msg("Could not get mutable reference to extension"))?;
-
-		let result: Result<ExportedApis> = ext_mut.probe_and_return_callbacks();
+		let result: Result<ExportedApis> = self.probe_and_return_callbacks();
 
 		if let Err(err) = result
 		{
@@ -149,9 +149,24 @@ impl Extension
 					.map(|cb| map_format_api_impl::Callbacks::new(cb)),
 			});
 
-		ext_mut.api_callbacks = api_callbacks;
+		self.api_callbacks = api_callbacks;
 
 		return Ok(());
+	}
+
+	pub fn get_dummy_api_callbacks(&self) -> Option<&dummy_api_impl::Callbacks>
+	{
+		return self.api_callbacks.dummy_api_callbacks.as_ref();
+	}
+
+	pub fn get_map_format_callbacks(&self) -> Option<&map_format_api_impl::Callbacks>
+	{
+		return self.api_callbacks.map_format_api_callbacks.as_ref();
+	}
+
+	fn new_ref(extension: Extension) -> ExtensionRef
+	{
+		return Rc::new(RefCell::new(extension));
 	}
 
 	fn probe_and_return_callbacks(&self) -> Result<ExportedApis>

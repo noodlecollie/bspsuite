@@ -16,7 +16,7 @@ pub extern "C" fn bspcore_run_compile(args: &CompileArgs) -> ResultCode
 {
 	return wrap_panics(|| {
 		let pipeline = PipelineBuilder::new(&args.base.toolchain_root)
-			.require_feature(ExtensionFeature::MapFormatFeature)
+			.require_feature(ExtensionFeature::DummyFeature)
 			.finalise();
 
 		info!("Compile complete");

@@ -4,12 +4,12 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::slice::{Iter, IterMut};
 
-use super::extension::{Extension, ExtensionRc};
+use crate::extensions::extension::{Extension, ExtensionRef};
 use log::{debug, warn};
 
 pub struct ExtensionList
 {
-	extensions: Vec<ExtensionRc>,
+	extensions: Vec<ExtensionRef>,
 }
 
 impl ExtensionList
@@ -24,12 +24,12 @@ impl ExtensionList
 		return out;
 	}
 
-	pub fn iter(&self) -> Iter<'_, ExtensionRc>
+	pub fn iter(&self) -> Iter<'_, ExtensionRef>
 	{
 		return self.extensions.iter();
 	}
 
-	pub fn iter_mut(&mut self) -> IterMut<'_, ExtensionRc>
+	pub fn iter_mut(&mut self) -> IterMut<'_, ExtensionRef>
 	{
 		return self.extensions.iter_mut();
 	}
@@ -54,7 +54,8 @@ impl ExtensionList
 			extensions_dir.to_str().unwrap()
 		);
 
-		let extensions: Vec<Result<ExtensionRc>> = ExtensionList::load_extensions(&extension_paths);
+		let extensions: Vec<Result<ExtensionRef>> =
+			ExtensionList::load_extensions(&extension_paths);
 
 		for extension in extensions.iter().filter(|ext| ext.is_err())
 		{
@@ -72,15 +73,17 @@ impl ExtensionList
 			}
 		}
 
-		let mut extensions: Vec<ExtensionRc> =
+		let mut extensions: Vec<ExtensionRef> =
 			extensions.into_iter().filter_map(|ext| ext.ok()).collect();
 
 		// Retain only the extensions where probe succeeds.
-		extensions.retain_mut(|ext_rc| {
-			let ext_name: String = String::from(ext_rc.get_name());
+		extensions.retain_mut(|ext_ref| {
+			let ext_name: String = String::from(ext_ref.borrow().get_name());
 			debug!("Probing extension {ext_name}");
 
-			Extension::probe(ext_rc)
+			ext_ref
+				.borrow_mut()
+				.probe()
 				.map(|_| true)
 				.unwrap_or_else(|err| {
 					warn!("Probe failed for extension {ext_name}. {err}");
@@ -120,19 +123,17 @@ impl ExtensionList
 		return Ok(out_paths);
 	}
 
-	fn load_extensions(paths: &Vec<PathBuf>) -> Vec<Result<ExtensionRc>>
+	fn load_extensions(paths: &Vec<PathBuf>) -> Vec<Result<ExtensionRef>>
 	{
 		return paths
 			.iter()
 			.map(|path| {
-				Extension::load(path)
-					.map(|ext| Rc::new(ext))
-					.map_err(|err| {
-						err.context(format!(
-							"Failed to load extension {}",
-							path.to_str().unwrap()
-						))
-					})
+				Extension::load(path).map_err(|err| {
+					err.context(format!(
+						"Failed to load extension {}",
+						path.to_str().unwrap()
+					))
+				})
 			})
 			.collect();
 	}
