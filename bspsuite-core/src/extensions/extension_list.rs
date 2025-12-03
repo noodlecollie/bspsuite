@@ -13,6 +13,11 @@ pub struct ExtensionList
 
 impl ExtensionList
 {
+	pub fn extensions_directory(toolchain_root: &PathBuf) -> PathBuf
+	{
+		return toolchain_root.join("extensions");
+	}
+
 	pub fn new(toolchain_root: &PathBuf) -> Self
 	{
 		let mut out: Self = Self {
@@ -31,6 +36,11 @@ impl ExtensionList
 	pub fn iter(&self) -> Iter<'_, ExtensionRef>
 	{
 		return self.extensions.iter();
+	}
+
+	pub fn find_by_name(&self, name: &str) -> Option<&ExtensionRef>
+	{
+		return self.extensions.iter().find(|ext| ext.get_name() == name);
 	}
 
 	pub fn for_each_or_warn<F>(&self, op_desc: &str, mut f: F)
@@ -61,7 +71,7 @@ impl ExtensionList
 
 	fn load_extensions_from(&mut self, toolchain_root: &PathBuf)
 	{
-		let extensions_dir: PathBuf = toolchain_root.join("extensions");
+		let extensions_dir: PathBuf = ExtensionList::extensions_directory(toolchain_root);
 		let extensions_result: Result<Vec<PathBuf>> =
 			ExtensionList::find_extensions(&extensions_dir);
 

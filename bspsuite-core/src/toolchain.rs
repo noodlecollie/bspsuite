@@ -24,6 +24,11 @@ impl Toolchain
 		};
 	}
 
+	pub fn root_path(&self) -> &PathBuf
+	{
+		return &self.root;
+	}
+
 	pub fn find_extensions(&self) -> ExtensionList
 	{
 		return ExtensionList::new(&self.root);
