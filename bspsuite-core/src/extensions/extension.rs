@@ -84,6 +84,7 @@ impl ExtensionRef
 pub struct Extension
 {
 	name: String,
+	path: PathBuf,
 
 	// This is just here to control the lifetime of the library.
 	// By the time this object is constructed, we likely won't
@@ -98,7 +99,6 @@ pub struct Extension
 	extension_info: UnsafeSymbol<&'static bspextifc::ExtensionInfo>,
 
 	api_endpoints: ApiEndpoints,
-	map_formats: MapFormatParsers,
 }
 
 impl Extension
@@ -169,10 +169,10 @@ impl Extension
 
 		let extension: Self = Self {
 			name: name,
+			path: path.clone(),
 			library: library,
 			extension_info: extension_info_symbol,
 			api_endpoints: ApiEndpoints::default(),
-			map_formats: MapFormatParsers::new(),
 		};
 
 		debug!(
@@ -187,6 +187,11 @@ impl Extension
 	pub fn get_name(&self) -> &str
 	{
 		return &self.name;
+	}
+
+	pub fn get_path(&self) -> &PathBuf
+	{
+		return &self.path;
 	}
 
 	pub fn get_api_endpoints(&self) -> &ApiEndpoints

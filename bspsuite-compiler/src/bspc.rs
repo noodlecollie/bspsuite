@@ -20,6 +20,7 @@ fn main()
 	let subcommand: &cli::Subcommand = &parsed_args.command;
 	let result_code: Cmds::ResultCode = match subcommand
 	{
+		cli::Subcommand::Info(args) => run_info_command(&args),
 		cli::Subcommand::Compile(args) => run_compile_command(&args),
 	};
 
@@ -33,6 +34,16 @@ fn main()
 	}
 
 	std::process::exit(result_code as i32);
+}
+
+fn run_info_command(args: &cli::InfoCommandArgs) -> Cmds::ResultCode
+{
+	let args: Cmds::InfoArgs = Cmds::InfoArgs {
+		base: Cmds::BaseArgs::default(),
+		list_map_formats: args.map_formats,
+	};
+
+	return Cmds::bspcore_run_info(&args);
 }
 
 fn run_compile_command(args: &cli::CompileCommandArgs) -> Cmds::ResultCode

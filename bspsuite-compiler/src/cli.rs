@@ -32,6 +32,9 @@ pub struct Cli
 #[derive(clap::Subcommand, strum::Display)]
 pub enum Subcommand
 {
+	/// Print information about the compiler and available extensions.
+	Info(InfoCommandArgs),
+
 	/// Compile a map from a source file.
 	Compile(CompileCommandArgs),
 }
@@ -42,4 +45,12 @@ pub struct CompileCommandArgs
 	/// Path to map source file that will be compiled.
 	#[arg()]
 	pub input_file: PathBuf,
+}
+
+#[derive(clap::Args)]
+pub struct InfoCommandArgs
+{
+	/// Log information about supported map formats.
+	#[arg(long)]
+	pub map_formats: bool,
 }

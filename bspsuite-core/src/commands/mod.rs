@@ -1,10 +1,12 @@
 mod compile;
+mod info;
 mod types;
 mod utils;
 
 use std::ffi::c_char;
 
 pub use compile::{CompileArgs, bspcore_run_compile};
+pub use info::{InfoArgs, bspcore_run_info};
 pub use types::{BaseArgs, ResultCode};
 
 use crate::BUILD_IDENTIFIER;
