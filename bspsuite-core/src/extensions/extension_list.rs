@@ -1,15 +1,14 @@
 use anyhow::{Context, Result};
-use std::cell::RefMut;
 use std::fs;
 use std::path::PathBuf;
-use std::slice::{Iter, IterMut};
+use std::slice::Iter;
 
-use crate::extensions::extension::Extension;
+use crate::extensions::extension::{Extension, ExtensionRef};
 use log::{debug, warn};
 
 pub struct ExtensionList
 {
-	extensions: Vec<Extension>,
+	extensions: Vec<ExtensionRef>,
 }
 
 impl ExtensionList
@@ -29,14 +28,9 @@ impl ExtensionList
 		return self.extensions.len();
 	}
 
-	pub fn iter(&self) -> Iter<'_, Extension>
+	pub fn iter(&self) -> Iter<'_, ExtensionRef>
 	{
 		return self.extensions.iter();
-	}
-
-	pub fn iter_mut(&mut self) -> IterMut<'_, Extension>
-	{
-		return self.extensions.iter_mut();
 	}
 
 	fn load_extensions_from(&mut self, toolchain_root: &PathBuf)
@@ -59,7 +53,8 @@ impl ExtensionList
 			extensions_dir.to_str().unwrap()
 		);
 
-		let extensions: Vec<Result<Extension>> = ExtensionList::load_extensions(&extension_paths);
+		let extensions: Vec<Result<ExtensionRef>> =
+			ExtensionList::load_extensions(&extension_paths);
 
 		for extension in extensions.iter().filter(|ext| ext.is_err())
 		{
@@ -77,18 +72,25 @@ impl ExtensionList
 			}
 		}
 
-		let mut extensions: Vec<Extension> =
+		let mut extensions: Vec<ExtensionRef> =
 			extensions.into_iter().filter_map(|ext| ext.ok()).collect();
 
 		// Retain only the extensions where probe succeeds.
-		extensions.retain_mut(|ext| {
-			let ext_name: String = String::from(ext.get_name());
+		extensions.retain_mut(|ext_ref| {
+			let ext_name: String = String::from(ext_ref.get_name());
 			debug!("Probing extension {ext_name}");
 
-			ext.probe().map(|_| true).unwrap_or_else(|err| {
-				warn!("Probe failed for extension {ext_name}. {err}");
-				false
-			})
+			// Getting a mutable ref should always succeed,
+			// since no-one else is using the extensions yet.
+			ext_ref
+				.get_extension_mut()
+				.expect("Could not get mutable ref to extension")
+				.probe()
+				.map(|_| true)
+				.unwrap_or_else(|err| {
+					warn!("Probe failed for extension {ext_name}. {err}");
+					false
+				})
 		});
 
 		self.extensions = extensions;
@@ -123,12 +125,12 @@ impl ExtensionList
 		return Ok(out_paths);
 	}
 
-	fn load_extensions(paths: &Vec<PathBuf>) -> Vec<Result<Extension>>
+	fn load_extensions(paths: &Vec<PathBuf>) -> Vec<Result<ExtensionRef>>
 	{
 		return paths
 			.iter()
 			.map(|path| {
-				Extension::load(path).map_err(|err| {
+				ExtensionRef::load(path).map_err(|err| {
 					err.context(format!(
 						"Failed to load extension {}",
 						path.to_str().unwrap()

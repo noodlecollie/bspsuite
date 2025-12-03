@@ -2,12 +2,12 @@ use super::opaque_ptr::OpaqueMutPtr;
 use bspextifc::dummy_api;
 use std::ffi::c_void;
 
-pub struct Callbacks
+pub struct Endpoint
 {
 	inner: dummy_api::Callbacks,
 }
 
-impl Callbacks
+impl Endpoint
 {
 	pub fn new(callbacks: dummy_api::Callbacks) -> Self
 	{

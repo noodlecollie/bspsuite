@@ -1,4 +1,6 @@
+use crate::extensions::ExtensionRef;
 use crate::toolchain::Toolchain;
+use anyhow::Result;
 use log::warn;
 use std::path::PathBuf;
 
@@ -43,15 +45,27 @@ impl PipelineBuilder
 
 	fn set_up_dummy_feature(self) -> Self
 	{
-		self.toolchain.extensions().iter().for_each(|extension| {
-			if let Some(callbacks) = extension
-				.get_dummy_api_callbacks()
-				.expect("Could not get dummy API callbacks from extension")
+		return self.wrap_ext_foreach_error("Setting up dummy feature", |ext_ref| {
+			let mut ext_mut_ref = ext_ref.get_extension_mut()?;
+			let api_endpoints = ext_mut_ref.get_api_endpoints_mut();
+
+			if let Some(dummy_api) = &api_endpoints.dummy_api
 			{
-				callbacks
-					.try_borrow_mut()
-					.expect("Could not get reference to dummy API callbacks")
-					.entry_point();
+				dummy_api.entry_point();
+			}
+
+			Ok(())
+		});
+	}
+
+	fn wrap_ext_foreach_error<F>(self, op_desc: &str, mut f: F) -> Self
+	where
+		F: FnMut(&ExtensionRef) -> Result<()>,
+	{
+		self.toolchain.extensions().iter().for_each(|ext_ref| {
+			if let Err(err) = f(ext_ref)
+			{
+				warn!("{op_desc} failed. {err}");
 			}
 		});
 

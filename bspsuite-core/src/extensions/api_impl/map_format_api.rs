@@ -4,24 +4,34 @@ use log::{debug, warn};
 use std::collections::HashMap;
 use std::ffi::c_void;
 
-pub struct Callbacks
-{
-	inner: map_format_api::Callbacks,
-}
-
 pub struct MapParseCallback
 {
+	// This callback must be encapsulated, since it's
+	// copyable/cloneable and depends on the extension
+	// library, but we have no way to codify this dependency!
+	// Instead, we treat the callback as being owned
+	// by the endpoint, which in turn is owned by the
+	// extension.
 	parse_fn: map_format_api::MapParseFn,
 }
 
-impl Callbacks
+pub struct Endpoint
+{
+	inner: map_format_api::Callbacks,
+	map_formats: HashMap<String, MapParseCallback>,
+}
+
+impl Endpoint
 {
 	pub fn new(callbacks: map_format_api::Callbacks) -> Self
 	{
-		return Self { inner: callbacks };
+		return Self {
+			inner: callbacks,
+			map_formats: HashMap::new(),
+		};
 	}
 
-	pub fn register_map_formats(&self, extension_name: &str) -> HashMap<String, MapParseCallback>
+	pub fn register_map_formats(&mut self, extension_name: &str)
 	{
 		let mut api_impl: ApiImpl = ApiImpl::new(extension_name);
 		let mut context: OpaqueMutPtr<ApiImpl> = OpaqueMutPtr::new(&mut api_impl);
@@ -35,12 +45,26 @@ impl Callbacks
 			map_format_api::internal::create_map_format_api(core_fns);
 		(self.inner.register_map_formats)(&mut api);
 
-		return api_impl.finish();
+		self.map_formats = api_impl.finish();
+	}
+
+	pub fn supports_map_format(&self, format_name: &str) -> bool
+	{
+		return self.map_formats.contains_key(format_name);
+	}
+
+	pub fn get_parse_callback(&self, format_name: &str) -> Option<&MapParseCallback>
+	{
+		return self.map_formats.get(format_name);
 	}
 }
 
 impl MapParseCallback
 {
+	pub fn parse(&self)
+	{
+		(self.parse_fn)();
+	}
 }
 
 struct ApiImpl<'l>
