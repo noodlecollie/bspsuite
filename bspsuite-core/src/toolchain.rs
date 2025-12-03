@@ -4,7 +4,6 @@ use std::path::PathBuf;
 pub struct Toolchain
 {
 	root: PathBuf,
-	extensions: ExtensionList,
 }
 
 impl Toolchain
@@ -22,13 +21,12 @@ impl Toolchain
 
 		return Self {
 			root: root_path.clone(),
-			extensions: ExtensionList::new(&root_path),
 		};
 	}
 
-	pub fn extensions(&self) -> &ExtensionList
+	pub fn find_extensions(&self) -> ExtensionList
 	{
-		return &self.extensions;
+		return ExtensionList::new(&self.root);
 	}
 
 	fn infer_toolchain_root() -> PathBuf

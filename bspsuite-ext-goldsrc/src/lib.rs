@@ -1,8 +1,9 @@
 use bspextifc::log_api::{self, ExtensionLogger};
-use bspextifc::{dummy_api, implement_extension_info, probe_api};
-use log::{error, info};
+use bspextifc::{implement_extension_info, map_format_api, probe_api};
+use log::error;
 
 mod io;
+mod map_formats;
 
 implement_extension_info!(probe);
 
@@ -13,26 +14,15 @@ extern "C" fn probe(api: &mut probe_api::ProbeApi) -> probe_api::ProbeResult
 		return probe_api::ProbeResult::Failure;
 	}
 
-	let dummy_callbacks: dummy_api::Callbacks = dummy_api::Callbacks {
-		entry_point: dummyapi_entry_point,
-	};
-
-	if let Err(_) = api.register_dummy_api_callbacks(dummy_api::API_INFO.version, dummy_callbacks)
+	if let Err(_) = api.register_map_format_api_callbacks(
+		map_format_api::API_INFO.version,
+		map_formats::create_callbacks(),
+	)
 	{
-		error!("Failed to register for dummy API");
-		return probe_api::ProbeResult::Failure;
+		error!("Failed to register for map format API.");
 	}
 
 	return probe_api::ProbeResult::Success;
-}
-
-extern "C" fn dummyapi_entry_point(api: &mut dummy_api::Api)
-{
-	let magic_number: i32 = api.get_magic_number();
-	info!("Magic number from dummy API: {magic_number}");
-
-	info!("Storing number 99 in dummy API");
-	api.store_number(99);
 }
 
 fn set_up_logger(api: &mut probe_api::ProbeApi) -> bool

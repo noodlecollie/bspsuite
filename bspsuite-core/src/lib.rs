@@ -4,7 +4,6 @@ use constcat::concat;
 mod compiler_error;
 mod extensions;
 mod model;
-mod pipeline;
 mod toolchain;
 mod work_units;
 

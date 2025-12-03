@@ -98,7 +98,7 @@ impl<'l> ApiImpl<'l>
 		else
 		{
 			debug!(
-				"Extension {} registered support for map format {format_name}",
+				"Extension {} registered support for map format \"{format_name}\"",
 				self.extension_name
 			);
 		}

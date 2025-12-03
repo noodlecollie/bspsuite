@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::slice::Iter;
 
 use crate::extensions::extension::{Extension, ExtensionRef};
-use log::{debug, warn};
+use log::{debug, error, warn};
 
 pub struct ExtensionList
 {
@@ -31,6 +31,32 @@ impl ExtensionList
 	pub fn iter(&self) -> Iter<'_, ExtensionRef>
 	{
 		return self.extensions.iter();
+	}
+
+	pub fn for_each_or_warn<F>(&self, op_desc: &str, mut f: F)
+	where
+		F: FnMut(&ExtensionRef) -> Result<()>,
+	{
+		self.iter().for_each(|ext_ref| {
+			if let Err(err) = f(ext_ref)
+			{
+				let ext_name: &str = ext_ref.get_name();
+				warn!("{op_desc} failed for extension {ext_name}. {err}");
+			}
+		});
+	}
+
+	pub fn for_each_or_error<F>(&self, op_desc: &str, mut f: F)
+	where
+		F: FnMut(&ExtensionRef) -> Result<()>,
+	{
+		self.iter().for_each(|ext_ref| {
+			if let Err(err) = f(ext_ref)
+			{
+				let ext_name: &str = ext_ref.get_name();
+				error!("{op_desc} failed for extension {ext_name}. {err}");
+			}
+		});
 	}
 
 	fn load_extensions_from(&mut self, toolchain_root: &PathBuf)
