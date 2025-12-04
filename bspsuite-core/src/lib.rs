@@ -5,7 +5,6 @@ mod compiler_error;
 mod extensions;
 mod model;
 mod toolchain;
-mod work_units;
 
 pub mod commands;
 
