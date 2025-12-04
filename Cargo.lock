@@ -96,6 +96,7 @@ name = "bspsuite-compiler"
 version = "0.1.0"
 dependencies = [
  "bspsuite-core",
+ "bspsuite-extinterface",
  "clap",
  "fern",
  "lazy_static",

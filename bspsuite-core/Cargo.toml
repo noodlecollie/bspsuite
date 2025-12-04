@@ -13,13 +13,13 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 bspsuite-extinterface = { path = "../bspsuite-extinterface" }
+bspsuite-buildtasks = { path = "../bspsuite-buildtasks" }
 anyhow = "1.0.100"
 glam = "0.30.9"
 libloading = "0.9.0"
 log = "0.4.28"
 strum = { version = "0.27.2", features = ["derive", "strum_macros"] }
 target-lexicon = "0.13.3"
-bspsuite-buildtasks = { path = "../bspsuite-buildtasks" }
 constcat = "0.6.1"
 const-cstr = "0.3.0"
 fern = { version = "0.7.1", features = ["colored"] }

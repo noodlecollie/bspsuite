@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use bspextifc::StringRef;
+
 #[derive(Copy, Clone, Debug, strum::Display)]
 #[repr(C)]
 pub enum ResultCode
@@ -22,7 +24,7 @@ pub enum ResultCode
 }
 
 #[repr(C)]
-pub struct BaseArgs
+pub struct BaseArgs<'l>
 {
 	/// Directory under which the games and directories folders may
 	/// be found. If this property is left invalid, the directory of
@@ -31,10 +33,21 @@ pub struct BaseArgs
 	/// is being used as part of another application, it may not be
 	/// adequate. In this case, the application should supply the
 	/// relevant path here.
-	pub toolchain_root: Option<PathBuf>,
+	pub toolchain_root: Option<StringRef<'l>>,
 }
 
-impl Default for BaseArgs
+impl<'l> BaseArgs<'l>
+{
+	pub fn toolchain_root_path(&self) -> Option<PathBuf>
+	{
+		return self
+			.toolchain_root
+			.as_ref()
+			.map(|path| PathBuf::from(path.to_string()));
+	}
+}
+
+impl<'l> Default for BaseArgs<'l>
 {
 	fn default() -> Self
 	{

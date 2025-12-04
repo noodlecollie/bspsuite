@@ -3,6 +3,7 @@ mod cli;
 use std::ffi::{CStr, c_char};
 
 use bspcore::commands as Cmds;
+use bspextifc::StringRef;
 use clap::Parser;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter, error, info};
@@ -40,7 +41,10 @@ fn run_info_command(args: &cli::ExtinfoCommandArgs) -> Cmds::ResultCode
 {
 	let args: Cmds::ExtinfoArgs = Cmds::ExtinfoArgs {
 		base: Cmds::BaseArgs::default(),
-		extension_name: args.extension.clone(),
+		extension_name: args
+			.extension
+			.as_ref()
+			.map(|val| StringRef::from(val.as_ref())),
 	};
 
 	return Cmds::bspcore_run_extinfo(&args);
@@ -48,9 +52,17 @@ fn run_info_command(args: &cli::ExtinfoCommandArgs) -> Cmds::ResultCode
 
 fn run_compile_command(args: &cli::CompileCommandArgs) -> Cmds::ResultCode
 {
+	let input_path_str: Option<&str> = args.input_file.to_str();
+
+	if input_path_str.is_none()
+	{
+		error!("Could not convert input path to string");
+		return Cmds::ResultCode::InternalError;
+	}
+
 	let args: Cmds::CompileArgs = Cmds::CompileArgs {
 		base: Cmds::BaseArgs::default(),
-		input_file: args.input_file.clone(),
+		input_file: StringRef::from(input_path_str.unwrap()),
 	};
 
 	return Cmds::bspcore_run_compile(&args);

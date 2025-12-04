@@ -1,25 +1,27 @@
 use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::path::PathBuf;
 
+use bspextifc::StringRef;
 use log::{error, info};
 
 use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_panics;
-use crate::extensions::{ExtensionList, ExtensionRef};
+use crate::extensions::{ApiEndpoints, Extension, ExtensionList, ExtensionRef};
 use crate::toolchain::Toolchain;
 
 #[repr(C)]
-pub struct ExtinfoArgs
+pub struct ExtinfoArgs<'l>
 {
-	pub base: BaseArgs,
-	pub extension_name: Option<String>,
+	pub base: BaseArgs<'l>,
+	pub extension_name: Option<StringRef<'l>>,
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 {
 	return wrap_panics(|| {
-		let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root);
+		let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root_path());
 		let extensions: ExtensionList = toolchain.find_extensions();
 
 		if args.extension_name.is_none()
@@ -28,8 +30,8 @@ pub extern "C" fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 			return ResultCode::Ok;
 		}
 
-		let ext_name: &str = args.extension_name.as_ref().unwrap();
-		let found_ext: Option<&ExtensionRef> = extensions.find_by_name(ext_name);
+		let ext_name: String = args.extension_name.as_ref().unwrap().to_string();
+		let found_ext: Option<&ExtensionRef> = extensions.find_by_name(&ext_name);
 
 		if found_ext.is_none()
 		{
@@ -44,18 +46,36 @@ pub extern "C" fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 
 fn extension_info(ext_ref: &ExtensionRef)
 {
-	let extension = ext_ref.get_extension().unwrap();
+	let mut extension = ext_ref.get_extension_mut().unwrap();
+	let name: String = extension.get_name().to_string();
+	let path: String = extension
+		.get_path()
+		.to_str()
+		.unwrap_or("<path error>")
+		.to_string();
 
-	info!("Extension");
-	info!("=========");
+	let formats: Vec<String> = get_map_formats(extension.deref_mut());
+	let formats_str: String = formats.join(", ");
 
-	info!("  Name: {}", extension.get_name());
-	info!(
-		"  Path: {}",
-		extension.get_path().to_str().unwrap_or("<path error>")
-	);
+	info!("Extension: {name}");
+	info!("  Path: {path}");
+	info!("  Map formats: {formats_str}");
+}
 
-	// TODO: List supported map formats
+fn get_map_formats(extension: &mut Extension) -> Vec<String>
+{
+	let name: String = extension.get_name().to_string();
+	let api_endpoints: &mut ApiEndpoints = extension.get_api_endpoints_mut();
+
+	if let Some(map_format_api) = &mut api_endpoints.map_format_api
+	{
+		map_format_api.register_map_formats(&name);
+		return map_format_api.get_supported_map_formats();
+	}
+	else
+	{
+		return Vec::new();
+	}
 }
 
 fn list_extensions(toolchain_root: &PathBuf, extensions: &ExtensionList)

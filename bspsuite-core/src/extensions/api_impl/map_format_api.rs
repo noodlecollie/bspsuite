@@ -57,6 +57,11 @@ impl Endpoint
 	{
 		return self.map_formats.get(format_name);
 	}
+
+	pub fn get_supported_map_formats(&self) -> Vec<String>
+	{
+		return self.map_formats.keys().map(|item| item.clone()).collect();
+	}
 }
 
 impl MapParseCallback
