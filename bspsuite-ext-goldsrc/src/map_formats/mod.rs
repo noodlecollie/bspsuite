@@ -3,6 +3,9 @@ use bspextifc::map_format_api::{Api, Callbacks};
 
 mod goldsrcmap;
 
+#[cfg(test)]
+mod test_resources;
+
 pub fn create_callbacks() -> Callbacks
 {
 	return Callbacks {

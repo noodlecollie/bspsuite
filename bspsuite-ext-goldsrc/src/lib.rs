@@ -2,7 +2,6 @@ use bspextifc::log_api::{self, ExtensionLogger};
 use bspextifc::{implement_extension_info, map_format_api, probe_api};
 use log::error;
 
-mod io;
 mod map_formats;
 
 implement_extension_info!(probe);
