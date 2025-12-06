@@ -1,5 +1,5 @@
-use super::string_ref::StringRef;
 use super::{dummy_api, log_api, map_format_api};
+use crate::StringRef;
 use log::{error, trace};
 use std::result::Result;
 
@@ -84,8 +84,7 @@ impl<'l> ProbeApi<'l>
 pub mod internal
 {
 	use super::*;
-	use crate::api_info::ApiInfo;
-	use crate::map_format_api;
+	use crate::{ApiInfo, map_format_api};
 
 	#[doc(hidden)]
 	#[repr(C)]

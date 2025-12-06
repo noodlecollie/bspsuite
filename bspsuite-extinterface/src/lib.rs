@@ -1,15 +1,10 @@
 // Code architecture of this module is informed by
 // https://users.rust-lang.org/t/linking-issues-when-designing-a-dynamic-plugin-based-architecture/136388
 
-mod api_info;
+mod apis;
 mod string_ref;
 
-pub mod dummy_api;
-pub mod log_api;
-pub mod map_format_api;
-pub mod probe_api;
-
-pub use api_info::ApiInfo;
+pub use apis::{ApiInfo, dummy_api, log_api, map_format_api, probe_api};
 pub use string_ref::StringRef;
 
 /// Struct whose sole responsibility is to expose a versioned entry point API to
