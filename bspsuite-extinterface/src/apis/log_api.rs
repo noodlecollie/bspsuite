@@ -1,5 +1,5 @@
 use super::api_info::ApiInfo;
-use crate::StringRef;
+use crate::types::StringRef;
 use log;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("LogApi", 1);

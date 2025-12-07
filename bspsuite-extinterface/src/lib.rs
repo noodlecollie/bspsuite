@@ -2,10 +2,11 @@
 // https://users.rust-lang.org/t/linking-issues-when-designing-a-dynamic-plugin-based-architecture/136388
 
 mod apis;
-mod string_ref;
+mod containers;
+
+pub mod types;
 
 pub use apis::{ApiInfo, dummy_api, log_api, map_format_api, probe_api};
-pub use string_ref::StringRef;
 
 /// Struct whose sole responsibility is to expose a versioned entry point API to
 /// users of an extension.

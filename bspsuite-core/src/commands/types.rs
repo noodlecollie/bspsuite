@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use bspextifc::StringRef;
+use bspextifc::types::StringRef;
 
 #[derive(Copy, Clone, Debug, strum::Display)]
 #[repr(C)]

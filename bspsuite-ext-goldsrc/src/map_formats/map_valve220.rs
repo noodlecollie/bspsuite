@@ -1,6 +1,12 @@
 use logos::Logos;
 
-// A helpful example of how to define tokens:
+// Documentation on the Goldsrc map format:
+// https://developer.valvesoftware.com/wiki/MAP_(file_format)
+// In particular, the brush face format is defined as:
+//   ( x1 y1 z1 ) ( x2 y2 z2 ) ( x3 y3 z3 ) TEXTURENAME [ Ux Uy Uz Uoffset ]
+//   [ Vx Vy Vz Voffset ] rotation Uscale Vscale
+
+// A helpful example of how to define Logos tokens:
 // https://web.archive.org/web/20250829225654/https://logos.maciej.codes/examples/json.html
 
 // When expecting a new entity (including worldspawn),

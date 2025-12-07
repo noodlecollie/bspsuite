@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
-use bspextifc::StringRef;
+use bspextifc::types::StringRef;
 use log::{error, info};
 
 use super::types::{BaseArgs, ResultCode};

@@ -1,5 +1,5 @@
 use super::{dummy_api, log_api, map_format_api};
-use crate::StringRef;
+use crate::types::StringRef;
 use log::{error, trace};
 use std::result::Result;
 

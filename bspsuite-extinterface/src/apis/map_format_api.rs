@@ -1,5 +1,5 @@
 use super::api_info::ApiInfo;
-use crate::StringRef;
+use crate::types::StringRef;
 use std::ffi::c_void;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);

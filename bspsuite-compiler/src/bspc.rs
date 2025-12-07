@@ -3,7 +3,7 @@ mod cli;
 use std::ffi::{CStr, c_char};
 
 use bspcore::commands as Cmds;
-use bspextifc::StringRef;
+use bspextifc::types::StringRef;
 use clap::Parser;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter, error, info};

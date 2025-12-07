@@ -1,5 +1,6 @@
 use super::opaque_ptr::OpaqueMutPtr;
-use bspextifc::{StringRef, map_format_api};
+use bspextifc::map_format_api;
+use bspextifc::types::StringRef;
 use log::{debug, warn};
 use std::collections::HashMap;
 use std::ffi::c_void;

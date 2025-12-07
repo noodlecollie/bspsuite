@@ -2,7 +2,7 @@ use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_panics;
 use crate::extensions::{ExtensionList, extension_routines};
 use crate::toolchain::Toolchain;
-use bspextifc::StringRef;
+use bspextifc::types::StringRef;
 use log::info;
 
 #[repr(C)]
