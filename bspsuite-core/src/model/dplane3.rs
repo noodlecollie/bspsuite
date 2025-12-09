@@ -26,6 +26,7 @@ impl DPlane3
 	}
 
 	#[inline]
+	#[must_use]
 	pub fn is_null(&self) -> bool
 	{
 		return self == &DPlane3::NULL;

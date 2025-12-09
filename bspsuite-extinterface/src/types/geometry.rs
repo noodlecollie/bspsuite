@@ -3,6 +3,12 @@
 //! boundary. You will probably want to convert these to proper objects (eg.
 //! Glam vectors) before you use them.
 
+pub struct DVec2
+{
+	pub x: f64,
+	pub y: f64,
+}
+
 pub struct DVec3
 {
 	pub x: f64,
@@ -24,9 +30,25 @@ pub struct DPlane
 	pub distance: f64,
 }
 
+impl DVec2
+{
+	pub const NULL: Self = Self::new(0.0, 0.0);
+
+	#[inline]
+	#[must_use]
+	pub const fn new(x: f64, y: f64) -> Self
+	{
+		return Self { x: x, y: y };
+	}
+}
+
 impl DVec3
 {
-	pub fn new(x: f64, y: f64, z: f64) -> Self
+	pub const NULL: Self = Self::new(0.0, 0.0, 0.0);
+
+	#[inline]
+	#[must_use]
+	pub const fn new(x: f64, y: f64, z: f64) -> Self
 	{
 		return Self { x: x, y: y, z: z };
 	}
@@ -34,7 +56,11 @@ impl DVec3
 
 impl DVec4
 {
-	pub fn new(x: f64, y: f64, z: f64, w: f64) -> Self
+	pub const NULL: Self = Self::new(0.0, 0.0, 0.0, 0.0);
+
+	#[inline]
+	#[must_use]
+	pub const fn new(x: f64, y: f64, z: f64, w: f64) -> Self
 	{
 		return Self {
 			x: x,
@@ -47,7 +73,11 @@ impl DVec4
 
 impl DPlane
 {
-	pub fn new(normal: DVec3, distance: f64) -> Self
+	pub const NULL: Self = Self::new(DVec3::NULL, 0.0);
+
+	#[inline]
+	#[must_use]
+	pub const fn new(normal: DVec3, distance: f64) -> Self
 	{
 		return Self {
 			normal: normal,
@@ -55,7 +85,9 @@ impl DPlane
 		};
 	}
 
-	pub fn new_xyzd(x: f64, y: f64, z: f64, distance: f64) -> Self
+	#[inline]
+	#[must_use]
+	pub const fn new_xyzd(x: f64, y: f64, z: f64, distance: f64) -> Self
 	{
 		return DPlane::new(DVec3::new(x, y, z), distance);
 	}
