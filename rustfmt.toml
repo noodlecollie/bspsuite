@@ -4,8 +4,10 @@
 #   as "unstable", presumably as their behaviour is in active development.
 #   Unstable options need `unstable_features = true`, and need a nightly
 #   build of rustfmt.
-# - To add a nightly build of rustfmt, run `cargo +nightly fmt`
-#   as per https://stackoverflow.com/a/73457375/2054335.
+# - To add a nightly build of rustfmt, run (as per https://stackoverflow.com/a/73457375/2054335):
+#     rustup toolchain install nightly
+#     rustup default stable # To make sure we still compile with stable
+#     cargo +nightly fmt
 # - To enable nightly options in VS code, add this to your settings:
 #     "rust-analyzer.rustfmt.extraArgs": [
 #         "+nightly"
