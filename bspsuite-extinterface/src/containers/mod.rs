@@ -1,3 +1,1 @@
-mod map_blueprint_builder;
-
-pub use map_blueprint_builder::IMapBlueprintBuilder;
+pub mod map_blueprint_builder;

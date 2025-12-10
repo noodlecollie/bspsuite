@@ -1,6 +1,7 @@
 use crate::types::{DPlane, DVec2, DVec3};
 use std::collections::HashMap;
 
+#[derive(Debug, PartialEq)]
 pub enum BuilderError
 {
 	/// A required operation had not been started.
@@ -93,12 +94,23 @@ pub trait IMapBlueprintBuilder
 	fn set_brush_face_material_axes(
 		&mut self,
 		u_unit_axis: DVec3,
-		u_offset: f64,
-		u_scale: f64,
 		v_unit_axis: DVec3,
-		v_offset: f64,
-		v_scale: f64,
 	) -> Result<(), BuilderError>;
+
+	/// Sets the material translation for the current brush face.
+	///
+	/// If there is no current face, returns
+	/// [BuilderError::OperationNotStarted].
+	fn set_brush_face_material_translation(
+		&mut self,
+		translation: DVec2,
+	) -> Result<(), BuilderError>;
+
+	/// Sets the material scale for the current brush face.
+	///
+	/// If there is no current face, returns
+	/// [BuilderError::OperationNotStarted].
+	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), BuilderError>;
 
 	/// Gets the index of the current entity, or None if there is no current
 	/// entity.
@@ -125,7 +137,8 @@ pub trait IMapBlueprintBuilder
 	fn num_current_brush_faces(&self) -> usize;
 }
 
-struct BrushFace
+#[derive(Debug)]
+pub struct BrushFace
 {
 	pub plane: DPlane,
 	pub material_name: String,
@@ -148,7 +161,8 @@ impl BrushFace
 	}
 }
 
-struct Brush
+#[derive(Debug)]
+pub struct Brush
 {
 	pub faces: Vec<BrushFace>,
 }
@@ -161,7 +175,8 @@ impl Brush
 	}
 }
 
-struct Entity
+#[derive(Debug)]
+pub struct Entity
 {
 	pub keyvalues: HashMap<String, String>,
 	pub brushes: Vec<Brush>,
@@ -197,6 +212,18 @@ impl MapBlueprintBuilder
 			current_face: None,
 		};
 	}
+
+	pub fn collect(self) -> Result<Vec<Entity>, BuilderError>
+	{
+		if self.current_entity.is_some()
+			|| self.current_brush.is_some()
+			|| self.current_face.is_some()
+		{
+			return Err(BuilderError::OperationNotFinished);
+		}
+
+		return Ok(self.entities);
+	}
 }
 
 impl IMapBlueprintBuilder for MapBlueprintBuilder
@@ -210,7 +237,7 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 			return Err(BuilderError::OperationNotFinished);
 		}
 
-		self.current_brush = Some(Brush::new());
+		self.current_entity = Some(Entity::new());
 		return Ok(());
 	}
 
@@ -351,11 +378,7 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 	fn set_brush_face_material_axes(
 		&mut self,
 		u_unit_axis: DVec3,
-		u_offset: f64,
-		u_scale: f64,
 		v_unit_axis: DVec3,
-		v_offset: f64,
-		v_scale: f64,
 	) -> Result<(), BuilderError>
 	{
 		if self.current_entity.is_none()
@@ -367,8 +390,39 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 
 		let face: &mut BrushFace = self.current_face.as_mut().unwrap();
 		face.material_axes = (u_unit_axis, v_unit_axis);
-		face.material_offset = DVec2::new(u_offset, v_offset);
-		face.material_scale = DVec2::new(u_scale, v_scale);
+
+		return Ok(());
+	}
+
+	fn set_brush_face_material_translation(
+		&mut self,
+		translation: DVec2,
+	) -> Result<(), BuilderError>
+	{
+		if self.current_entity.is_none()
+			|| self.current_brush.is_none()
+			|| self.current_face.is_none()
+		{
+			return Err(BuilderError::OperationNotStarted);
+		}
+
+		let face: &mut BrushFace = self.current_face.as_mut().unwrap();
+		face.material_offset = translation;
+
+		return Ok(());
+	}
+
+	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), BuilderError>
+	{
+		if self.current_entity.is_none()
+			|| self.current_brush.is_none()
+			|| self.current_face.is_none()
+		{
+			return Err(BuilderError::OperationNotStarted);
+		}
+
+		let face: &mut BrushFace = self.current_face.as_mut().unwrap();
+		face.material_scale = scale;
 
 		return Ok(());
 	}
@@ -411,5 +465,307 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		return self.current_brush.as_ref().map_or(0, |brush| {
 			brush.faces.len() + self.current_face.as_ref().map_or(0, |_| 1)
 		});
+	}
+}
+
+#[cfg(test)]
+mod tests
+{
+	use super::*;
+
+	#[test]
+	fn error_on_operations_not_started()
+	{
+		// No current entity
+		{
+			let mut builder = MapBlueprintBuilder::new();
+			assert_eq!(builder.end_entity(), Err(BuilderError::OperationNotStarted));
+			assert_eq!(
+				builder.begin_brush(),
+				Err(BuilderError::OperationNotStarted)
+			);
+			assert_eq!(builder.end_brush(), Err(BuilderError::OperationNotStarted));
+			assert_eq!(
+				builder.begin_brush_face(),
+				Err(BuilderError::OperationNotStarted)
+			);
+			assert_eq!(
+				builder.end_brush_face(),
+				Err(BuilderError::OperationNotStarted)
+			);
+
+			let entities = builder.collect();
+			assert!(entities.is_ok());
+			assert_eq!(entities.as_ref().unwrap().len(), 0);
+		}
+
+		// No current brush
+		{
+			let mut builder = MapBlueprintBuilder::new();
+			assert_eq!(builder.begin_entity(), Ok(()));
+
+			assert_eq!(builder.end_brush(), Err(BuilderError::OperationNotStarted));
+			assert_eq!(
+				builder.begin_brush_face(),
+				Err(BuilderError::OperationNotStarted)
+			);
+			assert_eq!(
+				builder.end_brush_face(),
+				Err(BuilderError::OperationNotStarted)
+			);
+
+			let entities = builder.collect();
+			assert!(entities.is_err());
+			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+		}
+
+		// No current face
+		{
+			let mut builder = MapBlueprintBuilder::new();
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.begin_brush(), Ok(()));
+
+			assert_eq!(
+				builder.end_brush_face(),
+				Err(BuilderError::OperationNotStarted)
+			);
+
+			let entities = builder.collect();
+			assert!(entities.is_err());
+			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+		}
+	}
+
+	#[test]
+	fn error_on_operations_not_finished()
+	{
+		// Begin new entity without finishing previous entity
+		{
+			let mut builder = MapBlueprintBuilder::new();
+			assert_eq!(builder.begin_entity(), Ok(()));
+
+			assert_eq!(
+				builder.begin_entity(),
+				Err(BuilderError::OperationNotFinished)
+			);
+
+			let entities = builder.collect();
+			assert!(entities.is_err());
+			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+		}
+
+		// Begin new brush without finishing previous brush
+		{
+			let mut builder = MapBlueprintBuilder::new();
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.begin_brush(), Ok(()));
+
+			assert_eq!(
+				builder.begin_brush(),
+				Err(BuilderError::OperationNotFinished)
+			);
+
+			let entities = builder.collect();
+			assert!(entities.is_err());
+			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+		}
+
+		// Begin new face without finishing previous face
+		{
+			let mut builder = MapBlueprintBuilder::new();
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.begin_brush(), Ok(()));
+			assert_eq!(builder.begin_brush_face(), Ok(()));
+
+			assert_eq!(
+				builder.begin_brush_face(),
+				Err(BuilderError::OperationNotFinished)
+			);
+
+			let entities = builder.collect();
+			assert!(entities.is_err());
+			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+		}
+
+		// Begin new entity without finishing brush
+		{
+			let mut builder = MapBlueprintBuilder::new();
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.begin_brush(), Ok(()));
+
+			assert_eq!(
+				builder.begin_entity(),
+				Err(BuilderError::OperationNotFinished)
+			);
+
+			let entities = builder.collect();
+			assert!(entities.is_err());
+			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+		}
+
+		// Begin new entity or brush without finishing face
+		{
+			let mut builder = MapBlueprintBuilder::new();
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.begin_brush(), Ok(()));
+			assert_eq!(builder.begin_brush_face(), Ok(()));
+
+			assert_eq!(
+				builder.begin_entity(),
+				Err(BuilderError::OperationNotFinished)
+			);
+
+			assert_eq!(
+				builder.begin_brush(),
+				Err(BuilderError::OperationNotFinished)
+			);
+
+			let entities = builder.collect();
+			assert!(entities.is_err());
+			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+		}
+	}
+
+	#[test]
+	fn construct_empty()
+	{
+		let builder = MapBlueprintBuilder::new();
+		let entities = builder.collect();
+		assert!(entities.is_ok());
+		assert_eq!(entities.as_ref().unwrap().len(), 0);
+	}
+
+	#[test]
+	fn construct_single_empty_entity()
+	{
+		let mut builder = MapBlueprintBuilder::new();
+		assert_eq!(builder.begin_entity(), Ok(()));
+		assert_eq!(builder.end_entity(), Ok(()));
+
+		let entities = builder.collect();
+		assert!(entities.is_ok());
+
+		let entities = entities.unwrap();
+		assert_eq!(entities.len(), 1);
+
+		let ent: &Entity = &entities[0];
+		assert_eq!(ent.keyvalues.len(), 0);
+		assert_eq!(ent.brushes.len(), 0);
+	}
+
+	#[test]
+	fn construct_single_entity_and_empty_brush()
+	{
+		let mut builder = MapBlueprintBuilder::new();
+		assert_eq!(builder.begin_entity(), Ok(()));
+		assert_eq!(builder.begin_brush(), Ok(()));
+		assert_eq!(builder.end_brush(), Ok(()));
+		assert_eq!(builder.end_entity(), Ok(()));
+
+		let entities = builder.collect();
+		assert!(entities.is_ok());
+
+		let entities = entities.unwrap();
+		assert_eq!(entities.len(), 1);
+
+		let ent: &Entity = &entities[0];
+		assert_eq!(ent.keyvalues.len(), 0);
+		assert_eq!(ent.brushes.len(), 1);
+
+		let brush: &Brush = &ent.brushes[0];
+		assert_eq!(brush.faces.len(), 0);
+	}
+
+	#[test]
+	fn construct_single_entity_and_brush_with_single_face()
+	{
+		let mut builder = MapBlueprintBuilder::new();
+		assert_eq!(builder.begin_entity(), Ok(()));
+		assert_eq!(builder.begin_brush(), Ok(()));
+		assert_eq!(builder.begin_brush_face(), Ok(()));
+		assert_eq!(builder.end_brush_face(), Ok(()));
+		assert_eq!(builder.end_brush(), Ok(()));
+		assert_eq!(builder.end_entity(), Ok(()));
+
+		let entities = builder.collect();
+		assert!(entities.is_ok());
+
+		let entities = entities.unwrap();
+		assert_eq!(entities.len(), 1);
+
+		let ent: &Entity = &entities[0];
+		assert_eq!(ent.keyvalues.len(), 0);
+		assert_eq!(ent.brushes.len(), 1);
+
+		let brush: &Brush = &ent.brushes[0];
+		assert_eq!(brush.faces.len(), 1);
+
+		let face: &BrushFace = &brush.faces[0];
+		assert_eq!(face.plane, DPlane::NULL);
+		assert_eq!(face.material_name, "");
+		assert_eq!(face.material_axes, (DVec3::NULL, DVec3::NULL));
+		assert_eq!(face.material_offset, DVec2::NULL);
+		assert_eq!(face.material_scale, DVec2::NULL);
+	}
+
+	#[test]
+	fn construct_with_example_properties()
+	{
+		let face_plane = DPlane::new(DVec3::new(1.0, 0.0, 0.0), 10.0);
+		let face_axis_u = DVec3::new(-1.0, 0.0, 0.0);
+		let face_axis_v = DVec3::new(0.0, 0.0, 1.0);
+		let face_translation = DVec2::new(10.0, 20.0);
+		let face_scale = DVec2::new(1.0, 1.5);
+		let face_material = String::from("example_material");
+
+		let mut builder = MapBlueprintBuilder::new();
+		assert_eq!(builder.begin_entity(), Ok(()));
+		assert_eq!(
+			builder.add_entity_keyvalue("classname", "worldspawn"),
+			Ok(())
+		);
+		assert_eq!(builder.begin_brush(), Ok(()));
+		assert_eq!(builder.begin_brush_face(), Ok(()));
+		assert_eq!(
+			builder.set_brush_face_material(face_material.clone()),
+			Ok(())
+		);
+		assert_eq!(builder.set_brush_face_plane(face_plane), Ok(()));
+		assert_eq!(
+			builder.set_brush_face_material_axes(face_axis_u, face_axis_v),
+			Ok(())
+		);
+		assert_eq!(
+			builder.set_brush_face_material_translation(face_translation),
+			Ok(())
+		);
+		assert_eq!(builder.set_brush_face_material_scale(face_scale), Ok(()));
+		assert_eq!(builder.end_brush_face(), Ok(()));
+		assert_eq!(builder.end_brush(), Ok(()));
+		assert_eq!(builder.end_entity(), Ok(()));
+
+		let entities = builder.collect();
+		assert!(entities.is_ok());
+
+		let entities = entities.unwrap();
+		assert_eq!(entities.len(), 1);
+
+		let ent: &Entity = &entities[0];
+		assert_eq!(ent.keyvalues.len(), 1);
+		assert_eq!(
+			ent.keyvalues.get("classname"),
+			Some(String::from("worldspawn")).as_ref()
+		);
+		assert_eq!(ent.brushes.len(), 1);
+
+		let brush: &Brush = &ent.brushes[0];
+		assert_eq!(brush.faces.len(), 1);
+
+		let face: &BrushFace = &brush.faces[0];
+		assert_eq!(face.plane, face_plane);
+		assert_eq!(face.material_name, face_material);
+		assert_eq!(face.material_axes, (face_axis_u, face_axis_v));
+		assert_eq!(face.material_offset, face_translation);
+		assert_eq!(face.material_scale, face_scale);
 	}
 }
