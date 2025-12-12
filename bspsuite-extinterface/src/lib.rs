@@ -2,8 +2,8 @@
 // https://users.rust-lang.org/t/linking-issues-when-designing-a-dynamic-plugin-based-architecture/136388
 
 mod apis;
-mod containers;
 
+pub mod containers;
 pub mod types;
 
 pub use apis::{ApiInfo, dummy_api, log_api, map_format_api, probe_api};

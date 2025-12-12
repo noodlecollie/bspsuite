@@ -1,5 +1,7 @@
 use crate::types::{DPlane, DVec2, DVec3};
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum BuilderError
@@ -9,6 +11,24 @@ pub enum BuilderError
 
 	/// A previous operation had not been completed before starting a new one.
 	OperationNotFinished,
+}
+
+impl fmt::Display for BuilderError
+{
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+	{
+		match self
+		{
+			Self::OperationNotStarted | Self::OperationNotFinished =>
+			{
+				write!(f, "Order of operations was incorrect")
+			}
+		}
+	}
+}
+
+impl Error for BuilderError
+{
 }
 
 /// Interface for functions used to build a map blueprint from geometry

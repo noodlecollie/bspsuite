@@ -14,3 +14,9 @@ version = "0.1.0"
 authors = ["NoodleCollie <noodle.collie@protonmail.com>"]
 documentation = "https://example.com/bar"
 edition = "2024"
+
+[workspace.dependencies]
+anyhow = "1.0.100"
+glam = "0.30.9"
+strum = "0.27.2"
+log = "0.4.28"

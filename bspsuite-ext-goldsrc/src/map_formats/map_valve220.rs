@@ -1,4 +1,8 @@
+use bspextifc::containers::map_blueprint_builder::{IMapBlueprintBuilder, MapBlueprintBuilder};
+use bspextifc::types::{DPlane, DVec2, DVec3};
+use glam;
 use logos::Logos;
+use std::ops::Range;
 
 // Documentation on the Goldsrc map format:
 // https://developer.valvesoftware.com/wiki/MAP_(file_format)
@@ -7,12 +11,39 @@ use logos::Logos;
 //   [ Vx Vy Vz Voffset ] rotation Uscale Vscale
 
 // A helpful example of how to define Logos tokens:
-// https://web.archive.org/web/20250829225654/https://logos.maciej.codes/examples/json.html
+// https://logos.maciej.codes/examples/json.html
+
+type ParseResult = Result<(), ParseError>;
+
+#[derive(Debug)]
+struct ParseError
+{
+	location: Range<usize>,
+	description: String,
+}
+
+impl ParseError
+{
+	pub fn new(location: Range<usize>, description: &str) -> Self
+	{
+		return Self {
+			location: location,
+			description: description.to_owned(),
+		};
+	}
+}
+
+enum BrushProgressionResult
+{
+	ParsedFace,
+	FinishedBrush,
+}
 
 // When expecting a new entity (including worldspawn),
 // declared with '{'.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
+#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum BaseContext
 {
 	#[regex(r"//[^\n]*\n")]
@@ -27,6 +58,7 @@ enum BaseContext
 // Nested brushes are declared with '{'.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
+#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum EntityContext
 {
 	#[regex(r"//[^\n]*\n")]
@@ -46,9 +78,10 @@ enum EntityContext
 	QuotedString(String),
 }
 
-// When processing brush faces.
+// When processing brushes.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
+#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum BrushContext
 {
 	#[regex(r"//[^\n]*\n")]
@@ -66,22 +99,34 @@ enum BrushContext
 	#[token("[")]
 	OpenSquareBracket,
 
-	// String covers any other chain of characters that does not
-	// open a new context.
-	#[regex(r"[A-Za-z0-9_][^\s]*")]
-	String,
+	// Borrowed from the JSON example.
+	#[regex(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?", |lex| lex.slice().parse::<f64>().unwrap())]
+	Number(f64),
+
+	// String covers any other chain of characters.
+	// The string cannot begin with a character which
+	// would match a different token. If we need something
+	// more sophisticated than this, we may need to
+	// create a new context to invoke at the correct time.
+	#[regex(r"[^0-9\}\(\)\[\s-][^\s]*", |lex| lex.slice().to_owned())]
+	String(String),
 }
 
 // When processing a 3D vector.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
+#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum Point3DContext
 {
 	// Borrowed from the JSON example.
 	#[regex(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?", |lex| lex.slice().parse::<f64>().unwrap())]
 	Number(f64),
 
-	// Falls back to BrushContext.
+	// Begins a new point.
+	#[token("(")]
+	OpenRoundBracket,
+
+	// Ends a point. May fall back to BrushContext if this was the last point we expected.
 	#[token(")")]
 	CloseRoundBracket,
 }
@@ -89,15 +134,12 @@ enum Point3DContext
 // When processing a vector of items.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
+#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum VectorContext
 {
 	// Borrowed from the JSON example.
 	#[regex(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?", |lex| lex.slice().parse::<f64>().unwrap())]
 	Number(f64),
-
-	// String covers any other chain of characters that is not a number.
-	#[regex(r"[A-Za-z_][^\s]*")]
-	String,
 
 	// Falls back to BrushContext.
 	#[token("]")]
@@ -109,6 +151,508 @@ pub extern "C" fn parse()
 	// TODO
 }
 
+fn parse_map(
+	lexer: &mut logos::Lexer<'_, BaseContext>,
+	builder: &mut MapBlueprintBuilder,
+) -> ParseResult
+{
+	while let Some(token) = lexer.next()
+	{
+		match token
+		{
+			Ok(BaseContext::Comment) => continue,
+			Ok(BaseContext::OpenBrace) =>
+			{
+				builder
+					.begin_entity()
+					.map_err(|_| ParseError::new(lexer.span(), "begin_entity() failed"))?;
+
+				parse_entity(&mut lexer.clone().morph::<EntityContext>(), builder)?;
+
+				builder
+					.end_entity()
+					.map_err(|_| ParseError::new(lexer.span(), "end_entity() failed"))?;
+			}
+			Err(span) =>
+			{
+				return Err(ParseError::new(
+					span,
+					"Unrecognised token while parsing map",
+				));
+			}
+		}
+	}
+
+	// Nothing more to parse, and we're in the correct state to finish parsing.
+	return Ok(());
+}
+
+fn parse_entity(
+	lexer: &mut logos::Lexer<'_, EntityContext>,
+	builder: &mut MapBlueprintBuilder,
+) -> ParseResult
+{
+	while let Some(token) = lexer.next()
+	{
+		match token
+		{
+			Ok(EntityContext::Comment) => continue,
+			Ok(EntityContext::CloseBrace) => return Ok(()),
+			Ok(EntityContext::QuotedString(key)) =>
+			{
+				parse_entity_value_after_key(lexer, builder, key)?
+			}
+			Ok(EntityContext::OpenBrace) =>
+			{
+				builder
+					.begin_brush()
+					.map_err(|_| ParseError::new(lexer.span(), "begin_brush() failed"))?;
+
+				parse_brush(&mut lexer.clone().morph::<BrushContext>(), builder)?;
+
+				builder
+					.end_brush()
+					.map_err(|_| ParseError::new(lexer.span(), "end_brush() failed"))?;
+			}
+			Err(span) =>
+			{
+				return Err(ParseError::new(
+					span,
+					"Unrecognised token while parsing entity",
+				));
+			}
+		}
+	}
+
+	return Err(ParseError::new(
+		lexer.span(),
+		"Unexpected end of input while parsing entity",
+	));
+}
+
+fn parse_entity_value_after_key(
+	lexer: &mut logos::Lexer<'_, EntityContext>,
+	builder: &mut MapBlueprintBuilder,
+	key: String,
+) -> ParseResult
+{
+	return match lexer.next()
+	{
+		Some(token) => match token
+		{
+			Ok(EntityContext::QuotedString(value)) =>
+			{
+				builder
+					.add_entity_keyvalue(&key, &value)
+					.map_err(|_| ParseError::new(lexer.span(), "add_entity_keyvalue() failed"))?;
+
+				Ok(())
+			}
+			Ok(_) => Err(ParseError::new(
+				lexer.span(),
+				"Unexpected token while parsing entity keyvalue property",
+			)),
+			Err(span) => Err(ParseError::new(
+				span,
+				"Unexpected token while parsing entity keyvalue property",
+			)),
+		},
+		None => Err(ParseError::new(
+			lexer.span(),
+			"Unexpected end of input while parsing entity keyvalue property",
+		)),
+	};
+}
+
+fn parse_brush(
+	lexer: &mut logos::Lexer<'_, BrushContext>,
+	builder: &mut MapBlueprintBuilder,
+) -> ParseResult
+{
+	loop
+	{
+		let result = parse_brush_face_or_end_of_brush(lexer, builder)?;
+
+		match result
+		{
+			BrushProgressionResult::ParsedFace => continue,
+			BrushProgressionResult::FinishedBrush => break,
+		};
+	}
+
+	return Ok(());
+}
+
+fn parse_brush_face_or_end_of_brush(
+	lexer: &mut logos::Lexer<'_, BrushContext>,
+	builder: &mut MapBlueprintBuilder,
+) -> Result<BrushProgressionResult, ParseError>
+{
+	while let Some(token) = lexer.next()
+	{
+		match token
+		{
+			Ok(BrushContext::Comment) => continue,
+			Ok(BrushContext::OpenRoundBracket) =>
+			{
+				parse_brush_face(lexer, builder)?;
+				return Ok(BrushProgressionResult::ParsedFace);
+			}
+			Ok(BrushContext::CloseBrace) =>
+			{
+				return Ok(BrushProgressionResult::FinishedBrush);
+			}
+			Ok(_) =>
+			{
+				return Err(ParseError::new(
+					lexer.span(),
+					"Unexpected token while parsing brush",
+				));
+			}
+			Err(span) =>
+			{
+				return Err(ParseError::new(
+					span.clone(),
+					"Unexpected token while parsing brush",
+				));
+			}
+		}
+	}
+
+	// Make sure we consume the waiting token before we fail.
+	lexer.next();
+
+	return Err(ParseError::new(
+		lexer.span(),
+		"Unexpected end of input while parsing brush",
+	));
+}
+
+fn parse_brush_face(
+	lexer: &mut logos::Lexer<'_, BrushContext>,
+	builder: &mut MapBlueprintBuilder,
+) -> ParseResult
+{
+	let plane_points: (DVec3, DVec3, DVec3) = parse_three_point3d_after_first_opening_bracket(
+		&mut lexer.clone().morph::<Point3DContext>(),
+	)?;
+
+	let material_path: String = parse_face_material_string(lexer)?;
+	let u_axis_and_offset: (f64, f64, f64, f64) = parse_face_material_axis_and_offset(lexer)?;
+	let v_axis_and_offset: (f64, f64, f64, f64) = parse_face_material_axis_and_offset(lexer)?;
+
+	// We don't actually use the rotation, because we can derive it from the axes.
+	let _: f64 = parse_face_material_number(lexer)?;
+
+	let u_scale: f64 = parse_face_material_number(lexer)?;
+	let v_scale: f64 = parse_face_material_number(lexer)?;
+
+	let u_axis: DVec3 = DVec3::new(
+		u_axis_and_offset.0,
+		u_axis_and_offset.1,
+		u_axis_and_offset.2,
+	);
+	let u_translation: f64 = u_axis_and_offset.3;
+	let v_axis: DVec3 = DVec3::new(
+		v_axis_and_offset.0,
+		v_axis_and_offset.1,
+		v_axis_and_offset.2,
+	);
+	let v_translation: f64 = v_axis_and_offset.3;
+
+	builder
+		.begin_brush_face()
+		.map_err(|_| ParseError::new(lexer.span(), "begin_brush_face() failed"))?;
+
+	builder
+		.set_brush_face_plane(plane_from_points(plane_points))
+		.map_err(|_| ParseError::new(lexer.span(), "set_brush_face_plane() failed"))?;
+
+	builder
+		.set_brush_face_material(material_path)
+		.map_err(|_| ParseError::new(lexer.span(), "set_brush_face_material() failed"))?;
+
+	builder
+		.set_brush_face_material_axes(u_axis, v_axis)
+		.map_err(|_| ParseError::new(lexer.span(), "set_brush_face_material_axes() failed"))?;
+
+	builder
+		.set_brush_face_material_scale(DVec2::new(u_scale, v_scale))
+		.map_err(|_| ParseError::new(lexer.span(), "set_brush_face_material_scale() failed"))?;
+
+	builder
+		.set_brush_face_material_translation(DVec2::new(u_translation, v_translation))
+		.map_err(|_| {
+			ParseError::new(lexer.span(), "set_brush_face_material_translation() failed")
+		})?;
+
+	builder
+		.begin_brush_face()
+		.map_err(|_| ParseError::new(lexer.span(), "end_brush_face() failed"))?;
+
+	return Ok(());
+}
+
+fn parse_three_point3d_after_first_opening_bracket(
+	lexer: &mut logos::Lexer<'_, Point3DContext>,
+) -> Result<(DVec3, DVec3, DVec3), ParseError>
+{
+	let mut points: [DVec3; 3] = [DVec3::NULL; 3];
+
+	for iteration in 0..3
+	{
+		let point: DVec3 = parse_point3d_after_opening_bracket(lexer)?;
+
+		if iteration < 2
+		{
+			// Ensure we have a following opening bracket.
+			match lexer.next()
+			{
+				Some(token) => match token
+				{
+					Ok(Point3DContext::OpenRoundBracket) => Ok(()),
+					Err(span) => Err(ParseError::new(
+						span,
+						"Unexpected token while parsing 3D point",
+					)),
+					_ => Err(ParseError::new(
+						lexer.span(),
+						"Unexpected token while parsing 3D point",
+					)),
+				},
+				None => Err(ParseError::new(
+					lexer.span(),
+					"Unexpected end of input while parsing 3D point",
+				)),
+			}?;
+		}
+
+		points[iteration] = point;
+	}
+
+	return Ok((points[0], points[1], points[2]));
+}
+
+fn parse_point3d_after_opening_bracket(
+	lexer: &mut logos::Lexer<'_, Point3DContext>,
+) -> Result<DVec3, ParseError>
+{
+	let mut values: [f64; 3] = [0.0; 3];
+
+	for iteration in 0..3
+	{
+		let value: f64 = match lexer.next()
+		{
+			Some(token) => match token
+			{
+				Ok(Point3DContext::Number(value)) => Ok(value),
+				Ok(Point3DContext::CloseRoundBracket) => Err(ParseError::new(
+					lexer.span(),
+					"Premature closing bracket when parsing 3D point",
+				)),
+				Err(span) => Err(ParseError::new(
+					span,
+					"Unexpected token while parsing 3D point",
+				)),
+				_ => Err(ParseError::new(
+					lexer.span(),
+					"Unexpected token while parsing 3D point",
+				)),
+			},
+			None => Err(ParseError::new(
+				lexer.span(),
+				"Unexpected end of input while parsing 3D point",
+			)),
+		}?;
+
+		values[iteration] = value;
+	}
+
+	// Ensure we have a closing bracket.
+	match lexer.next()
+	{
+		Some(token) => match token
+		{
+			Ok(Point3DContext::CloseRoundBracket) => Ok(()),
+			Err(span) => Err(ParseError::new(
+				span,
+				"Unexpected token while parsing 3D point",
+			)),
+			_ => Err(ParseError::new(
+				lexer.span(),
+				"Unexpected token while parsing 3D point",
+			)),
+		},
+		None => Err(ParseError::new(
+			lexer.span(),
+			"Unexpected end of input while parsing 3D point",
+		)),
+	}?;
+
+	return Ok(DVec3::new(values[0], values[1], values[2]));
+}
+
+fn parse_face_material_string(
+	lexer: &mut logos::Lexer<'_, BrushContext>,
+) -> Result<String, ParseError>
+{
+	return match lexer.next()
+	{
+		Some(token) => match token
+		{
+			Ok(BrushContext::String(value)) => Ok(value),
+			Ok(_) => Err(ParseError::new(
+				lexer.span(),
+				"Unexpected token while parsing face material string",
+			)),
+			Err(span) => Err(ParseError::new(
+				span,
+				"Unexpected token while parsing face material string",
+			)),
+		},
+		None => Err(ParseError::new(
+			lexer.span(),
+			"Unexpected end of input while parsing face material string",
+		)),
+	};
+}
+
+fn parse_face_material_axis_and_offset(
+	lexer: &mut logos::Lexer<'_, BrushContext>,
+) -> Result<(f64, f64, f64, f64), ParseError>
+{
+	return match lexer.next()
+	{
+		Some(token) => match token
+		{
+			Ok(BrushContext::OpenSquareBracket) =>
+			{
+				let vals: [f64; 4] = parse_numeric_vector_after_opening_bracket::<4>(
+					&mut lexer.clone().morph::<VectorContext>(),
+				)?;
+
+				Ok((vals[0], vals[1], vals[2], vals[3]))
+			}
+			Ok(_) => Err(ParseError::new(
+				lexer.span(),
+				"Unexpected token when opening bracket of numeric vector was expected",
+			)),
+			Err(span) => Err(ParseError::new(
+				span,
+				"Unexpected token when opening bracket of numeric vector was expected",
+			)),
+		},
+		None => Err(ParseError::new(
+			lexer.span(),
+			"Unexpected token when opening bracket of numeric vector was expected",
+		)),
+	};
+}
+
+fn parse_numeric_vector_after_opening_bracket<const LENGTH: usize>(
+	lexer: &mut logos::Lexer<'_, VectorContext>,
+) -> Result<[f64; LENGTH], ParseError>
+{
+	let mut values: [f64; LENGTH] = [0.0; LENGTH];
+
+	for iteration in 0..LENGTH
+	{
+		let value: f64 = match lexer.next()
+		{
+			Some(token) => match token
+			{
+				Ok(VectorContext::Number(val)) => Ok(val),
+				Ok(_) => Err(ParseError::new(
+					lexer.span(),
+					"Unexpected token while parsing numeric vector",
+				)),
+				Err(span) => Err(ParseError::new(
+					span,
+					"Unexpected token while parsing numeric vector",
+				)),
+			},
+			None => Err(ParseError::new(
+				lexer.span(),
+				"Unexpected end of input while parsing numeric vector",
+			)),
+		}?;
+
+		values[iteration] = value;
+	}
+
+	match lexer.next()
+	{
+		Some(token) => match token
+		{
+			Ok(VectorContext::CloseSquareBracket) => (),
+			Ok(_) =>
+			{
+				return Err(ParseError::new(
+					lexer.span(),
+					"Unexpected token when closing bracket of numeric vector was expected",
+				));
+			}
+			Err(span) =>
+			{
+				return Err(ParseError::new(
+					span,
+					"Unexpected token when closing bracket of numeric vector was expected",
+				));
+			}
+		},
+		None =>
+		{
+			return Err(ParseError::new(
+				lexer.span(),
+				"Unexpected end of input when closing bracket of numeric vector was expected",
+			));
+		}
+	};
+
+	return Ok(values);
+}
+
+fn parse_face_material_number(lexer: &mut logos::Lexer<'_, BrushContext>)
+-> Result<f64, ParseError>
+{
+	return match lexer.next()
+	{
+		Some(token) => match token
+		{
+			Ok(BrushContext::Number(val)) => Ok(val),
+			Ok(_) => Err(ParseError::new(
+				lexer.span(),
+				"Unexpected token while parsing numeric value",
+			)),
+			Err(span) => Err(ParseError::new(
+				span,
+				"Unexpected token while parsing numeric value",
+			)),
+		},
+		None => Err(ParseError::new(
+			lexer.span(),
+			"Unexpected end of input while parsing numeric value",
+		)),
+	};
+}
+
+// Based on https://stackoverflow.com/a/53698872
+fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane
+{
+	type GVec3 = glam::DVec3;
+
+	let p0: GVec3 = GVec3::new(points.0.x, points.0.y, points.0.z);
+	let p1: GVec3 = GVec3::new(points.1.x, points.1.y, points.1.z);
+	let p2: GVec3 = GVec3::new(points.2.x, points.2.y, points.2.z);
+
+	let u: GVec3 = p1 - p0;
+	let v: GVec3 = p2 - p0;
+	let normal: GVec3 = u.cross(v).try_normalize().unwrap_or_else(|| GVec3::ZERO);
+	let distance: f64 = p0.dot(normal);
+
+	return DPlane::new(DVec3::new(normal.x, normal.y, normal.z), distance);
+}
+
 #[cfg(test)]
 mod tests
 {
@@ -118,7 +662,12 @@ mod tests
 	#[test]
 	fn parse_box_map()
 	{
-		// TODO
-		let lexer: logos::Lexer<'_, BaseContext> = BaseContext::lexer(BOX_MAP_SOURCE);
+		let mut lexer: logos::Lexer<'_, BaseContext> = BaseContext::lexer(BOX_MAP_SOURCE);
+		let mut builder: MapBlueprintBuilder = MapBlueprintBuilder::new();
+		let result = parse_map(&mut lexer, &mut builder);
+
+		assert!(result.is_ok());
+
+		// TODO: Further checking
 	}
 }
