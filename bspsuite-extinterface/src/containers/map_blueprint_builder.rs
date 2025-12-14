@@ -1,4 +1,5 @@
 use crate::types::{DPlane, DVec2, DVec3};
+use log::trace;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
@@ -258,6 +259,8 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		}
 
 		self.current_entity = Some(Entity::new());
+		trace!("Begin entity {}", self.current_entity_index().unwrap());
+
 		return Ok(());
 	}
 
@@ -273,7 +276,9 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 			return Err(BuilderError::OperationNotFinished);
 		}
 
+		trace!("End entity {}", self.current_entity_index().unwrap());
 		self.entities.push(self.current_entity.take().unwrap());
+
 		return Ok(());
 	}
 
@@ -288,6 +293,13 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		{
 			return Err(BuilderError::OperationNotFinished);
 		}
+
+		trace!(
+			"Add entity {} keyvalue: \"{}\" = \"{}\"",
+			self.current_entity_index().unwrap(),
+			key,
+			value
+		);
 
 		self.current_entity
 			.as_mut()
@@ -311,6 +323,8 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		}
 
 		self.current_brush = Some(Brush::new());
+		trace!("Begin entity brush {}", self.current_brush_index().unwrap());
+
 		return Ok(());
 	}
 
@@ -325,6 +339,8 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		{
 			return Err(BuilderError::OperationNotStarted);
 		}
+
+		trace!("End entity brush {}", self.current_brush_index().unwrap());
 
 		self.current_entity
 			.as_mut()
@@ -348,6 +364,11 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		}
 
 		self.current_face = Some(BrushFace::new());
+		trace!(
+			"Begin entity brush face {}",
+			self.current_brush_face_index().unwrap()
+		);
+
 		return Ok(());
 	}
 
@@ -359,6 +380,11 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		{
 			return Err(BuilderError::OperationNotStarted);
 		}
+
+		trace!(
+			"End entity brush face {}",
+			self.current_brush_face_index().unwrap()
+		);
 
 		self.current_brush
 			.as_mut()
@@ -378,6 +404,12 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 			return Err(BuilderError::OperationNotStarted);
 		}
 
+		trace!(
+			"Set face {} plane: {:?}",
+			self.current_brush_face_index().unwrap(),
+			plane
+		);
+
 		self.current_face.as_mut().unwrap().plane = plane;
 		return Ok(());
 	}
@@ -390,6 +422,12 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		{
 			return Err(BuilderError::OperationNotStarted);
 		}
+
+		trace!(
+			"Set face {} material: {}",
+			self.current_brush_face_index().unwrap(),
+			material_name
+		);
 
 		self.current_face.as_mut().unwrap().material_name = material_name;
 		return Ok(());
@@ -407,6 +445,13 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		{
 			return Err(BuilderError::OperationNotStarted);
 		}
+
+		trace!(
+			"Set face {} material axes: ({:?}, {:?})",
+			self.current_brush_face_index().unwrap(),
+			u_unit_axis,
+			v_unit_axis
+		);
 
 		let face: &mut BrushFace = self.current_face.as_mut().unwrap();
 		face.material_axes = (u_unit_axis, v_unit_axis);
@@ -426,6 +471,12 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 			return Err(BuilderError::OperationNotStarted);
 		}
 
+		trace!(
+			"Set face {} material translation: {:?}",
+			self.current_brush_face_index().unwrap(),
+			translation
+		);
+
 		let face: &mut BrushFace = self.current_face.as_mut().unwrap();
 		face.material_offset = translation;
 
@@ -440,6 +491,12 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		{
 			return Err(BuilderError::OperationNotStarted);
 		}
+
+		trace!(
+			"Set face {} material scale: {:?}",
+			self.current_brush_face_index().unwrap(),
+			scale
+		);
 
 		let face: &mut BrushFace = self.current_face.as_mut().unwrap();
 		face.material_scale = scale;
