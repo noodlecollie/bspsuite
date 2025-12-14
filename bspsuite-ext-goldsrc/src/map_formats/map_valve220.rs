@@ -13,10 +13,10 @@ use std::ops::Range;
 // A helpful example of how to define Logos tokens:
 // https://logos.maciej.codes/examples/json.html
 
-type ParseResult = Result<(), ParseError>;
+pub type ParseResult = Result<(), ParseError>;
 
 #[derive(Debug)]
-struct ParseError
+pub struct ParseError
 {
 	token: Option<String>,
 	location: Range<usize>,
@@ -176,11 +176,10 @@ pub extern "C" fn parse()
 	// TODO
 }
 
-fn parse_map(
-	lexer: &mut logos::Lexer<'_, BaseContext>,
-	builder: &mut MapBlueprintBuilder,
-) -> ParseResult
+pub fn parse_map(source: &str, builder: &mut MapBlueprintBuilder) -> ParseResult
 {
+	let mut lexer: logos::Lexer<'_, BaseContext> = BaseContext::lexer(source);
+
 	while let Some(token) = lexer.next()
 	{
 		match token
@@ -190,15 +189,15 @@ fn parse_map(
 			{
 				builder
 					.begin_entity()
-					.map_err(|_| ParseError::from_token(lexer, "begin_entity() failed"))?;
+					.map_err(|_| ParseError::from_token(&lexer, "begin_entity() failed"))?;
 
 				let mut sub_lexer = lexer.clone().morph::<EntityContext>();
 				parse_entity(&mut sub_lexer, builder)?;
-				*lexer = sub_lexer.morph();
+				lexer = sub_lexer.morph();
 
 				builder
 					.end_entity()
-					.map_err(|_| ParseError::from_token(lexer, "end_entity() failed"))?;
+					.map_err(|_| ParseError::from_token(&lexer, "end_entity() failed"))?;
 			}
 			Err(span) =>
 			{
@@ -682,47 +681,4 @@ fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane
 	let distance: f64 = p0.dot(normal);
 
 	return DPlane::new(DVec3::new(normal.x, normal.y, normal.z), distance);
-}
-
-#[cfg(test)]
-mod tests
-{
-	use bspextifc::containers::map_blueprint_builder::{Brush, BuilderError, Entity};
-
-	use super::*;
-	use crate::map_formats::test_resources::goldsrcmap_res::BOX_MAP_SOURCE;
-
-	#[test]
-	fn parse_box_map()
-	{
-		let mut lexer: logos::Lexer<'_, BaseContext> = BaseContext::lexer(BOX_MAP_SOURCE);
-		let mut builder: MapBlueprintBuilder = MapBlueprintBuilder::new();
-		let result = parse_map(&mut lexer, &mut builder);
-		let build_result: Result<Vec<Entity>, BuilderError> = builder.collect();
-
-		assert!(result.is_ok());
-		assert!(build_result.is_ok());
-
-		let build_result = build_result.unwrap();
-		let world: &Entity = &build_result[0];
-
-		assert_eq!(world.keyvalues.len(), 2);
-
-		assert_eq!(
-			world.keyvalues.get("classname"),
-			Some("worldspawn".to_owned()).as_ref()
-		);
-
-		assert_eq!(
-			world.keyvalues.get("mapversion"),
-			Some("510".to_owned()).as_ref()
-		);
-
-		// TODO: Check entity 1
-
-		let brushes: &Vec<Brush> = &world.brushes;
-		assert_eq!(brushes.len(), 6);
-
-		// TODO: Check each brush
-	}
 }

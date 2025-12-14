@@ -4,7 +4,7 @@ use bspextifc::types::StringRef;
 mod map_valve220;
 
 #[cfg(test)]
-mod test_resources;
+mod tests;
 
 pub fn create_callbacks() -> Callbacks
 {
