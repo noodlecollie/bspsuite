@@ -112,6 +112,7 @@ fn parse_box_map()
 	check_brush_0(&brushes[0]);
 	check_brush_1(&brushes[1]);
 	check_brush_2(&brushes[2]);
+	check_brush_3(&brushes[3]);
 }
 
 fn check_brush_0(actual: &Brush)
@@ -323,6 +324,77 @@ fn check_brush_2(actual: &Brush)
 			material_axes: (DVec3::new(0.0, 1.0, 0.0), DVec3::new(0.0, 0.0, -1.0)),
 			material_offset: DVec2::new(0.0, 256.0),
 			material_scale: DVec2::new(1.25, 1.25),
+		},
+	);
+}
+
+fn check_brush_3(actual: &Brush)
+{
+	assert_eq!(actual.faces.len(), 6);
+
+	check_brush_face(
+		&actual.faces[0],
+		&BrushFace {
+			plane: x_plane(PlaneDir::Neg, -248.0),
+			material_name: "knox/ctf_bconcrete_1".to_owned(),
+			material_axes: (DVec3::new(0.0, 1.0, 0.0), DVec3::new(0.0, 0.0, -1.0)),
+			material_offset: DVec2::new(0.0, 256.0),
+			material_scale: DVec2::new(1.25, 1.25),
+		},
+	);
+
+	check_brush_face(
+		&actual.faces[1],
+		&BrushFace {
+			plane: y_plane(PlaneDir::Neg, 248.0),
+			material_name: "special/nodraw".to_owned(),
+			material_axes: (DVec3::new(1.0, 0.0, 0.0), DVec3::new(0.0, 0.0, -1.0)),
+			material_offset: DVec2::new(0.0, 0.0),
+			material_scale: DVec2::new(1.0, 1.0),
+		},
+	);
+
+	check_brush_face(
+		&actual.faces[2],
+		&BrushFace {
+			plane: z_plane(PlaneDir::Neg, 0.0),
+			material_name: "special/nodraw".to_owned(),
+			material_axes: (DVec3::new(1.0, 0.0, 0.0), DVec3::new(0.0, -1.0, 0.0)),
+			material_offset: DVec2::new(0.0, 0.0),
+			material_scale: DVec2::new(1.0, 1.0),
+		},
+	);
+
+	check_brush_face(
+		&actual.faces[3],
+		&BrushFace {
+			plane: z_plane(PlaneDir::Pos, 200.0),
+			material_name: "special/nodraw".to_owned(),
+			material_axes: (DVec3::new(1.0, 0.0, 0.0), DVec3::new(0.0, -1.0, 0.0)),
+			material_offset: DVec2::new(0.0, 0.0),
+			material_scale: DVec2::new(1.0, 1.0),
+		},
+	);
+
+	check_brush_face(
+		&actual.faces[4],
+		&BrushFace {
+			plane: y_plane(PlaneDir::Pos, 248.0),
+			material_name: "special/nodraw".to_owned(),
+			material_axes: (DVec3::new(1.0, 0.0, 0.0), DVec3::new(0.0, 0.0, -1.0)),
+			material_offset: DVec2::new(0.0, 0.0),
+			material_scale: DVec2::new(1.0, 1.0),
+		},
+	);
+
+	check_brush_face(
+		&actual.faces[5],
+		&BrushFace {
+			plane: x_plane(PlaneDir::Pos, 256.0),
+			material_name: "special/nodraw".to_owned(),
+			material_axes: (DVec3::new(0.0, 1.0, 0.0), DVec3::new(0.0, 0.0, -1.0)),
+			material_offset: DVec2::new(0.0, 0.0),
+			material_scale: DVec2::new(1.0, 1.0),
 		},
 	);
 }
