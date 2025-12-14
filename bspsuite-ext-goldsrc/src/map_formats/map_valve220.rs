@@ -6,7 +6,9 @@ use std::ops::Range;
 
 // Documentation on the Goldsrc map format:
 // https://developer.valvesoftware.com/wiki/MAP_(file_format)
-// In particular, the brush face format is defined as:
+// Also see notes/MAPFiles_2001_StefanHajnoczi.pdf in this repo.
+
+// The brush face format is defined as:
 //   ( x1 y1 z1 ) ( x2 y2 z2 ) ( x3 y3 z3 ) TEXTURENAME [ Ux Uy Uz Uoffset ]
 //   [ Vx Vy Vz Voffset ] rotation Uscale Vscale
 
@@ -666,19 +668,27 @@ fn parse_face_material_number(lexer: &mut logos::Lexer<'_, BrushContext>)
 	};
 }
 
-// Based on https://stackoverflow.com/a/53698872
+// Based on https://github.com/stefanha/map-files/blob/master/math.h#L177
+// For some reason (glam handedness?), the cross product order must be
+// inverted from the original reference code to produce planes with the
+// orientation that we expect. This was found by trial and error.
 fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane
 {
 	type GVec3 = glam::DVec3;
 
-	let p0: GVec3 = GVec3::new(points.0.x, points.0.y, points.0.z);
-	let p1: GVec3 = GVec3::new(points.1.x, points.1.y, points.1.z);
-	let p2: GVec3 = GVec3::new(points.2.x, points.2.y, points.2.z);
+	let a: GVec3 = GVec3::new(points.0.x, points.0.y, points.0.z);
+	let b: GVec3 = GVec3::new(points.1.x, points.1.y, points.1.z);
+	let c: GVec3 = GVec3::new(points.2.x, points.2.y, points.2.z);
 
-	let u: GVec3 = p1 - p0;
-	let v: GVec3 = p2 - p0;
-	let normal: GVec3 = u.cross(v).try_normalize().unwrap_or_else(|| GVec3::ZERO);
-	let distance: f64 = p0.dot(normal);
+	let b_to_c: GVec3 = c - b;
+	let b_to_a: GVec3 = a - b;
+
+	let normal: GVec3 = b_to_a
+		.cross(b_to_c)
+		.try_normalize()
+		.unwrap_or_else(|| GVec3::ZERO);
+
+	let distance: f64 = normal.dot(a);
 
 	return DPlane::new(DVec3::new(normal.x, normal.y, normal.z), distance);
 }
