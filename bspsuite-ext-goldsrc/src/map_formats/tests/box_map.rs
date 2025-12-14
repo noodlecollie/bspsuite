@@ -4,7 +4,84 @@ use bspextifc::containers::map_blueprint_builder::{
 };
 use bspextifc::types::{DPlane, DVec2, DVec3};
 
+// TODO: Switch to this one, it's more representative of Half-Life.
 const BOX_MAP_SOURCE: &str = r#"
+// entity 0
+{
+"mapversion" "220"
+"wad" "halflife.wad"
+"classname" "worldspawn"
+"sounds" "1"
+"MaxRange" "4096"
+"startdark" "0"
+"gametitle" "0"
+"newunit" "0"
+"defaultteam" "0"
+// brush 0
+{
+( -64 -64 -32 ) ( -64 -63 -32 ) ( -64 -64 -31 ) C1A0_LABGLU [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 -64 -32 ) ( -64 -64 -31 ) ( -63 -64 -32 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 -64 -16 ) ( -63 -64 -16 ) ( -64 -63 -16 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 64 64 0 ) ( 64 65 0 ) ( 65 64 0 ) C1A0_LABFLRE [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 0.5 0.5
+( 64 64 0 ) ( 65 64 0 ) ( 64 64 1 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 64 64 0 ) ( 64 64 1 ) ( 64 65 0 ) C1A0_LABGLU [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+// brush 1
+{
+( -64 64 0 ) ( -64 65 0 ) ( -64 64 1 ) C1A0_LABGLU [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 64 0 ) ( -64 64 1 ) ( -63 64 0 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 64 0 ) ( -63 64 0 ) ( -64 65 0 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 64 192 128 ) ( 64 193 128 ) ( 65 192 128 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 64 80 32 ) ( 65 80 32 ) ( 64 80 33 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 64 192 32 ) ( 64 192 33 ) ( 64 193 32 ) C1A0_LABGLU [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+// brush 2
+{
+( -64 -80 0 ) ( -64 -79 0 ) ( -64 -80 1 ) C1A0_LABGLU [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 -80 0 ) ( -64 -80 1 ) ( -63 -80 0 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 -80 0 ) ( -63 -80 0 ) ( -64 -79 0 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 64 48 128 ) ( 64 49 128 ) ( 65 48 128 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 64 -64 32 ) ( 65 -64 32 ) ( 64 -64 33 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 64 48 32 ) ( 64 48 33 ) ( 64 49 32 ) C1A0_LABGLU [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+// brush 3
+{
+( -80 -64 0 ) ( -80 -63 0 ) ( -80 -64 1 ) C1A0_LABGLU [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -80 -64 0 ) ( -80 -64 1 ) ( -79 -64 0 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -80 -64 0 ) ( -79 -64 0 ) ( -80 -63 0 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 48 64 128 ) ( 48 65 128 ) ( 49 64 128 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 48 64 32 ) ( 49 64 32 ) ( 48 64 33 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 64 32 ) ( -64 64 33 ) ( -64 65 32 ) C1A0_LABGLU [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+// brush 4
+{
+( 64 -64 0 ) ( 64 -63 0 ) ( 64 -64 1 ) C1A0_LABGLU [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 64 -64 0 ) ( 64 -64 1 ) ( 65 -64 0 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 64 -64 0 ) ( 65 -64 0 ) ( 64 -63 0 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 192 64 128 ) ( 192 65 128 ) ( 193 64 128 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 192 64 32 ) ( 193 64 32 ) ( 192 64 33 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 80 64 32 ) ( 80 64 33 ) ( 80 65 32 ) C1A0_LABGLU [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+// brush 5
+{
+( -64 -64 112 ) ( -64 -63 112 ) ( -64 -64 113 ) C1A0_LABGLU [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 -64 112 ) ( -64 -64 113 ) ( -63 -64 112 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -64 -64 128 ) ( -63 -64 128 ) ( -64 -63 128 ) C1A0_W2 [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 64 64 144 ) ( 64 65 144 ) ( 65 64 144 ) C1A0_LABGLU [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 64 64 144 ) ( 65 64 144 ) ( 64 64 145 ) C1A0_LABGLU [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 64 64 144 ) ( 64 64 145 ) ( 64 65 144 ) C1A0_LABGLU [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+}
+// entity 1
+{
+"classname" "info_player_start"
+"spawnflags" "0"
+"angles" "0 0 0"
+"origin" "-16 0 36"
+}
+"#;
+
+const BOX_MAP_SOURCE_OLD: &str = r#"
 // entity 0
 {
 	"classname" "worldspawn"
@@ -75,7 +152,7 @@ const BOX_MAP_SOURCE: &str = r#"
 fn parse_box_map()
 {
 	let mut builder: MapBlueprintBuilder = MapBlueprintBuilder::new();
-	let result = parse_map(BOX_MAP_SOURCE, &mut builder);
+	let result = parse_map(BOX_MAP_SOURCE_OLD, &mut builder);
 	let build_result: Result<Vec<Entity>, BuilderError> = builder.collect();
 
 	assert!(result.is_ok());
