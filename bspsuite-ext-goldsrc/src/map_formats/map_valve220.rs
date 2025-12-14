@@ -1,6 +1,4 @@
-use bspextifc::containers::map_blueprint_builder::{
-	BuilderError, Entity, IMapBlueprintBuilder, MapBlueprintBuilder,
-};
+use bspextifc::containers::map_blueprint_builder::{IMapBlueprintBuilder, MapBlueprintBuilder};
 use bspextifc::types::{DPlane, DVec2, DVec3};
 use glam;
 use logos::Logos;
@@ -56,6 +54,15 @@ enum BrushProgressionResult
 	FinishedBrush,
 }
 
+fn remove_leading_and_trailing_char(token: &str) -> String
+{
+	return match token.len()
+	{
+		0 | 1 => "".to_owned(),
+		_ => token[1..token.len() - 1].to_owned(),
+	};
+}
+
 // When expecting a new entity (including worldspawn),
 // declared with '{'.
 #[derive(Logos, Debug, PartialEq, Clone)]
@@ -90,8 +97,9 @@ enum EntityContext
 	CloseBrace,
 
 	// Borrowed from the JSON example. We can tweak this if it turns out not to be quite right.
+	// We know that this token will include a leading and trailing quote, so we strip them both.
 	//          ( Non-term.     |  ( Escaped   | Unicode       ))
-	#[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| lex.slice().to_owned())]
+	#[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| remove_leading_and_trailing_char(lex.slice()))]
 	QuotedString(String),
 }
 
@@ -679,6 +687,8 @@ fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane
 #[cfg(test)]
 mod tests
 {
+	use bspextifc::containers::map_blueprint_builder::{Brush, BuilderError, Entity};
+
 	use super::*;
 	use crate::map_formats::test_resources::goldsrcmap_res::BOX_MAP_SOURCE;
 
@@ -692,5 +702,27 @@ mod tests
 
 		assert!(result.is_ok());
 		assert!(build_result.is_ok());
+
+		let build_result = build_result.unwrap();
+		let world: &Entity = &build_result[0];
+
+		assert_eq!(world.keyvalues.len(), 2);
+
+		assert_eq!(
+			world.keyvalues.get("classname"),
+			Some("worldspawn".to_owned()).as_ref()
+		);
+
+		assert_eq!(
+			world.keyvalues.get("mapversion"),
+			Some("510".to_owned()).as_ref()
+		);
+
+		// TODO: Check entity 1
+
+		let brushes: &Vec<Brush> = &world.brushes;
+		assert_eq!(brushes.len(), 6);
+
+		// TODO: Check each brush
 	}
 }
