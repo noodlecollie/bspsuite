@@ -184,7 +184,9 @@ fn parse_map(
 					.begin_entity()
 					.map_err(|_| ParseError::from_token(lexer, "begin_entity() failed"))?;
 
-				parse_entity(&mut lexer.clone().morph::<EntityContext>(), builder)?;
+				let mut sub_lexer = lexer.clone().morph::<EntityContext>();
+				parse_entity(&mut sub_lexer, builder)?;
+				*lexer = sub_lexer.morph();
 
 				builder
 					.end_entity()
@@ -225,7 +227,9 @@ fn parse_entity(
 					.begin_brush()
 					.map_err(|_| ParseError::from_token(lexer, "begin_brush() failed"))?;
 
-				parse_brush(&mut lexer.clone().morph::<BrushContext>(), builder)?;
+				let mut sub_lexer = lexer.clone().morph::<BrushContext>();
+				parse_brush(&mut sub_lexer, builder)?;
+				*lexer = sub_lexer.morph();
 
 				builder
 					.end_brush()
@@ -350,9 +354,10 @@ fn parse_brush_face(
 	builder: &mut MapBlueprintBuilder,
 ) -> ParseResult
 {
-	let plane_points: (DVec3, DVec3, DVec3) = parse_three_point3d_after_first_opening_bracket(
-		&mut lexer.clone().morph::<Point3DContext>(),
-	)?;
+	let mut sub_lexer = lexer.clone().morph::<Point3DContext>();
+	let plane_points: (DVec3, DVec3, DVec3) =
+		parse_three_point3d_after_first_opening_bracket(&mut sub_lexer)?;
+	*lexer = sub_lexer.morph();
 
 	let material_path: String = parse_face_material_string(lexer)?;
 	let u_axis_and_offset: (f64, f64, f64, f64) = parse_face_material_axis_and_offset(lexer)?;
@@ -404,7 +409,7 @@ fn parse_brush_face(
 		})?;
 
 	builder
-		.begin_brush_face()
+		.end_brush_face()
 		.map_err(|_| ParseError::from_token(lexer, "end_brush_face() failed"))?;
 
 	return Ok(());
@@ -544,9 +549,10 @@ fn parse_face_material_axis_and_offset(
 		{
 			Ok(BrushContext::OpenSquareBracket) =>
 			{
-				let vals: [f64; 4] = parse_numeric_vector_after_opening_bracket::<4>(
-					&mut lexer.clone().morph::<VectorContext>(),
-				)?;
+				let mut sub_lexer = lexer.clone().morph::<VectorContext>();
+				let vals: [f64; 4] =
+					parse_numeric_vector_after_opening_bracket::<4>(&mut sub_lexer)?;
+				*lexer = sub_lexer.morph();
 
 				Ok((vals[0], vals[1], vals[2], vals[3]))
 			}

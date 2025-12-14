@@ -61,6 +61,6 @@ pub const BOX_MAP_SOURCE: &str = r#"
 // entity 1
 {
 	"classname" "info_player_start"
-	"origin" "126 85 45" \
+	"origin" "126 85 45"
 }
 "#;
