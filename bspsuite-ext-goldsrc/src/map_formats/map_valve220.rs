@@ -29,22 +29,13 @@ impl ParseError
 {
 	// These constraints were confusing as heck. For how to establish them, see
 	// https://users.rust-lang.org/t/constraining-an-associated-type-of-a-generic-parameter/136934
-	pub fn from_token<'l, Ctx>(lexer: &logos::Lexer<'l, Ctx>, description: &str) -> Self
+	pub fn from_lexer<'l, Ctx>(lexer: &logos::Lexer<'l, Ctx>, description: &str) -> Self
 	where
 		Ctx: logos::Logos<'l, Source: logos::Source<Slice<'l> = &'l str>>,
 	{
 		return Self {
 			token: Some(lexer.slice().to_owned()),
 			location: lexer.span(),
-			description: description.to_owned(),
-		};
-	}
-
-	pub fn from_span(location: Range<usize>, description: &str) -> Self
-	{
-		return Self {
-			token: None,
-			location: location,
 			description: description.to_owned(),
 		};
 	}
@@ -69,7 +60,6 @@ fn remove_leading_and_trailing_char(token: &str) -> String
 // declared with '{'.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
-#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum BaseContext
 {
 	#[regex(r"//[^\n]*\n")]
@@ -84,7 +74,6 @@ enum BaseContext
 // Nested brushes are declared with '{'.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
-#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum EntityContext
 {
 	#[regex(r"//[^\n]*\n")]
@@ -108,7 +97,6 @@ enum EntityContext
 // When processing brushes.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
-#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum BrushContext
 {
 	#[regex(r"//[^\n]*\n")]
@@ -142,7 +130,6 @@ enum BrushContext
 // When processing a 3D vector.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
-#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum Point3DContext
 {
 	// Borrowed from the JSON example.
@@ -161,7 +148,6 @@ enum Point3DContext
 // When processing a vector of items.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
-#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum VectorContext
 {
 	// Borrowed from the JSON example.
@@ -180,7 +166,6 @@ enum VectorContext
 // with opening a new brush.
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"\s+")]
-#[logos(error(Range<usize>, callback = |lex| lex.span()))]
 enum MaterialNameContext
 {
 	#[regex(r"\S+", |lex| lex.slice().to_owned())]
@@ -205,7 +190,7 @@ pub fn parse_map(source: &str, builder: &mut MapBlueprintBuilder) -> ParseResult
 			{
 				builder
 					.begin_entity()
-					.map_err(|_| ParseError::from_token(&lexer, "begin_entity() failed"))?;
+					.map_err(|_| ParseError::from_lexer(&lexer, "begin_entity() failed"))?;
 
 				let mut sub_lexer = lexer.clone().morph::<EntityContext>();
 				parse_entity(&mut sub_lexer, builder)?;
@@ -213,12 +198,12 @@ pub fn parse_map(source: &str, builder: &mut MapBlueprintBuilder) -> ParseResult
 
 				builder
 					.end_entity()
-					.map_err(|_| ParseError::from_token(&lexer, "end_entity() failed"))?;
+					.map_err(|_| ParseError::from_lexer(&lexer, "end_entity() failed"))?;
 			}
-			Err(span) =>
+			Err(()) =>
 			{
-				return Err(ParseError::from_span(
-					span,
+				return Err(ParseError::from_lexer(
+					&lexer,
 					"Unrecognised token while parsing map",
 				));
 			}
@@ -248,7 +233,7 @@ fn parse_entity(
 			{
 				builder
 					.begin_brush()
-					.map_err(|_| ParseError::from_token(lexer, "begin_brush() failed"))?;
+					.map_err(|_| ParseError::from_lexer(lexer, "begin_brush() failed"))?;
 
 				let mut sub_lexer = lexer.clone().morph::<BrushContext>();
 				parse_brush(&mut sub_lexer, builder)?;
@@ -256,20 +241,20 @@ fn parse_entity(
 
 				builder
 					.end_brush()
-					.map_err(|_| ParseError::from_token(lexer, "end_brush() failed"))?;
+					.map_err(|_| ParseError::from_lexer(lexer, "end_brush() failed"))?;
 			}
-			Err(span) =>
+			Err(()) =>
 			{
-				return Err(ParseError::from_span(
-					span,
+				return Err(ParseError::from_lexer(
+					lexer,
 					"Unrecognised token while parsing entity",
 				));
 			}
 		}
 	}
 
-	return Err(ParseError::from_span(
-		lexer.span(),
+	return Err(ParseError::from_lexer(
+		lexer,
 		"Unexpected end of input while parsing entity",
 	));
 }
@@ -288,21 +273,21 @@ fn parse_entity_value_after_key(
 			{
 				builder
 					.add_entity_keyvalue(&key, &value)
-					.map_err(|_| ParseError::from_token(lexer, "add_entity_keyvalue() failed"))?;
+					.map_err(|_| ParseError::from_lexer(lexer, "add_entity_keyvalue() failed"))?;
 
 				Ok(())
 			}
-			Ok(_) => Err(ParseError::from_token(
+			Ok(_) => Err(ParseError::from_lexer(
 				lexer,
 				"Unexpected token while parsing entity keyvalue property",
 			)),
-			Err(span) => Err(ParseError::from_span(
-				span,
+			Err(()) => Err(ParseError::from_lexer(
+				lexer,
 				"Unrecognised token while parsing entity keyvalue property",
 			)),
 		},
-		None => Err(ParseError::from_span(
-			lexer.span(),
+		None => Err(ParseError::from_lexer(
+			lexer,
 			"Unexpected end of input while parsing entity keyvalue property",
 		)),
 	};
@@ -348,15 +333,15 @@ fn parse_brush_face_or_end_of_brush(
 			}
 			Ok(_) =>
 			{
-				return Err(ParseError::from_token(
+				return Err(ParseError::from_lexer(
 					lexer,
 					"Unexpected token while parsing brush",
 				));
 			}
-			Err(span) =>
+			Err(()) =>
 			{
-				return Err(ParseError::from_span(
-					span,
+				return Err(ParseError::from_lexer(
+					lexer,
 					"Unrecognised token while parsing brush",
 				));
 			}
@@ -366,8 +351,8 @@ fn parse_brush_face_or_end_of_brush(
 	// Make sure we consume the waiting token before we fail.
 	lexer.next();
 
-	return Err(ParseError::from_span(
-		lexer.span(),
+	return Err(ParseError::from_lexer(
+		lexer,
 		"Unexpected end of input while parsing brush",
 	));
 }
@@ -410,33 +395,33 @@ fn parse_brush_face(
 
 	builder
 		.begin_brush_face()
-		.map_err(|_| ParseError::from_token(lexer, "begin_brush_face() failed"))?;
+		.map_err(|_| ParseError::from_lexer(lexer, "begin_brush_face() failed"))?;
 
 	builder
 		.set_brush_face_plane(plane_from_points(plane_points))
-		.map_err(|_| ParseError::from_token(lexer, "set_brush_face_plane() failed"))?;
+		.map_err(|_| ParseError::from_lexer(lexer, "set_brush_face_plane() failed"))?;
 
 	builder
 		.set_brush_face_material(material_path)
-		.map_err(|_| ParseError::from_token(lexer, "set_brush_face_material() failed"))?;
+		.map_err(|_| ParseError::from_lexer(lexer, "set_brush_face_material() failed"))?;
 
 	builder
 		.set_brush_face_material_axes(u_axis, v_axis)
-		.map_err(|_| ParseError::from_token(lexer, "set_brush_face_material_axes() failed"))?;
+		.map_err(|_| ParseError::from_lexer(lexer, "set_brush_face_material_axes() failed"))?;
 
 	builder
 		.set_brush_face_material_scale(DVec2::new(u_scale, v_scale))
-		.map_err(|_| ParseError::from_token(lexer, "set_brush_face_material_scale() failed"))?;
+		.map_err(|_| ParseError::from_lexer(lexer, "set_brush_face_material_scale() failed"))?;
 
 	builder
 		.set_brush_face_material_translation(DVec2::new(u_translation, v_translation))
 		.map_err(|_| {
-			ParseError::from_token(lexer, "set_brush_face_material_translation() failed")
+			ParseError::from_lexer(lexer, "set_brush_face_material_translation() failed")
 		})?;
 
 	builder
 		.end_brush_face()
-		.map_err(|_| ParseError::from_token(lexer, "end_brush_face() failed"))?;
+		.map_err(|_| ParseError::from_lexer(lexer, "end_brush_face() failed"))?;
 
 	return Ok(());
 }
@@ -459,17 +444,17 @@ fn parse_three_point3d_after_first_opening_bracket(
 				Some(token) => match token
 				{
 					Ok(Point3DContext::OpenRoundBracket) => Ok(()),
-					Err(span) => Err(ParseError::from_span(
-						span,
+					Err(()) => Err(ParseError::from_lexer(
+						lexer,
 						"Unrecognised token while parsing 3D point",
 					)),
-					_ => Err(ParseError::from_token(
+					_ => Err(ParseError::from_lexer(
 						lexer,
 						"Unexpected token while parsing 3D point",
 					)),
 				},
-				None => Err(ParseError::from_span(
-					lexer.span(),
+				None => Err(ParseError::from_lexer(
+					lexer,
 					"Unexpected end of input while parsing 3D point",
 				)),
 			}?;
@@ -494,21 +479,21 @@ fn parse_point3d_after_opening_bracket(
 			Some(token) => match token
 			{
 				Ok(Point3DContext::Number(value)) => Ok(value),
-				Ok(Point3DContext::CloseRoundBracket) => Err(ParseError::from_token(
+				Ok(Point3DContext::CloseRoundBracket) => Err(ParseError::from_lexer(
 					lexer,
 					"Premature closing bracket when parsing 3D point",
 				)),
-				Err(span) => Err(ParseError::from_span(
-					span,
+				Err(()) => Err(ParseError::from_lexer(
+					lexer,
 					"Unrecognised token while parsing 3D point",
 				)),
-				_ => Err(ParseError::from_token(
+				_ => Err(ParseError::from_lexer(
 					lexer,
 					"Unexpected token while parsing 3D point",
 				)),
 			},
-			None => Err(ParseError::from_span(
-				lexer.span(),
+			None => Err(ParseError::from_lexer(
+				lexer,
 				"Unexpected end of input while parsing 3D point",
 			)),
 		}?;
@@ -522,17 +507,17 @@ fn parse_point3d_after_opening_bracket(
 		Some(token) => match token
 		{
 			Ok(Point3DContext::CloseRoundBracket) => Ok(()),
-			Err(span) => Err(ParseError::from_span(
-				span,
+			Err(()) => Err(ParseError::from_lexer(
+				lexer,
 				"Unrecognised token while parsing 3D point",
 			)),
-			_ => Err(ParseError::from_token(
+			_ => Err(ParseError::from_lexer(
 				lexer,
 				"Unexpected token while parsing 3D point",
 			)),
 		},
-		None => Err(ParseError::from_span(
-			lexer.span(),
+		None => Err(ParseError::from_lexer(
+			lexer,
 			"Unexpected end of input while parsing 3D point",
 		)),
 	}?;
@@ -549,13 +534,13 @@ fn parse_face_material_string(
 		Some(token) => match token
 		{
 			Ok(MaterialNameContext::String(value)) => Ok(value),
-			Err(span) => Err(ParseError::from_span(
-				span,
+			Err(()) => Err(ParseError::from_lexer(
+				lexer,
 				"Unrecognised token while parsing face material string",
 			)),
 		},
-		None => Err(ParseError::from_span(
-			lexer.span(),
+		None => Err(ParseError::from_lexer(
+			lexer,
 			"Unexpected end of input while parsing face material string",
 		)),
 	};
@@ -578,17 +563,17 @@ fn parse_face_material_axis_and_offset(
 
 				Ok((vals[0], vals[1], vals[2], vals[3]))
 			}
-			Ok(_) => Err(ParseError::from_token(
+			Ok(_) => Err(ParseError::from_lexer(
 				lexer,
 				"Unexpected token when opening bracket of numeric vector was expected",
 			)),
-			Err(span) => Err(ParseError::from_span(
-				span,
+			Err(()) => Err(ParseError::from_lexer(
+				lexer,
 				"Unrecognised token when opening bracket of numeric vector was expected",
 			)),
 		},
-		None => Err(ParseError::from_span(
-			lexer.span(),
+		None => Err(ParseError::from_lexer(
+			lexer,
 			"Unexpected token when opening bracket of numeric vector was expected",
 		)),
 	};
@@ -607,17 +592,17 @@ fn parse_numeric_vector_after_opening_bracket<const LENGTH: usize>(
 			Some(token) => match token
 			{
 				Ok(VectorContext::Number(val)) => Ok(val),
-				Ok(_) => Err(ParseError::from_token(
+				Ok(_) => Err(ParseError::from_lexer(
 					lexer,
 					"Unexpected token while parsing numeric vector",
 				)),
-				Err(span) => Err(ParseError::from_span(
-					span,
+				Err(()) => Err(ParseError::from_lexer(
+					lexer,
 					"Unrecognised token while parsing numeric vector",
 				)),
 			},
-			None => Err(ParseError::from_span(
-				lexer.span(),
+			None => Err(ParseError::from_lexer(
+				lexer,
 				"Unexpected end of input while parsing numeric vector",
 			)),
 		}?;
@@ -632,23 +617,23 @@ fn parse_numeric_vector_after_opening_bracket<const LENGTH: usize>(
 			Ok(VectorContext::CloseSquareBracket) => (),
 			Ok(_) =>
 			{
-				return Err(ParseError::from_token(
+				return Err(ParseError::from_lexer(
 					lexer,
 					"Unexpected token when closing bracket of numeric vector was expected",
 				));
 			}
-			Err(span) =>
+			Err(()) =>
 			{
-				return Err(ParseError::from_span(
-					span,
+				return Err(ParseError::from_lexer(
+					lexer,
 					"Unrecognised token when closing bracket of numeric vector was expected",
 				));
 			}
 		},
 		None =>
 		{
-			return Err(ParseError::from_span(
-				lexer.span(),
+			return Err(ParseError::from_lexer(
+				lexer,
 				"Unexpected end of input when closing bracket of numeric vector was expected",
 			));
 		}
@@ -665,17 +650,17 @@ fn parse_face_material_number(lexer: &mut logos::Lexer<'_, BrushContext>)
 		Some(token) => match token
 		{
 			Ok(BrushContext::Number(val)) => Ok(val),
-			Ok(_) => Err(ParseError::from_token(
+			Ok(_) => Err(ParseError::from_lexer(
 				lexer,
 				"Unexpected token while parsing numeric value",
 			)),
-			Err(span) => Err(ParseError::from_span(
-				span,
+			Err(()) => Err(ParseError::from_lexer(
+				lexer,
 				"Unrecognised token while parsing numeric value",
 			)),
 		},
-		None => Err(ParseError::from_span(
-			lexer.span(),
+		None => Err(ParseError::from_lexer(
+			lexer,
 			"Unexpected end of input while parsing numeric value",
 		)),
 	};
