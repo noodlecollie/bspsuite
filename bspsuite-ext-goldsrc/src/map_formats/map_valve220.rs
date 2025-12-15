@@ -173,6 +173,20 @@ enum VectorContext
 	CloseSquareBracket,
 }
 
+// When parsing a material string.
+// This has to be different from the brush context, since
+// texture names can start with '{' in GoldSrc to indicate
+// that they're masked, and otherwise this would be confused
+// with opening a new brush.
+#[derive(Logos, Debug, PartialEq, Clone)]
+#[logos(skip r"\s+")]
+#[logos(error(Range<usize>, callback = |lex| lex.span()))]
+enum MaterialNameContext
+{
+	#[regex(r"\S+", |lex| lex.slice().to_owned())]
+	String(String),
+}
+
 pub extern "C" fn parse()
 {
 	// TODO
@@ -368,7 +382,10 @@ fn parse_brush_face(
 		parse_three_point3d_after_first_opening_bracket(&mut sub_lexer)?;
 	*lexer = sub_lexer.morph();
 
-	let material_path: String = parse_face_material_string(lexer)?;
+	let mut sub_lexer = lexer.clone().morph::<MaterialNameContext>();
+	let material_path: String = parse_face_material_string(&mut sub_lexer)?;
+	*lexer = sub_lexer.morph();
+
 	let u_axis_and_offset: (f64, f64, f64, f64) = parse_face_material_axis_and_offset(lexer)?;
 	let v_axis_and_offset: (f64, f64, f64, f64) = parse_face_material_axis_and_offset(lexer)?;
 
@@ -524,18 +541,14 @@ fn parse_point3d_after_opening_bracket(
 }
 
 fn parse_face_material_string(
-	lexer: &mut logos::Lexer<'_, BrushContext>,
+	lexer: &mut logos::Lexer<'_, MaterialNameContext>,
 ) -> Result<String, ParseError>
 {
 	return match lexer.next()
 	{
 		Some(token) => match token
 		{
-			Ok(BrushContext::String(value)) => Ok(value),
-			Ok(_) => Err(ParseError::from_token(
-				lexer,
-				"Unexpected token while parsing face material string",
-			)),
+			Ok(MaterialNameContext::String(value)) => Ok(value),
 			Err(span) => Err(ParseError::from_span(
 				span,
 				"Unrecognised token while parsing face material string",
