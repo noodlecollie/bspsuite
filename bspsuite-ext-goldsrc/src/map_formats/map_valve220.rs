@@ -1,4 +1,4 @@
-use bspextifc::containers::map_blueprint_builder::{IMapBlueprintBuilder, MapBlueprintBuilder};
+use bspextifc::builders::map_blueprint_builder::{IMapBlueprintBuilder, MapBlueprintBuilder};
 use bspextifc::types::{DPlane, DVec2, DVec3};
 use glam;
 use logos::Logos;

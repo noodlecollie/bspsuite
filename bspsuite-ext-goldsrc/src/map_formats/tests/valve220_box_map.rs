@@ -1,5 +1,5 @@
 use crate::map_formats::map_valve220::parse_map;
-use bspextifc::containers::map_blueprint_builder::{
+use bspextifc::builders::map_blueprint_builder::{
 	Brush, BrushFace, BuilderError, Entity, MapBlueprintBuilder,
 };
 use bspextifc::types::{DPlane, DVec2, DVec3};

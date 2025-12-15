@@ -3,7 +3,7 @@
 
 mod apis;
 
-pub mod containers;
+pub mod builders;
 pub mod types;
 
 pub use apis::{ApiInfo, dummy_api, log_api, map_format_api, probe_api};
