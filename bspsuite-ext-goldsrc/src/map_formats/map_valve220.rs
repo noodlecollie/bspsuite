@@ -15,13 +15,15 @@ use std::ops::Range;
 // A helpful example of how to define Logos tokens:
 // https://logos.maciej.codes/examples/json.html
 
+// TODO: Move the parse error impl to somewhere common.
+
 pub type ParseResult = Result<(), ParseError>;
 
 #[derive(Debug)]
 pub struct ParseError
 {
 	token: Option<String>,
-	location: Range<usize>,
+	location: (usize, usize),
 	description: String,
 }
 
@@ -29,13 +31,13 @@ impl ParseError
 {
 	// These constraints were confusing as heck. For how to establish them, see
 	// https://users.rust-lang.org/t/constraining-an-associated-type-of-a-generic-parameter/136934
-	pub fn from_lexer<'l, Ctx>(lexer: &logos::Lexer<'l, Ctx>, description: &str) -> Self
+	fn from_lexer<'l, Ctx>(lexer: &logos::Lexer<'l, Ctx>, description: &str) -> Self
 	where
-		Ctx: logos::Logos<'l, Source: logos::Source<Slice<'l> = &'l str>>,
+		Ctx: logos::Logos<'l, Extras = LineCounter, Source: logos::Source<Slice<'l> = &'l str>>,
 	{
 		return Self {
 			token: Some(lexer.slice().to_owned()),
-			location: lexer.span(),
+			location: lexer.extras.get_line_and_column(lexer.span()),
 			description: description.to_owned(),
 		};
 	}
@@ -45,6 +47,48 @@ enum BrushProgressionResult
 {
 	ParsedFace,
 	FinishedBrush,
+}
+
+#[derive(Clone)]
+struct LineCounter
+{
+	current_line: usize,
+	begin_index: usize,
+}
+
+impl LineCounter
+{
+	pub fn new() -> Self
+	{
+		return Self {
+			current_line: 1,
+			begin_index: 0,
+		};
+	}
+
+	pub fn new_line(&mut self, current_index: usize)
+	{
+		self.current_line += 1;
+		self.begin_index = current_index;
+	}
+
+	pub fn get_line_and_column(&self, token_span: Range<usize>) -> (usize, usize)
+	{
+		assert!(
+			token_span.start >= self.begin_index,
+			"get_line_and_column() called for a token not on the current line"
+		);
+
+		return (self.current_line, token_span.start - self.begin_index);
+	}
+}
+
+impl Default for LineCounter
+{
+	fn default() -> Self
+	{
+		return LineCounter::new();
+	}
 }
 
 fn remove_leading_and_trailing_char(token: &str) -> String
@@ -59,10 +103,12 @@ fn remove_leading_and_trailing_char(token: &str) -> String
 // When expecting a new entity (including worldspawn),
 // declared with '{'.
 #[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(skip r"\s+")]
+#[logos(extras = LineCounter)]
+#[logos(skip r"[ \t\r\f]+")]
+#[logos(skip(r"\n", update_line_count))]
 enum BaseContext
 {
-	#[regex(r"//[^\n]*\n")]
+	#[regex(r"//[^\n]*")]
 	Comment,
 
 	// Begins EntityContext
@@ -73,10 +119,12 @@ enum BaseContext
 // When processing properties on an entity.
 // Nested brushes are declared with '{'.
 #[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(skip r"\s+")]
+#[logos(extras = LineCounter)]
+#[logos(skip r"[ \t\r\f]+")]
+#[logos(skip(r"\n", update_line_count))]
 enum EntityContext
 {
-	#[regex(r"//[^\n]*\n")]
+	#[regex(r"//[^\n]*")]
 	Comment,
 
 	// Begins BrushContext
@@ -96,7 +144,9 @@ enum EntityContext
 
 // When processing brushes.
 #[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(skip r"\s+")]
+#[logos(extras = LineCounter)]
+#[logos(skip r"[ \t\r\f]+")]
+#[logos(skip(r"\n", update_line_count))]
 enum BrushContext
 {
 	#[regex(r"//[^\n]*\n")]
@@ -129,7 +179,8 @@ enum BrushContext
 
 // When processing a 3D vector.
 #[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(skip r"\s+")]
+#[logos(extras = LineCounter)]
+#[logos(skip r"[ \t]+")]
 enum Point3DContext
 {
 	// Borrowed from the JSON example.
@@ -147,7 +198,8 @@ enum Point3DContext
 
 // When processing a vector of items.
 #[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(skip r"\s+")]
+#[logos(extras = LineCounter)]
+#[logos(skip r"[ \t]+")]
 enum VectorContext
 {
 	// Borrowed from the JSON example.
@@ -165,7 +217,8 @@ enum VectorContext
 // that they're masked, and otherwise this would be confused
 // with opening a new brush.
 #[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(skip r"\s+")]
+#[logos(extras = LineCounter)]
+#[logos(skip r"[ \t]+")]
 enum MaterialNameContext
 {
 	#[regex(r"\S+", |lex| lex.slice().to_owned())]
@@ -689,4 +742,12 @@ fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane
 	let distance: f64 = normal.dot(a);
 
 	return DPlane::new(DVec3::new(normal.x, normal.y, normal.z), distance);
+}
+
+fn update_line_count<'l, Ctx>(lexer: &mut logos::Lexer<'l, Ctx>) -> logos::Skip
+where
+	Ctx: logos::Logos<'l, Extras = LineCounter>,
+{
+	lexer.extras.new_line(lexer.span().end);
+	return logos::Skip;
 }
