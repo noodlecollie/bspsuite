@@ -1,10 +1,10 @@
 use super::api_info::ApiInfo;
-use crate::types::StringRef;
+use crate::types::{BytesRef, StringRef};
 use std::ffi::c_void;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
 pub type RegisterMapFormatsFn = extern "C" fn(&mut Api);
-pub type MapParseFn = extern "C" fn(); // TODO: Args
+pub type MapParseFn = extern "C" fn(&BytesRef);
 
 #[repr(C)]
 pub struct Api<'l>

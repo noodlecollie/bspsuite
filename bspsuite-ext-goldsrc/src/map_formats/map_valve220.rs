@@ -1,5 +1,5 @@
 use bspextifc::builders::map_blueprint_builder::{IMapBlueprintBuilder, MapBlueprintBuilder};
-use bspextifc::types::{DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult};
+use bspextifc::types::{BytesRef, DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult};
 use glam;
 use logos::Logos;
 
@@ -145,7 +145,7 @@ enum MaterialNameContext
 	String(String),
 }
 
-pub extern "C" fn parse()
+pub extern "C" fn parse(data: &BytesRef)
 {
 	// TODO
 }
