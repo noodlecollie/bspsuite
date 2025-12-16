@@ -1,4 +1,5 @@
-use bspextifc::builders::map_blueprint_builder::{IMapBlueprintBuilder, MapBlueprintBuilder};
+use bspextifc::builders::map_blueprint_builder::IMapBlueprintBuilder;
+use bspextifc::map_format_api::MapBlueprintBuilder;
 use bspextifc::types::{DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult, StringRef};
 use glam;
 use logos::Logos;
@@ -145,12 +146,14 @@ enum MaterialNameContext
 	String(String),
 }
 
-pub extern "C" fn parse(data: &StringRef)
+pub extern "C" fn parse(data: &StringRef, builder: &mut MapBlueprintBuilder)
 {
 	// TODO
 }
 
-pub fn parse_map(source: &str, builder: &mut MapBlueprintBuilder) -> ParseResult
+pub fn parse_map<Builder>(source: &str, builder: &mut Builder) -> ParseResult
+where
+	Builder: IMapBlueprintBuilder,
 {
 	let mut lexer: logos::Lexer<'_, BaseContext> = BaseContext::lexer(source);
 
@@ -184,10 +187,12 @@ pub fn parse_map(source: &str, builder: &mut MapBlueprintBuilder) -> ParseResult
 	return Ok(());
 }
 
-fn parse_entity(
+fn parse_entity<Builder>(
 	lexer: &mut logos::Lexer<'_, EntityContext>,
-	builder: &mut MapBlueprintBuilder,
+	builder: &mut Builder,
 ) -> ParseResult
+where
+	Builder: IMapBlueprintBuilder,
 {
 	while let Some(token) = lexer.next()
 	{
@@ -229,11 +234,13 @@ fn parse_entity(
 	));
 }
 
-fn parse_entity_value_after_key(
+fn parse_entity_value_after_key<Builder>(
 	lexer: &mut logos::Lexer<'_, EntityContext>,
-	builder: &mut MapBlueprintBuilder,
+	builder: &mut Builder,
 	key: String,
 ) -> ParseResult
+where
+	Builder: IMapBlueprintBuilder,
 {
 	return match lexer.next()
 	{
@@ -263,10 +270,12 @@ fn parse_entity_value_after_key(
 	};
 }
 
-fn parse_brush(
+fn parse_brush<Builder>(
 	lexer: &mut logos::Lexer<'_, BrushContext>,
-	builder: &mut MapBlueprintBuilder,
+	builder: &mut Builder,
 ) -> ParseResult
+where
+	Builder: IMapBlueprintBuilder,
 {
 	loop
 	{
@@ -282,10 +291,12 @@ fn parse_brush(
 	return Ok(());
 }
 
-fn parse_brush_face_or_end_of_brush(
+fn parse_brush_face_or_end_of_brush<Builder>(
 	lexer: &mut logos::Lexer<'_, BrushContext>,
-	builder: &mut MapBlueprintBuilder,
+	builder: &mut Builder,
 ) -> Result<BrushProgressionResult, ParseError>
+where
+	Builder: IMapBlueprintBuilder,
 {
 	while let Some(token) = lexer.next()
 	{
@@ -321,10 +332,12 @@ fn parse_brush_face_or_end_of_brush(
 	));
 }
 
-fn parse_brush_face(
+fn parse_brush_face<Builder>(
 	lexer: &mut logos::Lexer<'_, BrushContext>,
-	builder: &mut MapBlueprintBuilder,
+	builder: &mut Builder,
 ) -> ParseResult
+where
+	Builder: IMapBlueprintBuilder,
 {
 	let mut sub_lexer = lexer.clone().morph::<Point3DContext>();
 	let plane_points: (DVec3, DVec3, DVec3) =

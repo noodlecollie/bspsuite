@@ -1,6 +1,6 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use bspextifc::map_format_api;
-use bspextifc::types::{BytesRef, StringRef};
+use bspextifc::types::StringRef;
 use log::{debug, warn};
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -67,9 +67,9 @@ impl Endpoint
 
 impl MapParseCallback
 {
-	pub fn parse(&self, data: &str)
+	pub fn parse(&self, data: &str, builder: &mut map_format_api::MapBlueprintBuilder)
 	{
-		(self.parse_fn)(&StringRef::new(data));
+		(self.parse_fn)(&StringRef::new(data), builder);
 	}
 }
 

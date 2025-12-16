@@ -3,6 +3,7 @@
 //! boundary. You will probably want to convert these to proper objects (eg.
 //! Glam vectors) before you use them.
 
+#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct DVec2
 {
@@ -10,6 +11,7 @@ pub struct DVec2
 	pub y: f64,
 }
 
+#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct DVec3
 {
@@ -18,6 +20,7 @@ pub struct DVec3
 	pub z: f64,
 }
 
+#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct DVec4
 {
@@ -27,6 +30,7 @@ pub struct DVec4
 	pub w: f64,
 }
 
+#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct DPlane
 {

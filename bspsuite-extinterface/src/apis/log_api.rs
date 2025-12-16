@@ -2,6 +2,10 @@ use super::api_info::ApiInfo;
 use crate::types::StringRef;
 use log;
 
+// TODO: Can we build this without a dependency on the log crate?
+// We don't want to depend on external crates here, as it would mean
+// that bumping a dependency might necessitate bumping the extension
+// API version.
 pub const API_INFO: ApiInfo = ApiInfo::new("LogApi", 1);
 
 #[repr(C)]
