@@ -67,9 +67,9 @@ impl Endpoint
 
 impl MapParseCallback
 {
-	pub fn parse(&self, data: &[u8])
+	pub fn parse(&self, data: &str)
 	{
-		(self.parse_fn)(&BytesRef::new(data));
+		(self.parse_fn)(&StringRef::new(data));
 	}
 }
 

@@ -18,4 +18,4 @@ anyhow.workspace = true
 bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 glam.workspace = true
 log = { workspace = true, features = ["std"] }
-logos = "0.15.1"
+logos = "0.16.0"

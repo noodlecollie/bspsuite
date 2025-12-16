@@ -32,3 +32,11 @@ impl<'l> BytesRef<'l>
 		return unsafe { std::slice::from_raw_parts(self.begin, self.length) };
 	}
 }
+
+impl<'l> From<&'l [u8]> for BytesRef<'l>
+{
+	fn from(value: &'l [u8]) -> Self
+	{
+		return BytesRef::new(value);
+	}
+}

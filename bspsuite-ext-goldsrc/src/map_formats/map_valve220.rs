@@ -1,5 +1,5 @@
 use bspextifc::builders::map_blueprint_builder::{IMapBlueprintBuilder, MapBlueprintBuilder};
-use bspextifc::types::{BytesRef, DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult};
+use bspextifc::types::{DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult, StringRef};
 use glam;
 use logos::Logos;
 
@@ -28,7 +28,7 @@ enum BrushProgressionResult
 #[logos(skip(r"\n", update_line_count))]
 enum BaseContext
 {
-	#[regex(r"//[^\n]*")]
+	#[regex(r"//[^\n]*", allow_greedy = true)]
 	Comment,
 
 	// Begins EntityContext
@@ -44,7 +44,7 @@ enum BaseContext
 #[logos(skip(r"\n", update_line_count))]
 enum EntityContext
 {
-	#[regex(r"//[^\n]*")]
+	#[regex(r"//[^\n]*", allow_greedy = true)]
 	Comment,
 
 	// Begins BrushContext
@@ -69,7 +69,7 @@ enum EntityContext
 #[logos(skip(r"\n", update_line_count))]
 enum BrushContext
 {
-	#[regex(r"//[^\n]*\n")]
+	#[regex(r"//[^\n]*\n", allow_greedy = true)]
 	Comment,
 
 	// Falls back to EntityContext
@@ -145,7 +145,7 @@ enum MaterialNameContext
 	String(String),
 }
 
-pub extern "C" fn parse(data: &BytesRef)
+pub extern "C" fn parse(data: &StringRef)
 {
 	// TODO
 }
