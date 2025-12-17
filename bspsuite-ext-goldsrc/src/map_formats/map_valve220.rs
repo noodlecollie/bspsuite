@@ -148,7 +148,10 @@ enum MaterialNameContext
 
 pub extern "C" fn parse(data: &StringRef, builder: &mut MapBlueprintBuilder)
 {
-	// TODO
+	if let Err(err) = parse_map(data.as_str(), builder)
+	{
+		builder.set_failure_with_location(err.line, err.column, err.description);
+	}
 }
 
 pub fn parse_map<Builder>(source: &str, builder: &mut Builder) -> ParseResult
@@ -249,7 +252,7 @@ where
 			Ok(EntityContext::QuotedString(value)) =>
 			{
 				builder
-					.add_entity_keyvalue(&key, &value)
+					.add_entity_keyvalue(key, value)
 					.map_err(|_| parse_error(lexer, "add_entity_keyvalue() failed"))?;
 
 				Ok(())
