@@ -4,8 +4,7 @@ BSPSuite aims to be a customisable BSP-based map compilation pipeline that can s
 
 * **Modular pipeline:** compiler support for a game may be added by creating a config for the game, to set up runtime parameters, and a shared library, to provide the required compiler routines.
 * **Programmer support:** as well as being able to launch a BSP compiler executable, the compile process can just as easily be run with a function call, allowing it to integrate into game engines or other applications.
-* **C-style interfaces:** public interfaces to any libraries are C99-compatible, to make them as portable as possible.
-* **Multi-platform:** the compiler libraries and executables should support at least Windows 10 onwards, and at least Ubuntu 20.04 onwards.
+* **Multi-platform:** the compiler libraries and executables should support at least Windows 10 onwards, and at least Ubuntu 22.04 onwards.
 
 # Package Structure
 
