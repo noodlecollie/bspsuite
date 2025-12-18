@@ -18,6 +18,9 @@ jobs:
         BUILD_TARGET: [release]
         os: [ubuntu-22.04, ubuntu-24.04, windows-2022, windows-2025]
 
+    # Monitor this time limit as time goes on.
+    timeout-minutes: 20
+
     steps:
       - uses: actions/checkout@v4
       - name: Build
