@@ -81,10 +81,10 @@ struct ApiImpl<'l>
 
 impl<'l> ApiImpl<'l>
 {
-	pub fn new(extesion_name: &'l str) -> Self
+	pub fn new(extension_name: &'l str) -> Self
 	{
 		return Self {
-			extension_name: extesion_name,
+			extension_name: extension_name,
 			formats: HashMap::new(),
 		};
 	}
