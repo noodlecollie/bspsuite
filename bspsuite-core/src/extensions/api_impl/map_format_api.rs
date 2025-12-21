@@ -134,8 +134,45 @@ mod builder_extc
 	use bspextifc::builders::map_blueprint_builder::{
 		IMapBlueprintBuilder, MapBlueprintBuilder as Builder,
 	};
+	use bspextifc::map_format_api::MapParseFn;
 	use bspextifc::map_format_api::internal::CoreBuilderOperationErrorCode;
 	use bspextifc::types::{DPlane, DVec2, DVec3, PortableOption};
+
+	pub fn parse_map(data: &StringRef, parse_fn: &MapParseFn) -> Builder
+	{
+		let mut local_builder: Builder = Builder::new();
+		let mut context: OpaqueMutPtr<Builder> = OpaqueMutPtr::new(&mut local_builder);
+
+		let mut external_builder =
+			bspextifc::map_format_api::internal::create_map_blueprint_builder(
+				bspextifc::map_format_api::internal::CoreBuilderFns {
+					context: context.as_mut_void_ref(),
+					set_failure: set_failure,
+					set_failure_with_location: set_failure_with_location,
+					begin_entity: begin_entity,
+					end_entity: end_entity,
+					add_entity_keyvalue: add_entity_keyvalue,
+					begin_brush: begin_brush,
+					end_brush: end_brush,
+					begin_brush_face: begin_brush_face,
+					end_brush_face: end_brush_face,
+					set_brush_face_plane: set_brush_face_plane,
+					set_brush_face_material: set_brush_face_material,
+					set_brush_face_material_axes: set_brush_face_material_axes,
+					set_brush_face_material_translation: set_brush_face_material_translation,
+					set_brush_face_material_scale: set_brush_face_material_scale,
+					current_entity_index: current_entity_index,
+					current_brush_index: current_brush_index,
+					current_brush_face_index: current_brush_face_index,
+					num_entities: num_entities,
+					num_current_brushes: num_current_brushes,
+					num_current_brush_faces: num_current_brush_faces,
+				},
+			);
+
+		parse_fn(data, &mut external_builder);
+		return local_builder;
+	}
 
 	unsafe extern "C" fn set_failure(context: *mut c_void, description: &StringRef)
 	{
