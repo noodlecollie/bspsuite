@@ -1,19 +1,18 @@
-use std::ffi::c_uchar;
 use std::marker::PhantomData;
 
 /// Shim wrapper to allow passing a slice of bytes across a library boundary.
 /// The bytes are immutable.
 #[repr(C)]
-pub struct BytesRef<'l>
+pub struct SliceRef<'l, T>
 {
-	begin: *const c_uchar,
+	begin: *const T,
 	length: usize,
-	phantom: PhantomData<&'l c_uchar>,
+	phantom: PhantomData<&'l T>,
 }
 
-impl<'l> BytesRef<'l>
+impl<'l, T> SliceRef<'l, T>
 {
-	pub fn new(slice: &'l [u8]) -> Self
+	pub fn new(slice: &'l [T]) -> Self
 	{
 		return Self {
 			begin: slice.as_ptr(),
@@ -22,7 +21,7 @@ impl<'l> BytesRef<'l>
 		};
 	}
 
-	pub fn as_slice(&self) -> &'l [u8]
+	pub fn as_slice(&self) -> &'l [T]
 	{
 		// The only way for this struct to be created is from an existing slice,
 		// and this struct cannot live longer than the existing slice.
@@ -33,10 +32,18 @@ impl<'l> BytesRef<'l>
 	}
 }
 
-impl<'l> From<&'l [u8]> for BytesRef<'l>
+impl<'l, T> From<&'l [T]> for SliceRef<'l, T>
 {
-	fn from(value: &'l [u8]) -> Self
+	fn from(value: &'l [T]) -> Self
 	{
-		return BytesRef::new(value);
+		return SliceRef::new(value);
+	}
+}
+
+impl<'l, T, const LENGTH: usize> From<&'l [T; LENGTH]> for SliceRef<'l, T>
+{
+	fn from(value: &'l [T; LENGTH]) -> Self
+	{
+		return SliceRef::new(value.as_slice());
 	}
 }
