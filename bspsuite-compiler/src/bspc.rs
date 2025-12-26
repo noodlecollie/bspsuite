@@ -63,6 +63,7 @@ fn run_compile_command(args: &cli::CompileCommandArgs) -> Cmds::ResultCode
 	let args: Cmds::CompileArgs = Cmds::CompileArgs {
 		base: Cmds::BaseArgs::default(),
 		input_file: StringRef::from(input_path_str.unwrap()),
+		game: StringRef::from(args.game.as_str()),
 	};
 
 	return Cmds::bspcore_run_compile(&args);

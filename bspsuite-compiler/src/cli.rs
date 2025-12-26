@@ -45,6 +45,11 @@ pub struct CompileCommandArgs
 	/// Path to map source file that will be compiled.
 	#[arg()]
 	pub input_file: PathBuf,
+
+	/// Name of the game to compile for. Should correspond to a subdirectory
+	/// under the compiler toolchain's 'games' directory.
+	#[arg(short, long)]
+	pub game: String,
 }
 
 #[derive(clap::Args)]
