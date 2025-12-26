@@ -61,9 +61,19 @@ impl Endpoint
 		return self.map_formats.contains_key(format_name);
 	}
 
-	pub fn get_parse_callback(&self, format_name: &str) -> Option<&MapFormatDefinition>
+	pub fn get_definition(&self, format_name: &str) -> Option<&MapFormatDefinition>
 	{
 		return self.map_formats.get(format_name);
+	}
+
+	pub fn get_definition_supported_file_extensions(
+		&self,
+		format_name: &str,
+	) -> Option<&Vec<String>>
+	{
+		return self
+			.get_definition(format_name)
+			.map(|def| &def.file_extensions);
 	}
 
 	pub fn get_supported_map_formats(&self) -> Vec<String>
