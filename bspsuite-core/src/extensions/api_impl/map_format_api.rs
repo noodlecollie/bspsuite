@@ -81,10 +81,10 @@ struct ApiImpl<'l>
 
 impl<'l> ApiImpl<'l>
 {
-	pub fn new(extesion_name: &'l str) -> Self
+	pub fn new(extension_name: &'l str) -> Self
 	{
 		return Self {
-			extension_name: extesion_name,
+			extension_name: extension_name,
 			formats: HashMap::new(),
 		};
 	}
@@ -97,7 +97,7 @@ impl<'l> ApiImpl<'l>
 		)
 		{
 			warn!(
-				"Overriding existing registered parse function for extension {} map format {format_name}",
+				"Overriding existing registered parse function for extension {} map format \"{format_name}\"",
 				self.extension_name
 			);
 		}
@@ -126,4 +126,229 @@ unsafe extern "C" fn register_map_format(
 		(*context.cast::<ApiImpl>())
 			.register_map_format(format_name.to_string().as_ref(), parse_fn);
 	};
+}
+
+mod builder_extc
+{
+	use super::*;
+	use bspextifc::builders::map_blueprint_builder::{
+		IMapBlueprintBuilder, MapBlueprintBuilder as Builder,
+	};
+	use bspextifc::map_format_api::MapParseFn;
+	use bspextifc::map_format_api::internal::CoreBuilderOperationErrorCode;
+	use bspextifc::types::{DPlane, DVec2, DVec3, PortableOption};
+
+	pub fn parse_map(data: &StringRef, parse_fn: &MapParseFn) -> Builder
+	{
+		let mut local_builder: Builder = Builder::new();
+		let mut context: OpaqueMutPtr<Builder> = OpaqueMutPtr::new(&mut local_builder);
+
+		let mut external_builder =
+			bspextifc::map_format_api::internal::create_map_blueprint_builder(
+				bspextifc::map_format_api::internal::CoreBuilderFns {
+					context: context.as_mut_void_ref(),
+					set_failure: set_failure,
+					set_failure_with_location: set_failure_with_location,
+					begin_entity: begin_entity,
+					end_entity: end_entity,
+					add_entity_keyvalue: add_entity_keyvalue,
+					begin_brush: begin_brush,
+					end_brush: end_brush,
+					begin_brush_face: begin_brush_face,
+					end_brush_face: end_brush_face,
+					set_brush_face_plane: set_brush_face_plane,
+					set_brush_face_material: set_brush_face_material,
+					set_brush_face_material_axes: set_brush_face_material_axes,
+					set_brush_face_material_translation: set_brush_face_material_translation,
+					set_brush_face_material_scale: set_brush_face_material_scale,
+					current_entity_index: current_entity_index,
+					current_brush_index: current_brush_index,
+					current_brush_face_index: current_brush_face_index,
+					num_entities: num_entities,
+					num_current_brushes: num_current_brushes,
+					num_current_brush_faces: num_current_brush_faces,
+				},
+			);
+
+		parse_fn(data, &mut external_builder);
+		return local_builder;
+	}
+
+	unsafe extern "C" fn set_failure(context: *mut c_void, description: &StringRef)
+	{
+		unsafe {
+			(*context.cast::<Builder>()).set_failure(description.to_string());
+		}
+	}
+
+	unsafe extern "C" fn set_failure_with_location(
+		context: *mut c_void,
+		line: usize,
+		column: usize,
+		description: &StringRef,
+	)
+	{
+		unsafe {
+			(*context.cast::<Builder>()).set_failure_with_location(
+				line,
+				column,
+				description.to_string(),
+			);
+		}
+	}
+
+	unsafe extern "C" fn begin_entity(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result((*context.cast::<Builder>()).begin_entity())
+		};
+	}
+
+	unsafe extern "C" fn end_entity(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result((*context.cast::<Builder>()).end_entity())
+		};
+	}
+
+	unsafe extern "C" fn add_entity_keyvalue(
+		context: *mut c_void,
+		key: &StringRef,
+		value: &StringRef,
+	) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result(
+				(*context.cast::<Builder>())
+					.add_entity_keyvalue(key.to_string(), value.to_string()),
+			)
+		};
+	}
+
+	unsafe extern "C" fn begin_brush(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result((*context.cast::<Builder>()).begin_brush())
+		};
+	}
+
+	unsafe extern "C" fn end_brush(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result((*context.cast::<Builder>()).end_brush())
+		};
+	}
+
+	unsafe extern "C" fn begin_brush_face(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result(
+				(*context.cast::<Builder>()).begin_brush_face(),
+			)
+		};
+	}
+
+	unsafe extern "C" fn end_brush_face(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result(
+				(*context.cast::<Builder>()).end_brush_face(),
+			)
+		};
+	}
+
+	unsafe extern "C" fn set_brush_face_plane(
+		context: *mut c_void,
+		plane: DPlane,
+	) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result(
+				(*context.cast::<Builder>()).set_brush_face_plane(plane),
+			)
+		};
+	}
+
+	unsafe extern "C" fn set_brush_face_material(
+		context: *mut c_void,
+		material_name: &StringRef,
+	) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result(
+				(*context.cast::<Builder>()).set_brush_face_material(material_name.to_string()),
+			)
+		};
+	}
+
+	unsafe extern "C" fn set_brush_face_material_axes(
+		context: *mut c_void,
+		u_unit_axis: DVec3,
+		v_unit_axis: DVec3,
+	) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result(
+				(*context.cast::<Builder>()).set_brush_face_material_axes(u_unit_axis, v_unit_axis),
+			)
+		};
+	}
+
+	unsafe extern "C" fn set_brush_face_material_translation(
+		context: *mut c_void,
+		translation: DVec2,
+	) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result(
+				(*context.cast::<Builder>()).set_brush_face_material_translation(translation),
+			)
+		};
+	}
+
+	unsafe extern "C" fn set_brush_face_material_scale(
+		context: *mut c_void,
+		scale: DVec2,
+	) -> CoreBuilderOperationErrorCode
+	{
+		return unsafe {
+			CoreBuilderOperationErrorCode::from_result(
+				(*context.cast::<Builder>()).set_brush_face_material_scale(scale),
+			)
+		};
+	}
+
+	unsafe extern "C" fn current_entity_index(context: *const c_void) -> PortableOption<usize>
+	{
+		return unsafe { (*context.cast::<Builder>()).current_entity_index().into() };
+	}
+
+	unsafe extern "C" fn current_brush_index(context: *const c_void) -> PortableOption<usize>
+	{
+		return unsafe { (*context.cast::<Builder>()).current_brush_index().into() };
+	}
+
+	unsafe extern "C" fn current_brush_face_index(context: *const c_void) -> PortableOption<usize>
+	{
+		return unsafe {
+			(*context.cast::<Builder>())
+				.current_brush_face_index()
+				.into()
+		};
+	}
+
+	unsafe extern "C" fn num_entities(context: *const c_void) -> usize
+	{
+		return unsafe { (*context.cast::<Builder>()).num_entities() };
+	}
+
+	unsafe extern "C" fn num_current_brushes(context: *const c_void) -> usize
+	{
+		return unsafe { (*context.cast::<Builder>()).num_current_brushes() };
+	}
+
+	unsafe extern "C" fn num_current_brush_faces(context: *const c_void) -> usize
+	{
+		return unsafe { (*context.cast::<Builder>()).num_current_brush_faces() };
+	}
 }

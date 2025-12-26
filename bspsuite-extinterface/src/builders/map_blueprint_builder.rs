@@ -5,7 +5,7 @@ use std::error::Error;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
-pub enum BuilderError
+pub enum OperationError
 {
 	/// A required operation had not been started.
 	OperationNotStarted,
@@ -14,17 +14,23 @@ pub enum BuilderError
 	OperationNotFinished,
 }
 
+#[derive(Debug)]
+pub struct BuilderError
+{
+	pub line: usize,
+	pub column: usize,
+	pub description: String,
+}
+
 impl fmt::Display for BuilderError
 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
-		match self
-		{
-			Self::OperationNotStarted | Self::OperationNotFinished =>
-			{
-				write!(f, "Order of operations was incorrect")
-			}
-		}
+		write!(
+			f,
+			"Line {}, column {}: {}",
+			self.line, self.column, self.description
+		)
 	}
 }
 
@@ -47,25 +53,39 @@ impl Error for BuilderError
 /// produced by the map blueprint builder is valid.
 pub trait IMapBlueprintBuilder
 {
+	/// Sets a failure state on the builder, including the line and column in
+	/// the input where the failure occurred.
+	///
+	/// Regardless of which components have been added by other function calls,
+	/// the build will be considered to have failed if this function is called.
+	fn set_failure(&mut self, description: String);
+
+	/// Sets a failure state on the builder, including the line and column in
+	/// the input where the failure occurred.
+	///
+	/// Regardless of which components have been added by other function calls,
+	/// the build will be considered to have failed if this function is called.
+	fn set_failure_with_location(&mut self, line: usize, column: usize, description: String);
+
 	/// Begins construction of an entity. Must be paired with [end_entity].
 	///
 	/// If there is already a current entity, brush or face, returns
 	/// [BuilderError::OperationNotFinished].
-	fn begin_entity(&mut self) -> Result<(), BuilderError>;
+	fn begin_entity(&mut self) -> Result<(), OperationError>;
 
 	/// Ends construction of an entity previously begun with [begin_entity].
 	///
 	/// If [begin_entity] has not previously been called, returns
 	/// [BuilderError::OperationNotStarted]. If there is any current unfinished
 	/// brush or face, returns [BuilderError::OperationNotFinished].
-	fn end_entity(&mut self) -> Result<(), BuilderError>;
+	fn end_entity(&mut self) -> Result<(), OperationError>;
 
 	/// Adds a key-value pair to the current entity.
 	///
 	/// If [begin_entity] has not previously been called, returns
 	/// [BuilderError::OperationNotStarted]. If there is any current unfinished
 	/// brush or face, returns [BuilderError::OperationNotFinished].
-	fn add_entity_keyvalue(&mut self, key: &str, value: &str) -> Result<(), BuilderError>;
+	fn add_entity_keyvalue(&mut self, key: String, value: String) -> Result<(), OperationError>;
 
 	/// Begins a brush within the current entity. Must be paired with
 	/// [end_brush].
@@ -73,14 +93,14 @@ pub trait IMapBlueprintBuilder
 	/// If there is already a current brush or face, returns
 	/// [BuilderError::OperationNotFinished]. If there is no current entity,
 	/// returns [BuilderError::OperationNotStarted].
-	fn begin_brush(&mut self) -> Result<(), BuilderError>;
+	fn begin_brush(&mut self) -> Result<(), OperationError>;
 
 	/// Ends construction of a brush previously begun with [begin_brush].
 	///
 	/// If [begin_brush] has not previously been called, returns
 	/// [BuilderError::OperationNotStarted]. If there is any current unfinished
 	/// face, returns [BuilderError::OperationNotFinished].
-	fn end_brush(&mut self) -> Result<(), BuilderError>;
+	fn end_brush(&mut self) -> Result<(), OperationError>;
 
 	/// Begins a face within the current brush. Must be paired with
 	/// [end_brush_face].
@@ -88,25 +108,25 @@ pub trait IMapBlueprintBuilder
 	/// If there is already a current face, returns
 	/// [BuilderError::OperationNotFinished]. If there is no current entity or
 	/// brush, returns [BuilderError::OperationNotStarted].
-	fn begin_brush_face(&mut self) -> Result<(), BuilderError>;
+	fn begin_brush_face(&mut self) -> Result<(), OperationError>;
 
 	/// Ends construction of a face previously begun with [begin_brush_face].
 	///
 	/// If [begin_brush_face] jas not previously been called, returns
 	/// [BuilderError::OperationNotStarted].
-	fn end_brush_face(&mut self) -> Result<(), BuilderError>;
+	fn end_brush_face(&mut self) -> Result<(), OperationError>;
 
 	/// Sets the plane of the current brush face.
 	///
 	/// If there is no current face, returns
 	/// [BuilderError::OperationNotStarted].
-	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), BuilderError>;
+	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), OperationError>;
 
 	/// Sets the material for the current brush face.
 	///
 	/// If there is no current face, returns
 	/// [BuilderError::OperationNotStarted].
-	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), BuilderError>;
+	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), OperationError>;
 
 	/// Sets the material axes for the current brush face.
 	///
@@ -116,7 +136,7 @@ pub trait IMapBlueprintBuilder
 		&mut self,
 		u_unit_axis: DVec3,
 		v_unit_axis: DVec3,
-	) -> Result<(), BuilderError>;
+	) -> Result<(), OperationError>;
 
 	/// Sets the material translation for the current brush face.
 	///
@@ -125,13 +145,13 @@ pub trait IMapBlueprintBuilder
 	fn set_brush_face_material_translation(
 		&mut self,
 		translation: DVec2,
-	) -> Result<(), BuilderError>;
+	) -> Result<(), OperationError>;
 
 	/// Sets the material scale for the current brush face.
 	///
 	/// If there is no current face, returns
 	/// [BuilderError::OperationNotStarted].
-	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), BuilderError>;
+	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), OperationError>;
 
 	/// Gets the index of the current entity, or None if there is no current
 	/// entity.
@@ -220,6 +240,7 @@ pub struct MapBlueprintBuilder
 	current_entity: Option<Entity>,
 	current_brush: Option<Brush>,
 	current_face: Option<BrushFace>,
+	failure: Option<BuilderError>,
 }
 
 impl MapBlueprintBuilder
@@ -231,16 +252,26 @@ impl MapBlueprintBuilder
 			current_entity: None,
 			current_brush: None,
 			current_face: None,
+			failure: None,
 		};
 	}
 
 	pub fn collect(self) -> Result<Vec<Entity>, BuilderError>
 	{
+		if self.failure.is_some()
+		{
+			return Err(self.failure.unwrap());
+		}
+
 		if self.current_entity.is_some()
 			|| self.current_brush.is_some()
 			|| self.current_face.is_some()
 		{
-			return Err(BuilderError::OperationNotFinished);
+			return Err(BuilderError {
+				line: 1,
+				column: 0,
+				description: "An operation was left unfinished".to_owned(),
+			});
 		}
 
 		return Ok(self.entities);
@@ -249,13 +280,27 @@ impl MapBlueprintBuilder
 
 impl IMapBlueprintBuilder for MapBlueprintBuilder
 {
-	fn begin_entity(&mut self) -> Result<(), BuilderError>
+	fn set_failure(&mut self, description: String)
+	{
+		self.set_failure_with_location(1, 0, description);
+	}
+
+	fn set_failure_with_location(&mut self, line: usize, column: usize, description: String)
+	{
+		self.failure = Some(BuilderError {
+			line: line,
+			column: column,
+			description: description,
+		});
+	}
+
+	fn begin_entity(&mut self) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_some()
 			|| self.current_brush.is_some()
 			|| self.current_face.is_some()
 		{
-			return Err(BuilderError::OperationNotFinished);
+			return Err(OperationError::OperationNotFinished);
 		}
 
 		self.current_entity = Some(Entity::new());
@@ -264,16 +309,16 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		return Ok(());
 	}
 
-	fn end_entity(&mut self) -> Result<(), BuilderError>
+	fn end_entity(&mut self) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		if self.current_brush.is_some() || self.current_face.is_some()
 		{
-			return Err(BuilderError::OperationNotFinished);
+			return Err(OperationError::OperationNotFinished);
 		}
 
 		trace!("End entity {}", self.current_entity_index().unwrap());
@@ -282,16 +327,16 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		return Ok(());
 	}
 
-	fn add_entity_keyvalue(&mut self, key: &str, value: &str) -> Result<(), BuilderError>
+	fn add_entity_keyvalue(&mut self, key: String, value: String) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		if self.current_brush.is_some() || self.current_face.is_some()
 		{
-			return Err(BuilderError::OperationNotFinished);
+			return Err(OperationError::OperationNotFinished);
 		}
 
 		trace!(
@@ -305,21 +350,21 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 			.as_mut()
 			.unwrap()
 			.keyvalues
-			.insert(String::from(key), String::from(value));
+			.insert(key, value);
 
 		return Ok(());
 	}
 
-	fn begin_brush(&mut self) -> Result<(), BuilderError>
+	fn begin_brush(&mut self) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		if self.current_brush.is_some() || self.current_face.is_some()
 		{
-			return Err(BuilderError::OperationNotFinished);
+			return Err(OperationError::OperationNotFinished);
 		}
 
 		self.current_brush = Some(Brush::new());
@@ -328,16 +373,16 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		return Ok(());
 	}
 
-	fn end_brush(&mut self) -> Result<(), BuilderError>
+	fn end_brush(&mut self) -> Result<(), OperationError>
 	{
 		if self.current_face.is_some()
 		{
-			return Err(BuilderError::OperationNotFinished);
+			return Err(OperationError::OperationNotFinished);
 		}
 
 		if self.current_entity.is_none() || self.current_brush.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		trace!("End entity brush {}", self.current_brush_index().unwrap());
@@ -351,16 +396,16 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		return Ok(());
 	}
 
-	fn begin_brush_face(&mut self) -> Result<(), BuilderError>
+	fn begin_brush_face(&mut self) -> Result<(), OperationError>
 	{
 		if self.current_face.is_some()
 		{
-			return Err(BuilderError::OperationNotFinished);
+			return Err(OperationError::OperationNotFinished);
 		}
 
 		if self.current_entity.is_none() || self.current_brush.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		self.current_face = Some(BrushFace::new());
@@ -372,13 +417,13 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		return Ok(());
 	}
 
-	fn end_brush_face(&mut self) -> Result<(), BuilderError>
+	fn end_brush_face(&mut self) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 			|| self.current_brush.is_none()
 			|| self.current_face.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		trace!(
@@ -395,13 +440,13 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		return Ok(());
 	}
 
-	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), BuilderError>
+	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 			|| self.current_brush.is_none()
 			|| self.current_face.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		trace!(
@@ -414,13 +459,13 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		return Ok(());
 	}
 
-	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), BuilderError>
+	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 			|| self.current_brush.is_none()
 			|| self.current_face.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		trace!(
@@ -437,13 +482,13 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		&mut self,
 		u_unit_axis: DVec3,
 		v_unit_axis: DVec3,
-	) -> Result<(), BuilderError>
+	) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 			|| self.current_brush.is_none()
 			|| self.current_face.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		trace!(
@@ -462,13 +507,13 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 	fn set_brush_face_material_translation(
 		&mut self,
 		translation: DVec2,
-	) -> Result<(), BuilderError>
+	) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 			|| self.current_brush.is_none()
 			|| self.current_face.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		trace!(
@@ -483,13 +528,13 @@ impl IMapBlueprintBuilder for MapBlueprintBuilder
 		return Ok(());
 	}
 
-	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), BuilderError>
+	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 			|| self.current_brush.is_none()
 			|| self.current_face.is_none()
 		{
-			return Err(BuilderError::OperationNotStarted);
+			return Err(OperationError::OperationNotStarted);
 		}
 
 		trace!(
@@ -556,19 +601,25 @@ mod tests
 		// No current entity
 		{
 			let mut builder = MapBlueprintBuilder::new();
-			assert_eq!(builder.end_entity(), Err(BuilderError::OperationNotStarted));
+			assert_eq!(
+				builder.end_entity(),
+				Err(OperationError::OperationNotStarted)
+			);
 			assert_eq!(
 				builder.begin_brush(),
-				Err(BuilderError::OperationNotStarted)
+				Err(OperationError::OperationNotStarted)
 			);
-			assert_eq!(builder.end_brush(), Err(BuilderError::OperationNotStarted));
+			assert_eq!(
+				builder.end_brush(),
+				Err(OperationError::OperationNotStarted)
+			);
 			assert_eq!(
 				builder.begin_brush_face(),
-				Err(BuilderError::OperationNotStarted)
+				Err(OperationError::OperationNotStarted)
 			);
 			assert_eq!(
 				builder.end_brush_face(),
-				Err(BuilderError::OperationNotStarted)
+				Err(OperationError::OperationNotStarted)
 			);
 
 			let entities = builder.collect();
@@ -581,19 +632,25 @@ mod tests
 			let mut builder = MapBlueprintBuilder::new();
 			assert_eq!(builder.begin_entity(), Ok(()));
 
-			assert_eq!(builder.end_brush(), Err(BuilderError::OperationNotStarted));
+			assert_eq!(
+				builder.end_brush(),
+				Err(OperationError::OperationNotStarted)
+			);
 			assert_eq!(
 				builder.begin_brush_face(),
-				Err(BuilderError::OperationNotStarted)
+				Err(OperationError::OperationNotStarted)
 			);
 			assert_eq!(
 				builder.end_brush_face(),
-				Err(BuilderError::OperationNotStarted)
+				Err(OperationError::OperationNotStarted)
 			);
 
 			let entities = builder.collect();
 			assert!(entities.is_err());
-			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+			assert_eq!(
+				entities.unwrap_err().description,
+				"An operation was left unfinished"
+			);
 		}
 
 		// No current face
@@ -604,12 +661,15 @@ mod tests
 
 			assert_eq!(
 				builder.end_brush_face(),
-				Err(BuilderError::OperationNotStarted)
+				Err(OperationError::OperationNotStarted)
 			);
 
 			let entities = builder.collect();
 			assert!(entities.is_err());
-			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+			assert_eq!(
+				entities.unwrap_err().description,
+				"An operation was left unfinished"
+			);
 		}
 	}
 
@@ -623,12 +683,15 @@ mod tests
 
 			assert_eq!(
 				builder.begin_entity(),
-				Err(BuilderError::OperationNotFinished)
+				Err(OperationError::OperationNotFinished)
 			);
 
 			let entities = builder.collect();
 			assert!(entities.is_err());
-			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+			assert_eq!(
+				entities.unwrap_err().description,
+				"An operation was left unfinished"
+			);
 		}
 
 		// Begin new brush without finishing previous brush
@@ -639,12 +702,15 @@ mod tests
 
 			assert_eq!(
 				builder.begin_brush(),
-				Err(BuilderError::OperationNotFinished)
+				Err(OperationError::OperationNotFinished)
 			);
 
 			let entities = builder.collect();
 			assert!(entities.is_err());
-			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+			assert_eq!(
+				entities.unwrap_err().description,
+				"An operation was left unfinished"
+			);
 		}
 
 		// Begin new face without finishing previous face
@@ -656,12 +722,15 @@ mod tests
 
 			assert_eq!(
 				builder.begin_brush_face(),
-				Err(BuilderError::OperationNotFinished)
+				Err(OperationError::OperationNotFinished)
 			);
 
 			let entities = builder.collect();
 			assert!(entities.is_err());
-			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+			assert_eq!(
+				entities.unwrap_err().description,
+				"An operation was left unfinished"
+			);
 		}
 
 		// Begin new entity without finishing brush
@@ -672,12 +741,15 @@ mod tests
 
 			assert_eq!(
 				builder.begin_entity(),
-				Err(BuilderError::OperationNotFinished)
+				Err(OperationError::OperationNotFinished)
 			);
 
 			let entities = builder.collect();
 			assert!(entities.is_err());
-			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+			assert_eq!(
+				entities.unwrap_err().description,
+				"An operation was left unfinished"
+			);
 		}
 
 		// Begin new entity or brush without finishing face
@@ -689,17 +761,20 @@ mod tests
 
 			assert_eq!(
 				builder.begin_entity(),
-				Err(BuilderError::OperationNotFinished)
+				Err(OperationError::OperationNotFinished)
 			);
 
 			assert_eq!(
 				builder.begin_brush(),
-				Err(BuilderError::OperationNotFinished)
+				Err(OperationError::OperationNotFinished)
 			);
 
 			let entities = builder.collect();
 			assert!(entities.is_err());
-			assert_eq!(entities.unwrap_err(), BuilderError::OperationNotFinished);
+			assert_eq!(
+				entities.unwrap_err().description,
+				"An operation was left unfinished"
+			);
 		}
 	}
 
@@ -798,7 +873,7 @@ mod tests
 		let mut builder = MapBlueprintBuilder::new();
 		assert_eq!(builder.begin_entity(), Ok(()));
 		assert_eq!(
-			builder.add_entity_keyvalue("classname", "worldspawn"),
+			builder.add_entity_keyvalue("classname".to_owned(), "worldspawn".to_owned()),
 			Ok(())
 		);
 		assert_eq!(builder.begin_brush(), Ok(()));

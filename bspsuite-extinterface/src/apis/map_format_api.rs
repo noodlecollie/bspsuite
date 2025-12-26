@@ -1,5 +1,5 @@
 use super::api_info::ApiInfo;
-use crate::builders::map_blueprint_builder::{BuilderError, IMapBlueprintBuilder};
+use crate::builders::map_blueprint_builder::{IMapBlueprintBuilder, OperationError};
 use crate::types::{DPlane, DVec2, DVec3, PortableOption, StringRef};
 use std::ffi::c_void;
 
@@ -38,54 +38,71 @@ pub struct MapBlueprintBuilder<'l>
 // called knows what type to convert the context into.
 impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 {
-	fn begin_entity(&mut self) -> Result<(), BuilderError>
+	fn set_failure(&mut self, description: String)
+	{
+		unsafe { (self.fns.set_failure)(*self.fns.context, &StringRef::new(&description)) };
+	}
+
+	fn set_failure_with_location(&mut self, line: usize, column: usize, description: String)
+	{
+		unsafe {
+			(self.fns.set_failure_with_location)(
+				*self.fns.context,
+				line,
+				column,
+				&StringRef::new(&description),
+			)
+		};
+	}
+
+	fn begin_entity(&mut self) -> Result<(), OperationError>
 	{
 		return unsafe { (self.fns.begin_entity)(*self.fns.context).to_result() };
 	}
 
-	fn end_entity(&mut self) -> Result<(), BuilderError>
+	fn end_entity(&mut self) -> Result<(), OperationError>
 	{
 		return unsafe { (self.fns.end_entity)(*self.fns.context).to_result() };
 	}
 
-	fn add_entity_keyvalue(&mut self, key: &str, value: &str) -> Result<(), BuilderError>
+	fn add_entity_keyvalue(&mut self, key: String, value: String) -> Result<(), OperationError>
 	{
 		return unsafe {
 			(self.fns.add_entity_keyvalue)(
 				*self.fns.context,
-				&StringRef::new(key),
-				&StringRef::new(value),
+				&StringRef::new(&key),
+				&StringRef::new(&value),
 			)
 			.to_result()
 		};
 	}
 
-	fn begin_brush(&mut self) -> Result<(), BuilderError>
+	fn begin_brush(&mut self) -> Result<(), OperationError>
 	{
 		return unsafe { (self.fns.begin_brush)(*self.fns.context).to_result() };
 	}
 
-	fn end_brush(&mut self) -> Result<(), BuilderError>
+	fn end_brush(&mut self) -> Result<(), OperationError>
 	{
 		return unsafe { (self.fns.end_brush)(*self.fns.context).to_result() };
 	}
 
-	fn begin_brush_face(&mut self) -> Result<(), BuilderError>
+	fn begin_brush_face(&mut self) -> Result<(), OperationError>
 	{
 		return unsafe { (self.fns.begin_brush_face)(*self.fns.context).to_result() };
 	}
 
-	fn end_brush_face(&mut self) -> Result<(), BuilderError>
+	fn end_brush_face(&mut self) -> Result<(), OperationError>
 	{
 		return unsafe { (self.fns.end_brush_face)(*self.fns.context).to_result() };
 	}
 
-	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), BuilderError>
+	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), OperationError>
 	{
 		return unsafe { (self.fns.set_brush_face_plane)(*self.fns.context, plane).to_result() };
 	}
 
-	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), BuilderError>
+	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), OperationError>
 	{
 		return unsafe {
 			(self.fns.set_brush_face_material)(*self.fns.context, &StringRef::new(&material_name))
@@ -97,7 +114,7 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 		&mut self,
 		u_unit_axis: DVec3,
 		v_unit_axis: DVec3,
-	) -> Result<(), BuilderError>
+	) -> Result<(), OperationError>
 	{
 		return unsafe {
 			(self.fns.set_brush_face_material_axes)(*self.fns.context, u_unit_axis, v_unit_axis)
@@ -108,7 +125,7 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 	fn set_brush_face_material_translation(
 		&mut self,
 		translation: DVec2,
-	) -> Result<(), BuilderError>
+	) -> Result<(), OperationError>
 	{
 		return unsafe {
 			(self.fns.set_brush_face_material_translation)(*self.fns.context, translation)
@@ -116,7 +133,7 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 		};
 	}
 
-	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), BuilderError>
+	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), OperationError>
 	{
 		return unsafe {
 			(self.fns.set_brush_face_material_scale)(*self.fns.context, scale).to_result()
@@ -169,29 +186,47 @@ pub mod internal
 	}
 
 	#[repr(C)]
-	pub enum CoreBuilderResultCode
+	pub enum CoreBuilderOperationErrorCode
 	{
 		Ok,
 		OperationNotStarted,
 		OperationNotFinished,
 	}
 
-	impl CoreBuilderResultCode
+	// TODO: Implement from/into?
+	impl CoreBuilderOperationErrorCode
 	{
-		pub fn to_result(self) -> Result<(), BuilderError>
+		pub fn to_result(self) -> Result<(), OperationError>
 		{
 			return match self
 			{
-				CoreBuilderResultCode::Ok => Ok(()),
-				CoreBuilderResultCode::OperationNotStarted =>
+				CoreBuilderOperationErrorCode::Ok => Ok(()),
+				CoreBuilderOperationErrorCode::OperationNotStarted =>
 				{
-					Err(BuilderError::OperationNotStarted)
+					Err(OperationError::OperationNotStarted)
 				}
-				CoreBuilderResultCode::OperationNotFinished =>
+				CoreBuilderOperationErrorCode::OperationNotFinished =>
 				{
-					Err(BuilderError::OperationNotFinished)
+					Err(OperationError::OperationNotFinished)
 				}
 			};
+		}
+
+		pub fn from_result(result: Result<(), OperationError>) -> Self
+		{
+			return result
+				.map(|_| CoreBuilderOperationErrorCode::Ok)
+				.unwrap_or_else(|err| match err
+				{
+					OperationError::OperationNotStarted =>
+					{
+						CoreBuilderOperationErrorCode::OperationNotStarted
+					}
+					OperationError::OperationNotFinished =>
+					{
+						CoreBuilderOperationErrorCode::OperationNotFinished
+					}
+				});
 		}
 	}
 
@@ -200,30 +235,29 @@ pub mod internal
 	{
 		pub context: &'l *mut c_void,
 
-		pub begin_entity: unsafe extern "C" fn(*mut c_void) -> CoreBuilderResultCode,
-		pub end_entity: unsafe extern "C" fn(*mut c_void) -> CoreBuilderResultCode,
+		pub set_failure: unsafe extern "C" fn(*mut c_void, &StringRef),
+		pub set_failure_with_location: unsafe extern "C" fn(*mut c_void, usize, usize, &StringRef),
+		pub begin_entity: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
+		pub end_entity: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
 		pub add_entity_keyvalue: unsafe extern "C" fn(
 			*mut c_void,
-			key: &StringRef,
-			value: &StringRef,
-		) -> CoreBuilderResultCode,
-		pub begin_brush: unsafe extern "C" fn(*mut c_void) -> CoreBuilderResultCode,
-		pub end_brush: unsafe extern "C" fn(*mut c_void) -> CoreBuilderResultCode,
-		pub begin_brush_face: unsafe extern "C" fn(*mut c_void) -> CoreBuilderResultCode,
-		pub end_brush_face: unsafe extern "C" fn(*mut c_void) -> CoreBuilderResultCode,
+			&StringRef,
+			&StringRef,
+		) -> CoreBuilderOperationErrorCode,
+		pub begin_brush: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
+		pub end_brush: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
+		pub begin_brush_face: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
+		pub end_brush_face: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
 		pub set_brush_face_plane:
-			unsafe extern "C" fn(*mut c_void, plane: DPlane) -> CoreBuilderResultCode,
+			unsafe extern "C" fn(*mut c_void, DPlane) -> CoreBuilderOperationErrorCode,
 		pub set_brush_face_material:
-			unsafe extern "C" fn(*mut c_void, material_name: &StringRef) -> CoreBuilderResultCode,
-		pub set_brush_face_material_axes: unsafe extern "C" fn(
-			*mut c_void,
-			u_unit_axis: DVec3,
-			v_unit_axis: DVec3,
-		) -> CoreBuilderResultCode,
+			unsafe extern "C" fn(*mut c_void, &StringRef) -> CoreBuilderOperationErrorCode,
+		pub set_brush_face_material_axes:
+			unsafe extern "C" fn(*mut c_void, DVec3, DVec3) -> CoreBuilderOperationErrorCode,
 		pub set_brush_face_material_translation:
-			unsafe extern "C" fn(*mut c_void, translation: DVec2) -> CoreBuilderResultCode,
+			unsafe extern "C" fn(*mut c_void, DVec2) -> CoreBuilderOperationErrorCode,
 		pub set_brush_face_material_scale:
-			unsafe extern "C" fn(*mut c_void, scale: DVec2) -> CoreBuilderResultCode,
+			unsafe extern "C" fn(*mut c_void, DVec2) -> CoreBuilderOperationErrorCode,
 		pub current_entity_index: unsafe extern "C" fn(*const c_void) -> PortableOption<usize>,
 		pub current_brush_index: unsafe extern "C" fn(*const c_void) -> PortableOption<usize>,
 		pub current_brush_face_index: unsafe extern "C" fn(*const c_void) -> PortableOption<usize>,
