@@ -22,20 +22,20 @@ impl GameConfig
 		ensure!(
 			game_config_path.exists(),
 			"Config file {} for game \"{game}\" not found on disk",
-			game_config_path.to_str().unwrap_or("<unknown>")
+			game_config_path.display()
 		);
 
 		let file_contents: String = fs::read_to_string(&game_config_path).with_context(|| {
 			format!(
 				"Failed to read game config file {}",
-				game_config_path.to_str().unwrap_or("<unknown>")
+				game_config_path.display()
 			)
 		})?;
 
 		return GameConfig::load(&file_contents).with_context(|| {
 			format!(
 				"Failed to parse game config file {}",
-				game_config_path.to_str().unwrap_or("<unknown>")
+				game_config_path.display()
 			)
 		});
 	}

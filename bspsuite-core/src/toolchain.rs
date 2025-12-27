@@ -22,7 +22,7 @@ impl Toolchain
 
 		debug!(
 			"Toolchain root path: {} ({})",
-			root_path.to_str().unwrap_or("<unknown>"),
+			root_path.display(),
 			if toolchain_root.is_some()
 			{
 				"user-specified"

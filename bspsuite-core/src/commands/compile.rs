@@ -75,7 +75,7 @@ fn infer_map_format_from_input_file_extension(
 	ensure!(
 		!input_ext.is_empty(),
 		"Input file {} had no file extension, cannot infer map format",
-		input_path.to_str().unwrap_or("<unknown>")
+		input_path.display()
 	);
 
 	let allowed_formats: Vec<&str> = game_config
