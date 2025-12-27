@@ -15,21 +15,28 @@ where
 	return match result
 	{
 		Ok(result_code) => result_code,
-		Err(err) =>
+		Err(_) =>
 		{
-			let banner: String = colorize_string("<u><b><red>***** CRITICAL FAILURE *****</>");
+			let banner: String = colorize_string(
+				"<u><b><red>\
+					**************************************\n\
+					********** CRITICAL FAILURE **********\n\
+					**************************************\n\
+					</>",
+			);
 
-			// TODO: Does the project configuration support setting a repo?
-			// Can we use an environment variable to fetch the URL?
+			// We don't know the type of the error, and the functions we have available to
+			// check it are frustratingly limited, so there's not much we can actually log
+			// here.
+			//
+			// TODO: Does the project configuration support setting a repo? Can we use an
+			// environment variable to fetch the URL?
 			error!(
-				"\n
-				{banner}\n
-				The compiler has encountered an unrecoverable error and halted.\n
-				Please create an issue report at https://github.com/noodlecollie/bspsuite/issues/\n
-				and include the following information:\n
-				\n
-				{:?}",
-				err
+				"\n\
+				{banner}\n\
+				The compiler has encountered an unrecoverable error and halted.\n\
+				Please create an issue report at https://github.com/noodlecollie/bspsuite/issues/\n\
+				and include the full log from this run."
 			);
 
 			ResultCode::InternalError

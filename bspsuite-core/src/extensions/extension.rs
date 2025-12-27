@@ -1,5 +1,5 @@
 use crate::extensions::api_impl::{dummy_api_impl, log_api_impl, map_format_api_impl};
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use bspextifc::probe_api::ProbeResult;
 use bspextifc::probe_api::internal::{ApiProvider, CallbacksContainer, ExportedApis};
 use bspextifc::{
@@ -135,12 +135,10 @@ impl Extension
 
 		let extension_info_version: ExtensionInfoVersionType = **extension_info_version_symbol;
 
-		if extension_info_version != EXTENSION_INFO_VERSION
-		{
-			bail!(
-				"Expected extension info version {EXTENSION_INFO_VERSION} but got version {extension_info_version}"
-			);
-		}
+		ensure!(
+			extension_info_version == EXTENSION_INFO_VERSION,
+			"Expected extension info version {EXTENSION_INFO_VERSION} but got version {extension_info_version}"
+		);
 
 		let extension_info_symbol: UnsafeSymbol<&'static ExtensionInfo> =
 			unsafe { Extension::get_unsafe_symbol(&library, SYMBOL_EXTENSION_INFO) }.with_context(
@@ -155,14 +153,11 @@ impl Extension
 			path.to_str().unwrap()
 		);
 
-		if probe_api_version != probe_api::API_VERSION
-		{
-			bail!(
-				"Required interface version {}, \
-					but extension provided interface version {probe_api_version}.",
-				probe_api::API_VERSION
-			);
-		}
+		ensure!(
+			probe_api_version == probe_api::API_VERSION,
+			"Required interface version {}, but extension provided interface version {probe_api_version}.",
+			probe_api::API_VERSION
+		);
 
 		let name: String =
 			Extension::compute_library_name(path.file_stem().unwrap().to_str().unwrap());

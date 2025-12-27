@@ -8,7 +8,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
-use anyhow::{Context, Error, bail};
+use anyhow::{Context, Error, bail, ensure};
 use clap::Parser;
 use glob;
 use glob::Paths;
@@ -98,12 +98,7 @@ fn build_extensions() -> Result<(), Error>
 fn build_crate(dir_name: &str) -> Result<(), Error>
 {
 	let result = run_cargo(&["build"], &project_root().join(dir_name))?;
-
-	if !result.success()
-	{
-		bail!("Failed to build {dir_name}");
-	}
-
+	ensure!(result.success(), "Failed to build {dir_name}");
 	Ok(())
 }
 
@@ -170,13 +165,11 @@ fn create_dist_dir(dist_dir: &PathBuf) -> Result<(), Error>
 
 fn create_dir(dir: &PathBuf) -> Result<(), Error>
 {
-	if dir.is_file()
-	{
-		bail!(
-			"Failed to create directory: {} is actually a file",
-			dir.to_str().unwrap()
-		);
-	}
+	ensure!(
+		!dir.is_file(),
+		"Failed to create directory: {} is actually a file",
+		dir.to_str().unwrap()
+	);
 
 	if !dir.is_dir()
 	{
@@ -234,10 +227,11 @@ fn copy_file(source_path: &PathBuf, dest_path: &PathBuf) -> Result<(), Error>
 {
 	if source_path == dest_path
 	{
-		if !source_path.exists()
-		{
-			bail!("File {} does not exist", source_path.to_str().unwrap());
-		}
+		ensure!(
+			source_path.exists(),
+			"File {} does not exist",
+			source_path.to_str().unwrap()
+		);
 
 		return Ok(());
 	}

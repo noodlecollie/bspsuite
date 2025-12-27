@@ -1,4 +1,4 @@
-use anyhow::{Context, Error, bail};
+use anyhow::{Context, Error, ensure};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -19,13 +19,11 @@ impl GameConfig
 		let root_dir: PathBuf = GameConfig::game_config_root_directory(toolchain_root);
 		let game_config_path: PathBuf = root_dir.join(game).join(format!("{game}.cfg"));
 
-		if !game_config_path.exists()
-		{
-			bail!(
-				"Config file {} for game \"{game}\" not found on disk",
-				game_config_path.to_str().unwrap_or("<unknown>")
-			);
-		}
+		ensure!(
+			game_config_path.exists(),
+			"Config file {} for game \"{game}\" not found on disk",
+			game_config_path.to_str().unwrap_or("<unknown>")
+		);
 
 		let file_contents: String = fs::read_to_string(&game_config_path).with_context(|| {
 			format!(

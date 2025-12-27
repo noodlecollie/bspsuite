@@ -3,12 +3,13 @@ use std::path::PathBuf;
 
 use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_panics;
+use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::extensions::{ExtensionList, ExtensionRef, extension_routines};
 use crate::game_configs::GameConfig;
 use crate::toolchain::Toolchain;
-use anyhow::{Error, Result, anyhow, bail};
+use anyhow::{Result, anyhow, bail, ensure};
 use bspextifc::types::{PortableOption, StringRef};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 
 #[repr(C)]
 pub struct CompileArgs<'l>
@@ -22,47 +23,39 @@ pub struct CompileArgs<'l>
 #[unsafe(no_mangle)]
 pub extern "C" fn bspcore_run_compile(args: &CompileArgs) -> ResultCode
 {
-	return wrap_panics(|| {
-		let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root_path());
+	return wrap_panics(|| run_compile_and_log_errors(|| run_compile(args)));
+}
 
-		let game_config: Result<GameConfig, Error> =
-			GameConfig::load_for_game(toolchain.root_path(), args.game.as_str());
+fn run_compile(args: &CompileArgs) -> Result<()>
+{
+	let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root_path());
 
-		if let Err(err) = game_config
-		{
-			error!("{err}");
-			return ResultCode::ConfigError;
-		}
+	let game_config: GameConfig =
+		GameConfig::load_for_game(toolchain.root_path(), args.game.as_str())
+			.map_err(|err| CompilerError::new_anyhow(CompilerErrorCode::ConfigError, err))?;
 
-		let game_config: GameConfig = game_config.unwrap();
+	let extensions: ExtensionList = toolchain.find_extensions();
+	extension_routines::register_map_formats(&extensions);
 
-		let extensions: ExtensionList = toolchain.find_extensions();
-		extension_routines::register_map_formats(&extensions);
+	let input_path: PathBuf = PathBuf::from(args.input_file.as_str());
 
-		let input_path: PathBuf = PathBuf::from(args.input_file.as_str());
+	let map_format_result: Result<String> = if args.map_format_override.is_some()
+	{
+		Ok(args.map_format_override.unwrap_ref().to_string())
+	}
+	else
+	{
+		infer_map_format_from_input_file_extension(&extensions, &game_config, &input_path)
+	};
 
-		let map_format: Result<String> = if args.map_format_override.is_some()
-		{
-			Ok(args.map_format_override.unwrap_ref().to_string())
-		}
-		else
-		{
-			infer_map_format_from_input_file_extension(&extensions, &game_config, &input_path)
-		};
+	let map_format: String = map_format_result
+		.map_err(|err| CompilerError::new_anyhow(CompilerErrorCode::ArgumentError, err))?;
 
-		if let Err(err) = map_format
-		{
-			error!("{err}");
-			return ResultCode::ArgumentError;
-		}
+	debug!("Input map format: {map_format}");
 
-		let map_format: String = map_format.unwrap();
+	info!("Compile complete");
 
-		debug!("Input map format: {map_format}");
-
-		info!("Compile complete");
-		return ResultCode::Ok;
-	});
+	return Ok(());
 }
 
 fn infer_map_format_from_input_file_extension(
@@ -92,12 +85,10 @@ fn infer_map_format_from_input_file_extension(
 			&allowed_formats,
 		);
 
-	if supported_exts.is_empty()
-	{
-		bail!(format!(
-			"No compiler extensions recognised input map file with extension .{input_ext}"
-		));
-	}
+	ensure!(
+		!supported_exts.is_empty(),
+		"No compiler extensions recognised input map file with extension .{input_ext}"
+	);
 
 	// TODO: Support better disambiguation in this case.
 	if supported_exts.len() > 1
@@ -114,4 +105,37 @@ fn infer_map_format_from_input_file_extension(
 	}
 
 	return Ok(supported_exts[0].1.clone());
+}
+
+// TODO: Combine this and wrap_panics?
+fn run_compile_and_log_errors<Callback>(callback: Callback) -> ResultCode
+where
+	Callback: FnOnce() -> Result<()>,
+{
+	return match callback()
+	{
+		Err(err) =>
+		{
+			error!("{:#}", err);
+
+			let compiler_error: Option<&CompilerError> = CompilerError::first_error_in_chain(&err);
+
+			debug_assert!(
+				compiler_error.is_some(),
+				"Encountered a compile error which was not of type CompilerError"
+			);
+
+			if compiler_error.is_none()
+			{
+				warn!(
+					"The above error was not of the expected type CompilerError. This is a programmer oversight!"
+				);
+			}
+
+			compiler_error
+				.map(|err| err.code.into())
+				.unwrap_or(ResultCode::InternalError)
+		}
+		Ok(_) => ResultCode::Ok,
+	};
 }
