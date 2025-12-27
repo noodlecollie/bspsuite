@@ -16,7 +16,7 @@ bspsuite\
   bspcore.dll
   games\
     my-game
-      my-game.cfg
+    	config.toml
       my-game.dll
   extensions\
     quakeext.dll

@@ -17,7 +17,7 @@ impl GameConfig
 	pub fn load_for_game(toolchain_root: &PathBuf, game: &str) -> Result<Self, Error>
 	{
 		let root_dir: PathBuf = GameConfig::game_config_root_directory(toolchain_root);
-		let game_config_path: PathBuf = root_dir.join(game).join(format!("{game}.cfg"));
+		let game_config_path: PathBuf = root_dir.join(game).join(format!("config.toml"));
 
 		ensure!(
 			game_config_path.exists(),

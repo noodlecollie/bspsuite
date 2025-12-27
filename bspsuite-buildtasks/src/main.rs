@@ -121,7 +121,7 @@ fn copy_game_configs(
 		return Ok(());
 	}
 
-	let glob_str: String = format!("{}/games/**/*.cfg", source_dir.to_str().unwrap());
+	let glob_str: String = format!("{}/games/*/config.toml", source_dir.to_str().unwrap());
 	let glob_result: Paths = glob::glob(glob_str.as_str())?;
 
 	for file in glob_result
