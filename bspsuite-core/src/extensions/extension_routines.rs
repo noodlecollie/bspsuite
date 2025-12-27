@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
 
 use crate::extensions::api_impl::map_format_api;
 use crate::extensions::{ExtensionList, ExtensionRef};
+use anyhow::{Result, bail};
+use std::path::Path;
 
 pub fn join_extension_names(extensions: Vec<&ExtensionRef>) -> String
 {
@@ -84,6 +85,54 @@ pub fn find_extensions_supporting_format<'l>(
 		.collect();
 }
 
+pub fn choose_extension_to_parse_map<'l>(
+	list: &'l ExtensionList,
+	format_name: &str,
+	file_name: &Path,
+) -> Result<&'l ExtensionRef>
+{
+	let extensions: Vec<&'l ExtensionRef> = list
+		.iter()
+		.filter(|ext| {
+			extension_supports_format_and_maybe_file_ext(
+				ext,
+				format_name,
+				file_name
+					.extension()
+					.map(|os_str| os_str.to_str())
+					.unwrap_or(None),
+			)
+		})
+		.collect();
+
+	if extensions.len() != 1
+	{
+		if extensions.len() > 1
+		{
+			let matches: String = extensions
+				.iter()
+				.map(|ext| ext.get_name())
+				.collect::<Vec<&str>>()
+				.join(", ");
+
+			bail!(
+				"Map file {} in format {format_name} supported by more than one compiler extension: \
+				{matches}. Unable to deduce which one to use.",
+				file_name.display()
+			);
+		}
+		else
+		{
+			bail!(
+				"Map file {} in format {format_name} was not supported by any compiler extensions.",
+				file_name.display()
+			);
+		}
+	}
+
+	return Ok(extensions[0]);
+}
+
 pub fn find_extensions_supporting_source_file_extension<'l>(
 	list: &'l ExtensionList,
 	file_extension: &str,
@@ -142,6 +191,29 @@ fn extension_supports_format(extension: &ExtensionRef, format_name: &str) -> boo
 
 	return map_format_api
 		.map(|api| api.supports_map_format(format_name))
+		.unwrap_or(false);
+}
+
+// Expects that no extension is being mutably accessed.
+fn extension_supports_format_and_maybe_file_ext(
+	extension: &ExtensionRef,
+	format_name: &str,
+	file_extension: Option<&str>,
+) -> bool
+{
+	let ext_ref = extension
+		.get_extension()
+		.expect("Could not get non-mutable reference to extension");
+
+	let map_format_api: Option<&map_format_api::Endpoint> =
+		ext_ref.get_api_endpoints().map_format_api.as_ref();
+
+	return map_format_api
+		.map(|api| {
+			file_extension
+				.map(|file_ext| api.supports_map_format_with_file_extension(format_name, file_ext))
+				.unwrap_or_else(|| api.supports_map_format(format_name))
+		})
 		.unwrap_or(false);
 }
 

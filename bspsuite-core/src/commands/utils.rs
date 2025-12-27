@@ -18,6 +18,8 @@ where
 
 			let compiler_error: Option<&CompilerError> = CompilerError::first_error_in_chain(&err);
 
+			// TODO: We should just make the function return a CompilerError and not have to
+			// worry about this.
 			debug_assert!(
 				compiler_error.is_some(),
 				"Encountered a compile error which was not of type CompilerError"

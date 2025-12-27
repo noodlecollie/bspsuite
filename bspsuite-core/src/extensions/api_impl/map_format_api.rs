@@ -61,6 +61,18 @@ impl Endpoint
 		return self.map_formats.contains_key(format_name);
 	}
 
+	pub fn supports_map_format_with_file_extension(
+		&self,
+		format_name: &str,
+		file_extension: &str,
+	) -> bool
+	{
+		return self
+			.get_definition(format_name)
+			.map(|def| def.file_extensions.contains(&file_extension.to_owned()))
+			.unwrap_or(false);
+	}
+
 	pub fn get_definition(&self, format_name: &str) -> Option<&MapFormatDefinition>
 	{
 		return self.map_formats.get(format_name);
