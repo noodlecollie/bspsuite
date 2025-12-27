@@ -1,7 +1,9 @@
 // Let's try and keep this build as clean as possible.
 #![deny(unused_variables)]
 #![deny(dead_code)]
+#![deny(unused_imports)]
 
+use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
@@ -67,8 +69,8 @@ fn run_build_command() -> Result<(), Error>
 	let lib_ext: &str = library_extension_for_platform();
 	let exe_ext: &str = executable_extension_for_platform();
 
-	copy_file(&src_dir, &dist_dir, format!("bspc{exe_ext}").as_str())?;
-	copy_file(
+	copy_named_file(&src_dir, &dist_dir, format!("bspc{exe_ext}").as_str())?;
+	copy_named_file(
 		&src_dir,
 		&dist_dir,
 		format!("{lib_prefix}bspcore{lib_ext}").as_str(),
@@ -77,26 +79,20 @@ fn run_build_command() -> Result<(), Error>
 	let glob_str: String = format!("{lib_prefix}*ext{lib_ext}");
 	copy_glob(&src_dir, &dist_dir.join("extensions"), glob_str.as_str())?;
 
+	copy_extension_game_configs(&dist_dir)?;
+
 	Ok(())
+}
+
+fn copy_extension_game_configs(dist_dir: &PathBuf) -> Result<(), Error>
+{
+	let mut copied: HashMap<PathBuf, String> = HashMap::new();
+	return for_each_extension_project(|path| copy_game_configs(path, dist_dir, &mut copied));
 }
 
 fn build_extensions() -> Result<(), Error>
 {
-	let glob_str: String = format!("{}/bspsuite-ext-*", project_root().to_str().unwrap());
-	let glob_result: Paths = glob::glob(glob_str.as_str()).unwrap();
-
-	for path in glob_result
-	{
-		if let Ok(path) = path
-		{
-			if path.is_dir()
-			{
-				build_crate(path.to_str().unwrap())?;
-			}
-		}
-	}
-
-	Ok(())
+	return for_each_extension_project(|path| build_crate(path.to_str().unwrap()));
 }
 
 fn build_crate(dir_name: &str) -> Result<(), Error>
@@ -109,6 +105,52 @@ fn build_crate(dir_name: &str) -> Result<(), Error>
 	}
 
 	Ok(())
+}
+
+fn copy_game_configs(
+	source_dir: &Path,
+	dist_dir: &PathBuf,
+	already_copied: &mut HashMap<PathBuf, String>,
+) -> Result<(), Error>
+{
+	let ext_dirname: &str = source_dir
+		.parent()
+		.unwrap()
+		.file_name()
+		.unwrap()
+		.to_str()
+		.unwrap();
+
+	if !source_dir.join("games").is_dir()
+	{
+		return Ok(());
+	}
+
+	let glob_str: String = format!("{}/games/**/*.cfg", source_dir.to_str().unwrap());
+	let glob_result: Paths = glob::glob(glob_str.as_str())?;
+
+	for file in glob_result
+	{
+		let file_rel_path: PathBuf = file
+			.as_ref()
+			.unwrap()
+			.strip_prefix(&source_dir)
+			.map(|val| val.to_path_buf())?;
+
+		if let Some(orig_ext) = already_copied.get(&file_rel_path)
+		{
+			bail!(
+				"Extension {ext_dirname} provides game config file {} that conflicts \
+				with a config of the same name from extension {orig_ext}",
+				file_rel_path.to_str().unwrap()
+			);
+		}
+
+		copy_relative_file(&source_dir.to_path_buf(), &file_rel_path, dist_dir, true)?;
+		already_copied.insert(file_rel_path, ext_dirname.to_owned());
+	}
+
+	return Ok(());
 }
 
 fn run_cargo(args: &[&str], cwd: &PathBuf) -> Result<ExitStatus, std::io::Error>
@@ -148,11 +190,11 @@ fn create_dir(dir: &PathBuf) -> Result<(), Error>
 fn copy_glob(src: &PathBuf, dest: &PathBuf, glob_str: &str) -> Result<(), Error>
 {
 	let full_glob_str: String = format!("{}/{glob_str}", src.to_str().unwrap());
-	let glob_result: Paths = glob::glob(full_glob_str.as_str()).unwrap();
+	let glob_result: Paths = glob::glob(full_glob_str.as_str())?;
 
 	for source_file in glob_result
 	{
-		copy_file(
+		copy_named_file(
 			src,
 			dest,
 			source_file.unwrap().file_name().unwrap().to_str().unwrap(),
@@ -162,13 +204,41 @@ fn copy_glob(src: &PathBuf, dest: &PathBuf, glob_str: &str) -> Result<(), Error>
 	Ok(())
 }
 
-fn copy_file(src: &PathBuf, dest: &PathBuf, name: &str) -> Result<(), Error>
+fn copy_relative_file(
+	src_root: &PathBuf,
+	src_rel: &PathBuf,
+	dest_root: &PathBuf,
+	create_dirs: bool,
+) -> Result<(), Error>
 {
-	let source_path: PathBuf = src.join(name);
-	let dest_path: PathBuf = dest.join(name);
+	let dest_full_path: PathBuf = dest_root.join(src_rel);
 
+	if create_dirs
+	{
+		let dest_dir: &Path = dest_full_path
+			.parent()
+			.expect("Could not get directory name of destination file");
+
+		std::fs::create_dir_all(dest_dir)?;
+	}
+
+	return copy_file(&src_root.join(src_rel), &dest_full_path);
+}
+
+fn copy_named_file(src: &PathBuf, dest: &PathBuf, name: &str) -> Result<(), Error>
+{
+	return copy_file(&src.join(name), &dest.join(name));
+}
+
+fn copy_file(source_path: &PathBuf, dest_path: &PathBuf) -> Result<(), Error>
+{
 	if source_path == dest_path
 	{
+		if !source_path.exists()
+		{
+			bail!("File {} does not exist", source_path.to_str().unwrap());
+		}
+
 		return Ok(());
 	}
 
@@ -199,19 +269,40 @@ fn copy_file(src: &PathBuf, dest: &PathBuf, name: &str) -> Result<(), Error>
 
 	if should_copy
 	{
+		std::fs::copy(&source_path, &dest_path)
+			.with_context(|| format!("Failed to copy {}", source_path.to_str().unwrap()))?;
+
 		println!(
 			"{} {} -> {}",
 			LogIcon::Tick,
 			source_path.to_str().unwrap(),
 			dest_path.to_str().unwrap()
 		);
-
-		std::fs::copy(&source_path, &dest_path)
-			.with_context(|| format!("Failed to copy {}", source_path.to_str().unwrap()))?;
 	}
 	else
 	{
 		println!("• {}", dest_path.to_str().unwrap())
+	}
+
+	Ok(())
+}
+
+fn for_each_extension_project<Callback>(mut callback: Callback) -> Result<(), Error>
+where
+	Callback: FnMut(&Path) -> Result<(), Error>,
+{
+	let glob_str: String = format!("{}/bspsuite-ext-*", project_root().to_str().unwrap());
+	let glob_result: Paths = glob::glob(glob_str.as_str()).unwrap();
+
+	for path in glob_result
+	{
+		if let Ok(path) = path
+		{
+			if path.is_dir()
+			{
+				callback(path.as_path())?;
+			}
+		}
 	}
 
 	Ok(())
