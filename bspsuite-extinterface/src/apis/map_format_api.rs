@@ -1,6 +1,6 @@
 use super::api_info::ApiInfo;
 use crate::builders::map_blueprint_builder::{IMapBlueprintBuilder, OperationError};
-use crate::types::{DPlane, DVec2, DVec3, PortableOption, StringRef};
+use crate::types::{DPlane, DVec2, DVec3, PortableOption, SliceRef, StringRef};
 use std::ffi::c_void;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
@@ -21,9 +21,21 @@ pub struct Callbacks
 
 impl<'l> Api<'l>
 {
-	pub fn register_map_format(&mut self, format_name: StringRef, parse_fn: MapParseFn)
+	pub fn register_map_format(
+		&mut self,
+		format_name: &StringRef,
+		file_extensions: &SliceRef<&StringRef>,
+		parse_fn: MapParseFn,
+	)
 	{
-		unsafe { (self.fns.register_map_format_fn)(*self.fns.context, &format_name, parse_fn) };
+		unsafe {
+			(self.fns.register_map_format_fn)(
+				*self.fns.context,
+				format_name,
+				file_extensions,
+				parse_fn,
+			)
+		};
 	}
 }
 
@@ -182,7 +194,8 @@ pub mod internal
 	{
 		pub context: &'l *mut c_void,
 
-		pub register_map_format_fn: unsafe extern "C" fn(*mut c_void, &StringRef, MapParseFn),
+		pub register_map_format_fn:
+			unsafe extern "C" fn(*mut c_void, &StringRef, &SliceRef<&StringRef>, MapParseFn),
 	}
 
 	#[repr(C)]

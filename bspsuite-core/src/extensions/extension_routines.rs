@@ -1,4 +1,61 @@
-use crate::extensions::ExtensionList;
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
+
+use crate::extensions::api_impl::map_format_api;
+use crate::extensions::{ExtensionList, ExtensionRef};
+
+pub fn join_extension_names(extensions: Vec<&ExtensionRef>) -> String
+{
+	return extensions
+		.iter()
+		.map(|ext| ext.get_name())
+		.collect::<Vec<&str>>()
+		.join(", ");
+}
+
+pub fn supported_map_formats_and_file_extensions(list: &ExtensionList) -> Vec<String>
+{
+	let mut format_to_exts: HashMap<String, HashSet<String>> = HashMap::new();
+
+	list.iter().for_each(|ext| {
+		let ext_ref = ext
+			.get_extension()
+			.expect("Could not get non-mutable reference to extension");
+
+		let map_format_api: Option<&map_format_api::Endpoint> =
+			ext_ref.get_api_endpoints().map_format_api.as_ref();
+
+		if let Some(endpoint) = map_format_api
+		{
+			endpoint
+				.get_supported_map_format_defs()
+				.iter()
+				.for_each(|(name, def)| {
+					if !format_to_exts.contains_key(*name)
+					{
+						format_to_exts.insert((*name).to_owned(), HashSet::new());
+					}
+
+					let exts_hash: &mut HashSet<String> = format_to_exts.get_mut(*name).unwrap();
+
+					for ext in &def.file_extensions
+					{
+						exts_hash.insert(ext.clone());
+					}
+				});
+		}
+	});
+
+	return format_to_exts
+		.into_iter()
+		.map(|(fmt, exts)| {
+			format!(
+				"{fmt} (.{})",
+				exts.into_iter().collect::<Vec<String>>().join(", .")
+			)
+		})
+		.collect();
+}
 
 pub fn register_map_formats(list: &ExtensionList)
 {
@@ -14,4 +71,111 @@ pub fn register_map_formats(list: &ExtensionList)
 
 		Ok(())
 	});
+}
+
+pub fn find_extensions_supporting_format<'l>(
+	list: &'l ExtensionList,
+	format_name: &str,
+) -> Vec<&'l ExtensionRef>
+{
+	return list
+		.iter()
+		.filter(|ext| extension_supports_format(ext, format_name))
+		.collect();
+}
+
+pub fn find_extensions_supporting_source_file_extension<'l>(
+	list: &'l ExtensionList,
+	file_extension: &str,
+	allowed_formats: &Vec<&str>,
+) -> Vec<(&'l ExtensionRef, String)>
+{
+	let extension_supported_formats: Vec<(&'l ExtensionRef, Vec<String>)> = list
+		.iter()
+		.filter_map(|ext| {
+			let formats: Vec<String> =
+				extension_map_formats_for_file_extension(ext, file_extension, allowed_formats);
+
+			if !formats.is_empty()
+			{
+				Some((ext, formats))
+			}
+			else
+			{
+				None
+			}
+		})
+		.collect();
+
+	let flat_supported_formats: Vec<Vec<(&'l ExtensionRef, String)>> = extension_supported_formats
+		.into_iter()
+		.map(|(ext, fmts)| {
+			let flat_fmts: Vec<(&'l ExtensionRef, String)> =
+				fmts.into_iter().map(|fmt| (ext, fmt)).collect();
+			return flat_fmts;
+		})
+		.collect();
+
+	let mut out: Vec<(&'l ExtensionRef, String)> = Vec::new();
+
+	// Not sure if there's a more functional way of doing this,
+	// but I gave it a good go and it got complicated,
+	// so we're going imperative instead.
+	for fmts in flat_supported_formats
+	{
+		out.reserve(fmts.len());
+		out.extend(fmts);
+	}
+
+	return out;
+}
+
+// Expects that no extension is being mutably accessed.
+fn extension_supports_format(extension: &ExtensionRef, format_name: &str) -> bool
+{
+	let ext_ref = extension
+		.get_extension()
+		.expect("Could not get non-mutable reference to extension");
+
+	let map_format_api: Option<&map_format_api::Endpoint> =
+		ext_ref.get_api_endpoints().map_format_api.as_ref();
+
+	return map_format_api
+		.map(|api| api.supports_map_format(format_name))
+		.unwrap_or(false);
+}
+
+// Expects that no extension is being mutably accessed.
+fn extension_map_formats_for_file_extension(
+	extension: &ExtensionRef,
+	file_extension: &str,
+	allowed_formats: &Vec<&str>,
+) -> Vec<String>
+{
+	let ext_ref = extension
+		.get_extension()
+		.expect("Could not get non-mutable reference to extension");
+
+	let map_format_api: Option<&map_format_api::Endpoint> =
+		ext_ref.get_api_endpoints().map_format_api.as_ref();
+
+	if map_format_api.is_none()
+	{
+		return Vec::new();
+	}
+
+	let map_format_api: &map_format_api::Endpoint = map_format_api.unwrap();
+	let file_extension_string: String = file_extension.to_owned();
+
+	return map_format_api
+		.get_supported_map_formats()
+		.into_iter()
+		.filter(|fmt| allowed_formats.contains(&fmt.as_ref()))
+		.filter(|fmt| {
+			map_format_api
+				.get_definition_supported_file_extensions(fmt)
+				.unwrap()
+				.contains(&file_extension_string)
+		})
+		.collect();
 }

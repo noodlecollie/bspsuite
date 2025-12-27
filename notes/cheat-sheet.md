@@ -26,12 +26,14 @@ Use `ok_or_else()`, followed by `?`.
 * `ok_or_else()` converts an `Option<T>` into a `Result<T, Error>`. The argument to `ok_or_else()` is the error that will be part of the result if the option cannot be unwrapped.
 * The `?` operator takes the `Result<T, Error>` and returns the error from the function if one was present. If not, it allows the `T` value to be used.
 
+The `anyhow` crate is useful for operating with generic errors, so that you don't have to create your own explicit types for every internal function that may return an error. The `anyhow!()` macro can be used to construct an arbitrary error on the fly.
+
 ```rust
 // This function returns nothing on success, but an error if something goes wrong.
-fn myfunc(opt: Option<&str>) -> Result<(), MyError>
+fn myfunc(opt: Option<&str>) -> Result<(), anyhow::Error>
 {
 	// Try and unwrap the string value.
-	let value: &str = opt.ok_or_else(MyError::new("Could not unwrap option"))?;
+	let value: &str = opt.ok_or_else(|| anyhow!("Could not unwrap option"))?;
 
 	// Unwrap was successful, so we can now do something with value.
 	// ...
@@ -40,18 +42,4 @@ fn myfunc(opt: Option<&str>) -> Result<(), MyError>
 
 ## How do I unwrap a `Result` if it's valid, and return an error if it's not?
 
-Similarly to above, use `or_else()`, followed by `?`.
-
-```rust
-// This function returns nothing on success,
-// but an error string if something goes wrong.
-fn myfunc(res: Result<&str, MyError>) -> Result<(), String>
-{
-	// Try and unwrap the string value.
-	let value: &str =
-		res.or_else(|err| Err(format!("An error occurred. {}", err.to_string())))?;
-
-	// Unwrap was successful, so we can now do something with value.
-	// ...
-}
-```
+Use `let variable: Value = my_result?`. If you need to transform the provided error into a different type before returning it, use `.or_else()`.

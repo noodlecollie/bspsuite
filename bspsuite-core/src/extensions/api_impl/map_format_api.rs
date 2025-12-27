@@ -1,6 +1,7 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use bspextifc::map_format_api;
-use bspextifc::types::StringRef;
+use bspextifc::types::{SliceRef, StringRef};
+use itertools::Itertools;
 use log::{debug, warn};
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -16,10 +17,16 @@ pub struct MapParseCallback
 	parse_fn: map_format_api::MapParseFn,
 }
 
+pub struct MapFormatDefinition
+{
+	pub file_extensions: Vec<String>,
+	pub parse_fn: MapParseCallback,
+}
+
 pub struct Endpoint
 {
 	inner: map_format_api::Callbacks,
-	map_formats: HashMap<String, MapParseCallback>,
+	map_formats: HashMap<String, MapFormatDefinition>,
 }
 
 impl Endpoint
@@ -54,14 +61,33 @@ impl Endpoint
 		return self.map_formats.contains_key(format_name);
 	}
 
-	pub fn get_parse_callback(&self, format_name: &str) -> Option<&MapParseCallback>
+	pub fn get_definition(&self, format_name: &str) -> Option<&MapFormatDefinition>
 	{
 		return self.map_formats.get(format_name);
+	}
+
+	pub fn get_definition_supported_file_extensions(
+		&self,
+		format_name: &str,
+	) -> Option<&Vec<String>>
+	{
+		return self
+			.get_definition(format_name)
+			.map(|def| &def.file_extensions);
 	}
 
 	pub fn get_supported_map_formats(&self) -> Vec<String>
 	{
 		return self.map_formats.keys().map(|item| item.clone()).collect();
+	}
+
+	pub fn get_supported_map_format_defs(&self) -> Vec<(&str, &MapFormatDefinition)>
+	{
+		return self
+			.map_formats
+			.iter()
+			.map(|(key, val)| (key.as_str(), val))
+			.collect();
 	}
 }
 
@@ -76,7 +102,7 @@ impl MapParseCallback
 struct ApiImpl<'l>
 {
 	extension_name: &'l str,
-	formats: HashMap<String, MapParseCallback>,
+	formats: HashMap<String, MapFormatDefinition>,
 }
 
 impl<'l> ApiImpl<'l>
@@ -89,28 +115,89 @@ impl<'l> ApiImpl<'l>
 		};
 	}
 
-	pub fn register_map_format(&mut self, format_name: &str, parse_fn: map_format_api::MapParseFn)
+	pub fn register_map_format(
+		&mut self,
+		format_name: &str,
+		file_extensions: &[&StringRef],
+		parse_fn: map_format_api::MapParseFn,
+	)
 	{
+		if file_extensions.is_empty()
+		{
+			warn!(
+				"Extension {} specified no file extensions for map format {format_name}. \
+				This format will be ignored.",
+				self.extension_name
+			);
+
+			return;
+		}
+
+		// We want to do a few things here:
+		// - Trim leading and trailing whitespace
+		// - Trim leading dots, in case people specify ".map" instead of "map"
+		// - Remove any items that end up being empty after these operations
+		// - Remove duplicates
+		let extension_strings: Vec<String> = file_extensions
+			.iter()
+			.map(|item| item.as_str().trim().trim_start_matches(".").to_string())
+			.filter(|item| !item.is_empty())
+			.unique()
+			.collect();
+
+		if extension_strings.is_empty()
+		{
+			warn!(
+				"After removing invalid file extensions, extension {} was left with no valid file extensions \
+				for map format {format_name}. This format will be ignored.",
+				self.extension_name
+			);
+
+			return;
+		}
+
+		if extension_strings.len() < file_extensions.len()
+		{
+			warn!(
+				"Extension {} provided {} empty, duplicated, or otherwise invalid file extensions for map format \
+				{format_name}. These will be ignored.",
+				self.extension_name,
+				file_extensions.len() - extension_strings.len()
+			);
+		}
+
 		if let Some(_) = self.formats.insert(
 			String::from(format_name),
-			MapParseCallback { parse_fn: parse_fn },
+			MapFormatDefinition {
+				file_extensions: extension_strings,
+				parse_fn: MapParseCallback { parse_fn: parse_fn },
+			},
 		)
 		{
 			warn!(
-				"Overriding existing registered parse function for extension {} map format \"{format_name}\"",
+				"Overriding existing registration for extension {} map format \"{format_name}\"",
 				self.extension_name
 			);
 		}
-		else
+
+		if log::max_level() >= log::LevelFilter::Debug
 		{
+			let all_extensions: String = self
+				.formats
+				.get(format_name)
+				.unwrap()
+				.file_extensions
+				.join(", ");
+
 			debug!(
-				"Extension {} registered support for map format \"{format_name}\"",
+				"Extension {} registered support for map format {format_name}, with \
+				file extensions: {all_extensions}",
 				self.extension_name
 			);
 		}
 	}
 
-	pub fn finish(self) -> HashMap<String, MapParseCallback>
+	pub fn finish(self) -> HashMap<String, MapFormatDefinition>
 	{
 		return self.formats;
 	}
@@ -119,12 +206,16 @@ impl<'l> ApiImpl<'l>
 unsafe extern "C" fn register_map_format(
 	context: *mut c_void,
 	format_name: &StringRef,
+	file_extensions: &SliceRef<&StringRef>,
 	parse_fn: map_format_api::MapParseFn,
 )
 {
 	unsafe {
-		(*context.cast::<ApiImpl>())
-			.register_map_format(format_name.to_string().as_ref(), parse_fn);
+		(*context.cast::<ApiImpl>()).register_map_format(
+			format_name.to_string().as_ref(),
+			file_extensions.as_slice(),
+			parse_fn,
+		);
 	};
 }
 

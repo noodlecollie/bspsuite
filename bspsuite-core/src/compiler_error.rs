@@ -1,9 +1,10 @@
-use crate::commands::ResultCode;
 use std::error::Error;
 use std::fmt;
+
+use crate::commands::ResultCode;
 use {anyhow, strum};
 
-#[derive(Debug, Copy, Clone, strum::Display)]
+#[derive(Debug, Copy, Clone, PartialEq, strum::Display)]
 pub enum CompilerErrorCode
 {
 	InternalError,
@@ -12,11 +13,81 @@ pub enum CompilerErrorCode
 	IoError,
 }
 
-impl CompilerErrorCode
+#[derive(Debug)]
+pub struct CompilerError
 {
-	pub fn get_result_code(&self) -> ResultCode
+	pub code: CompilerErrorCode,
+	wrapped_err: Box<dyn Error + Send + Sync + 'static>,
+}
+
+impl CompilerError
+{
+	pub fn new<E>(code: CompilerErrorCode, orig_err: E) -> Self
+	where
+		E: Error + Send + Sync + 'static,
 	{
-		return match self
+		return Self {
+			code: code,
+			wrapped_err: Box::new(orig_err),
+		};
+	}
+
+	pub fn from_anyhow(code: CompilerErrorCode, orig_err: anyhow::Error) -> Self
+	{
+		return Self {
+			code: code,
+			wrapped_err: orig_err.into_boxed_dyn_error(),
+		};
+	}
+
+	pub fn new_anyhow(code: CompilerErrorCode, orig_err: anyhow::Error) -> anyhow::Error
+	{
+		return CompilerError::from_anyhow(code, orig_err).into_anyhow();
+	}
+
+	pub fn into_anyhow(self) -> anyhow::Error
+	{
+		return anyhow::Error::new(self);
+	}
+
+	pub fn first_error_in_chain(err: &anyhow::Error) -> Option<&CompilerError>
+	{
+		for item in err.chain()
+		{
+			if let Some(err) = item.downcast_ref::<CompilerError>()
+			{
+				return Some(err);
+			}
+		}
+
+		return None;
+	}
+}
+
+impl fmt::Display for CompilerError
+{
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+	{
+		// This only displays the code, as this is the only part of the error that we
+		// actually manage. The {:#} formatting mode should be used to display the whole
+		// error chain, including the source error.
+		write!(f, "{}", self.code)
+	}
+}
+
+impl Error for CompilerError
+{
+	fn source(&self) -> Option<&(dyn Error + 'static)>
+	{
+		return Some(self.wrapped_err.as_ref());
+	}
+}
+
+impl From<CompilerErrorCode> for ResultCode
+{
+	fn from(value: CompilerErrorCode) -> Self
+	{
+		return match value
 		{
 			CompilerErrorCode::InternalError => ResultCode::InternalError,
 			CompilerErrorCode::ArgumentError => ResultCode::ArgumentError,
@@ -26,48 +97,33 @@ impl CompilerErrorCode
 	}
 }
 
-#[derive(Debug, Clone)]
-pub struct CompilerError
+#[cfg(test)]
+mod tests
 {
-	pub code: CompilerErrorCode,
-	pub description: String,
-}
+	use super::*;
 
-impl CompilerError
-{
-	pub fn new(code: CompilerErrorCode, description: String) -> Self
+	#[derive(Debug, strum::Display)]
+	enum DummyError
 	{
-		return Self {
-			code: code,
-			description: description,
-		};
+		ErrorVal,
 	}
 
-	pub fn first_code_in_chain(err: &anyhow::Error) -> Option<CompilerErrorCode>
+	impl Error for DummyError
 	{
-		let mut out_code: Option<CompilerErrorCode> = None;
-
-		for item in err.chain()
-		{
-			if let Some(compiler_error) = item.downcast_ref::<CompilerError>()
-			{
-				out_code = Some(compiler_error.code);
-				break;
-			}
-		}
-
-		return out_code;
 	}
-}
 
-impl fmt::Display for CompilerError
-{
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
+	#[test]
+	fn attach_compiler_error_code_to_anyhow_error()
 	{
-		write!(f, "{}: {}", self.code, self.description)
-	}
-}
+		let orig_error: DummyError = DummyError::ErrorVal;
+		let wrapped_error: anyhow::Error =
+			CompilerError::new(CompilerErrorCode::InternalError, orig_error).into_anyhow();
+		let identified_error = CompilerError::first_error_in_chain(&wrapped_error);
 
-impl Error for CompilerError
-{
+		assert!(identified_error.is_some());
+		assert_eq!(
+			identified_error.unwrap().code,
+			CompilerErrorCode::InternalError
+		)
+	}
 }

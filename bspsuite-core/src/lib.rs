@@ -3,6 +3,7 @@ use constcat::concat;
 
 mod compiler_error;
 mod extensions;
+mod game_configs;
 mod model;
 mod toolchain;
 

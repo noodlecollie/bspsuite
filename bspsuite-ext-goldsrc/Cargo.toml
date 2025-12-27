@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow.workspace = true
-bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 glam.workspace = true
 log = { workspace = true, features = ["std"] }
+bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 logos = "0.16.0"
