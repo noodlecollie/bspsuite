@@ -2,14 +2,14 @@ use std::ffi::OsStr;
 use std::path::PathBuf;
 
 use super::types::{BaseArgs, ResultCode};
-use super::utils::wrap_panics;
+use super::utils::wrap_residual_errors;
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::extensions::{ExtensionList, ExtensionRef, extension_routines};
 use crate::game_configs::GameConfig;
 use crate::toolchain::Toolchain;
 use anyhow::{Result, anyhow, bail, ensure};
 use bspextifc::types::{PortableOption, StringRef};
-use log::{debug, error, info, warn};
+use log::{debug, info};
 
 #[repr(C)]
 pub struct CompileArgs<'l>
@@ -23,7 +23,7 @@ pub struct CompileArgs<'l>
 #[unsafe(no_mangle)]
 pub extern "C" fn bspcore_run_compile(args: &CompileArgs) -> ResultCode
 {
-	return wrap_panics(|| run_compile_and_log_errors(|| run_compile(args)));
+	return wrap_residual_errors(|| run_compile(args));
 }
 
 fn run_compile(args: &CompileArgs) -> Result<()>
@@ -105,37 +105,4 @@ fn infer_map_format_from_input_file_extension(
 	}
 
 	return Ok(supported_exts[0].1.clone());
-}
-
-// TODO: Combine this and wrap_panics?
-fn run_compile_and_log_errors<Callback>(callback: Callback) -> ResultCode
-where
-	Callback: FnOnce() -> Result<()>,
-{
-	return match callback()
-	{
-		Err(err) =>
-		{
-			error!("{:#}", err);
-
-			let compiler_error: Option<&CompilerError> = CompilerError::first_error_in_chain(&err);
-
-			debug_assert!(
-				compiler_error.is_some(),
-				"Encountered a compile error which was not of type CompilerError"
-			);
-
-			if compiler_error.is_none()
-			{
-				warn!(
-					"The above error was not of the expected type CompilerError. This is a programmer oversight!"
-				);
-			}
-
-			compiler_error
-				.map(|err| err.code.into())
-				.unwrap_or(ResultCode::InternalError)
-		}
-		Ok(_) => ResultCode::Ok,
-	};
 }
