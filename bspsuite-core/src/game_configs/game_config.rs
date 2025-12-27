@@ -9,6 +9,7 @@ pub struct GameConfig
 {
 	pub game_id: String,
 	pub game_name: String,
+	pub supported_map_formats: Vec<String>,
 }
 
 impl GameConfig

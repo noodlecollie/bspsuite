@@ -3,7 +3,7 @@ mod cli;
 use std::ffi::{CStr, c_char};
 
 use bspcore::commands as Cmds;
-use bspextifc::types::StringRef;
+use bspextifc::types::{PortableOption, StringRef};
 use clap::Parser;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter, error, info};
@@ -64,6 +64,11 @@ fn run_compile_command(args: &cli::CompileCommandArgs) -> Cmds::ResultCode
 		base: Cmds::BaseArgs::default(),
 		input_file: StringRef::from(input_path_str.unwrap()),
 		game: StringRef::from(args.game.as_str()),
+		map_format_override: PortableOption::from(
+			args.map_format
+				.as_ref()
+				.map(|val| StringRef::from(val.as_str())),
+		),
 	};
 
 	return Cmds::bspcore_run_compile(&args);

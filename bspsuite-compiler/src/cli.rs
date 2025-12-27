@@ -50,6 +50,9 @@ pub struct CompileCommandArgs
 	/// under the compiler toolchain's 'games' directory.
 	#[arg(short, long)]
 	pub game: String,
+
+	#[arg(short('f'), long)]
+	pub map_format: Option<String>,
 }
 
 #[derive(clap::Args)]

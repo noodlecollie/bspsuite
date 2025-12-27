@@ -1,6 +1,15 @@
 use crate::extensions::api_impl::map_format_api;
 use crate::extensions::{ExtensionList, ExtensionRef};
 
+pub fn join_extension_names(extensions: Vec<&ExtensionRef>) -> String
+{
+	return extensions
+		.iter()
+		.map(|ext| ext.get_name())
+		.collect::<Vec<&str>>()
+		.join(", ");
+}
+
 pub fn register_map_formats(list: &ExtensionList)
 {
 	return list.for_each_or_warn("Registering map formats", |ext_ref| {
