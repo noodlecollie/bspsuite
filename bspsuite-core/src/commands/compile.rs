@@ -72,11 +72,23 @@ fn infer_map_format_from_input_file_extension(
 		.to_str()
 		.ok_or_else(|| anyhow!("Could not parse input file extension string"))?;
 
+	ensure!(
+		!input_ext.is_empty(),
+		"Input file {} had no file extension, cannot infer map format",
+		input_path.to_str().unwrap_or("<unknown>")
+	);
+
 	let allowed_formats: Vec<&str> = game_config
 		.map_formats
 		.iter()
 		.map(|item| item.as_str())
 		.collect();
+
+	debug!(
+		"Inferring map format from input file extension .{input_ext}. Formats allowed for game {}: {}",
+		game_config.game_id,
+		allowed_formats.join(", ")
+	);
 
 	let supported_exts: Vec<(&ExtensionRef, String)> =
 		extension_routines::find_extensions_supporting_source_file_extension(
@@ -85,13 +97,7 @@ fn infer_map_format_from_input_file_extension(
 			&allowed_formats,
 		);
 
-	ensure!(
-		!supported_exts.is_empty(),
-		"No compiler extensions recognised input map file with extension .{input_ext}"
-	);
-
-	// TODO: Support better disambiguation in this case.
-	if supported_exts.len() > 1
+	if supported_exts.len() != 1
 	{
 		let matches_str: String = supported_exts
 			.iter()
@@ -99,9 +105,28 @@ fn infer_map_format_from_input_file_extension(
 			.collect::<Vec<String>>()
 			.join(", ");
 
-		bail!(format!(
-			"Input map file extension .{input_ext} matched more than compiler extension: {matches_str}"
-		));
+		// TODO: Support better disambiguation in this case.
+		if supported_exts.len() > 1
+		{
+			bail!(
+				"Input map file extension .{input_ext} supported by more than compiler extension: \
+				{matches_str}. Unable to deduce which one to use."
+			);
+		}
+		else
+		{
+			let indent: &'static str = "    ";
+
+			bail!(
+				"No compiler extensions recognised input map file with extension .{input_ext}\n\
+				{indent}Formats allowed for game {}: {}\n\
+				{indent}Formats supported by compiler: {}",
+				game_config.game_id,
+				allowed_formats.join(", "),
+				extension_routines::supported_map_formats_and_file_extensions(extensions)
+					.join("; ")
+			);
+		}
 	}
 
 	return Ok(supported_exts[0].1.clone());

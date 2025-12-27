@@ -80,6 +80,15 @@ impl Endpoint
 	{
 		return self.map_formats.keys().map(|item| item.clone()).collect();
 	}
+
+	pub fn get_supported_map_format_defs(&self) -> Vec<(&str, &MapFormatDefinition)>
+	{
+		return self
+			.map_formats
+			.iter()
+			.map(|(key, val)| (key.as_str(), val))
+			.collect();
+	}
 }
 
 impl MapParseCallback

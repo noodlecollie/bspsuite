@@ -1,3 +1,6 @@
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
+
 use crate::extensions::api_impl::map_format_api;
 use crate::extensions::{ExtensionList, ExtensionRef};
 
@@ -8,6 +11,50 @@ pub fn join_extension_names(extensions: Vec<&ExtensionRef>) -> String
 		.map(|ext| ext.get_name())
 		.collect::<Vec<&str>>()
 		.join(", ");
+}
+
+pub fn supported_map_formats_and_file_extensions(list: &ExtensionList) -> Vec<String>
+{
+	let mut format_to_exts: HashMap<String, HashSet<String>> = HashMap::new();
+
+	list.iter().for_each(|ext| {
+		let ext_ref = ext
+			.get_extension()
+			.expect("Could not get non-mutable reference to extension");
+
+		let map_format_api: Option<&map_format_api::Endpoint> =
+			ext_ref.get_api_endpoints().map_format_api.as_ref();
+
+		if let Some(endpoint) = map_format_api
+		{
+			endpoint
+				.get_supported_map_format_defs()
+				.iter()
+				.for_each(|(name, def)| {
+					if !format_to_exts.contains_key(*name)
+					{
+						format_to_exts.insert((*name).to_owned(), HashSet::new());
+					}
+
+					let exts_hash: &mut HashSet<String> = format_to_exts.get_mut(*name).unwrap();
+
+					for ext in &def.file_extensions
+					{
+						exts_hash.insert(ext.clone());
+					}
+				});
+		}
+	});
+
+	return format_to_exts
+		.into_iter()
+		.map(|(fmt, exts)| {
+			format!(
+				"{fmt} (.{})",
+				exts.into_iter().collect::<Vec<String>>().join(", .")
+			)
+		})
+		.collect();
 }
 
 pub fn register_map_formats(list: &ExtensionList)
