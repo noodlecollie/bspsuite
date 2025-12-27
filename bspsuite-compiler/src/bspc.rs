@@ -22,7 +22,7 @@ fn main()
 	let result_code: Cmds::ResultCode = match subcommand
 	{
 		cli::Subcommand::Extinfo(args) => run_info_command(&args),
-		cli::Subcommand::Compile(args) => run_compile_command(&args),
+		cli::Subcommand::Compile(args) => run_compile_command(&parsed_args, &args),
 	};
 
 	match result_code
@@ -50,7 +50,7 @@ fn run_info_command(args: &cli::ExtinfoCommandArgs) -> Cmds::ResultCode
 	return Cmds::bspcore_run_extinfo(&args);
 }
 
-fn run_compile_command(args: &cli::CompileCommandArgs) -> Cmds::ResultCode
+fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> Cmds::ResultCode
 {
 	let input_path_str: Option<&str> = args.input_file.to_str();
 
@@ -60,8 +60,28 @@ fn run_compile_command(args: &cli::CompileCommandArgs) -> Cmds::ResultCode
 		return Cmds::ResultCode::InternalError;
 	}
 
+	let toolchain_path_str: Option<Option<&str>> =
+		base_args.toolchain_root.as_ref().map(|path| path.to_str());
+
+	if let Some(conv_result) = toolchain_path_str
+		&& conv_result.is_none()
+	{
+		error!("Could not convert toolchain root path to string");
+		return Cmds::ResultCode::InternalError;
+	}
+
+	let toolchain_path_str: Option<&str> = match toolchain_path_str
+	{
+		Some(conv_result) => Some(conv_result.unwrap()),
+		None => None,
+	};
+
 	let args: Cmds::CompileArgs = Cmds::CompileArgs {
-		base: Cmds::BaseArgs::default(),
+		base: Cmds::BaseArgs {
+			toolchain_root: PortableOption::from(
+				toolchain_path_str.map(|val| StringRef::from(val)),
+			),
+		},
 		input_file: StringRef::from(input_path_str.unwrap()),
 		game: StringRef::from(args.game.as_str()),
 		map_format_override: PortableOption::from(

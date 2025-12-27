@@ -1,4 +1,5 @@
 use super::extensions::ExtensionList;
+use log::debug;
 use std::path::PathBuf;
 
 pub struct Toolchain
@@ -18,6 +19,19 @@ impl Toolchain
 		{
 			Toolchain::infer_toolchain_root()
 		};
+
+		debug!(
+			"Toolchain root path: {} ({})",
+			root_path.to_str().unwrap_or("<unknown>"),
+			if toolchain_root.is_some()
+			{
+				"user-specified"
+			}
+			else
+			{
+				"inferred from executable directory"
+			}
+		);
 
 		return Self {
 			root: root_path.clone(),

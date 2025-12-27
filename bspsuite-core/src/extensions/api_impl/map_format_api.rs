@@ -116,7 +116,7 @@ impl<'l> ApiImpl<'l>
 		if file_extensions.is_empty()
 		{
 			warn!(
-				"Extension {} specified no file extensions for map format \"{format_name}\". \
+				"Extension {} specified no file extensions for map format {format_name}. \
 				This format will be ignored.",
 				self.extension_name
 			);
@@ -140,7 +140,7 @@ impl<'l> ApiImpl<'l>
 		{
 			warn!(
 				"After removing invalid file extensions, extension {} was left with no valid file extensions \
-				for map format \"{format_name}\". This format will be ignored.",
+				for map format {format_name}. This format will be ignored.",
 				self.extension_name
 			);
 
@@ -151,7 +151,7 @@ impl<'l> ApiImpl<'l>
 		{
 			warn!(
 				"Extension {} provided {} empty, duplicated, or otherwise invalid file extensions for map format \
-				\"{format_name}\". These will be ignored.",
+				{format_name}. These will be ignored.",
 				self.extension_name,
 				file_extensions.len() - extension_strings.len()
 			);
@@ -181,7 +181,7 @@ impl<'l> ApiImpl<'l>
 				.join(", ");
 
 			debug!(
-				"Extension {} registered support for map format \"{format_name}\", with \
+				"Extension {} registered support for map format {format_name}, with \
 				file extensions: {all_extensions}",
 				self.extension_name
 			);
