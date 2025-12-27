@@ -80,7 +80,7 @@ fn infer_map_format_from_input_file_extension(
 		.ok_or_else(|| anyhow!("Could not parse input file extension string"))?;
 
 	let allowed_formats: Vec<&str> = game_config
-		.supported_map_formats
+		.map_formats
 		.iter()
 		.map(|item| item.as_str())
 		.collect();
