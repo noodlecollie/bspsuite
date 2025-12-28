@@ -5,6 +5,12 @@ use crate::extensions::{ExtensionList, ExtensionRef};
 use anyhow::{Result, bail};
 use std::path::Path;
 
+pub struct ExtensionForParsingMapFormat
+{
+	pub extension_name: String,
+	pub map_format_name: String,
+}
+
 pub fn join_extension_names(extensions: Vec<&ExtensionRef>) -> String
 {
 	return extensions
@@ -12,6 +18,128 @@ pub fn join_extension_names(extensions: Vec<&ExtensionRef>) -> String
 		.map(|ext| ext.get_name())
 		.collect::<Vec<&str>>()
 		.join(", ");
+}
+
+// TODO: De-duplicate this logic
+pub fn choose_extension_to_parse_map(
+	list: &ExtensionList,
+	input_file: &Path,
+	allowed_formats: &Vec<&str>,
+	map_format_override: &Option<&str>,
+) -> Result<ExtensionForParsingMapFormat>
+{
+	let input_ext: Option<&str> = input_file
+		.extension()
+		.map(|ext_str| ext_str.to_str())
+		.unwrap_or(None);
+
+	if map_format_override.is_none()
+	{
+		if input_ext.is_some()
+		{
+			let input_ext: &str = input_ext.unwrap();
+
+			let supported_exts: Vec<(&ExtensionRef, String)> =
+				find_extensions_supporting_source_file_extension(list, input_ext, allowed_formats);
+
+			if supported_exts.len() != 1
+			{
+				// TODO: Support better disambiguation in this case.
+				if supported_exts.len() > 1
+				{
+					let matches_str: String = supported_exts
+						.iter()
+						.map(|(ext, fmt)| format!("{} (map format {fmt})", ext.get_name()))
+						.collect::<Vec<String>>()
+						.join(", ");
+
+					bail!(
+						"Input map file extension .{input_ext} supported by more than compiler extension: \
+						{matches_str}. Unable to deduce which one to use."
+					);
+				}
+				else
+				{
+					let indent: &'static str = "    ";
+
+					bail!(
+						"No compiler extensions recognised input map file with extension .{input_ext}\n\
+						{indent}Formats allowed for game: {}\n\
+						{indent}Formats supported by compiler: {}",
+						allowed_formats.join(", "),
+						supported_map_formats_and_file_extensions(list).join("; ")
+					);
+				}
+			}
+
+			return Ok(ExtensionForParsingMapFormat {
+				extension_name: supported_exts[0].0.get_name().to_owned(),
+				map_format_name: supported_exts[0].1.clone(),
+			});
+		}
+		else
+		{
+			bail!(
+				"Input map file {} has no extension, cannot infer format",
+				input_file.display()
+			);
+		}
+	}
+	else
+	{
+		let map_format: &str = map_format_override.unwrap();
+		let supported_exts: Vec<&ExtensionRef> =
+			find_extensions_supporting_format(list, map_format, allowed_formats);
+
+		if supported_exts.len() != 1
+		{
+			// TODO: Support better disambiguation in this case.
+			if supported_exts.len() > 1
+			{
+				let matches_str: String = supported_exts
+					.iter()
+					.map(|ext| ext.get_name())
+					.collect::<Vec<&str>>()
+					.join(", ");
+
+				bail!(
+					"Map format {map_format} supported by more than compiler extension: \
+					{matches_str}. Unable to deduce which one to use."
+				);
+			}
+			else
+			{
+				let indent: &'static str = "    ";
+
+				bail!(
+					"No compiler extensions supported map format {map_format}.\n\
+					{indent}Formats allowed for game: {}\n\
+					{indent}Formats supported by compiler: {}",
+					allowed_formats.join(", "),
+					supported_map_formats(list).join(", ")
+				);
+			}
+		}
+
+		return Ok(ExtensionForParsingMapFormat {
+			extension_name: supported_exts[0].get_name().to_owned(),
+			map_format_name: map_format.to_owned(),
+		});
+	}
+}
+
+fn find_extensions_supporting_format<'l>(
+	list: &'l ExtensionList,
+	format_name: &str,
+	allowed_formats: &Vec<&str>,
+) -> Vec<&'l ExtensionRef>
+{
+	return list
+		.iter()
+		.filter(|ext| {
+			extension_supports_format(ext, format_name) && allowed_formats.contains(&format_name)
+		})
+		.collect();
 }
 
 pub fn supported_map_formats_and_file_extensions(list: &ExtensionList) -> Vec<String>
@@ -58,6 +186,29 @@ pub fn supported_map_formats_and_file_extensions(list: &ExtensionList) -> Vec<St
 		.collect();
 }
 
+pub fn supported_map_formats(list: &ExtensionList) -> Vec<String>
+{
+	let mut formats: HashSet<String> = HashSet::new();
+
+	list.iter().for_each(|ext| {
+		let ext_ref = ext
+			.get_extension()
+			.expect("Could not get non-mutable reference to extension");
+
+		let map_format_api: Option<&map_format_api::Endpoint> =
+			ext_ref.get_api_endpoints().map_format_api.as_ref();
+
+		if let Some(endpoint) = map_format_api
+		{
+			endpoint.get_supported_map_formats().iter().for_each(|fmt| {
+				formats.insert(fmt.clone());
+			});
+		}
+	});
+
+	return formats.into_iter().collect();
+}
+
 pub fn register_map_formats(list: &ExtensionList)
 {
 	return list.for_each_or_warn("Registering map formats", |ext_ref| {
@@ -72,65 +223,6 @@ pub fn register_map_formats(list: &ExtensionList)
 
 		Ok(())
 	});
-}
-
-pub fn find_extensions_supporting_format<'l>(
-	list: &'l ExtensionList,
-	format_name: &str,
-) -> Vec<&'l ExtensionRef>
-{
-	return list
-		.iter()
-		.filter(|ext| extension_supports_format(ext, format_name))
-		.collect();
-}
-
-pub fn choose_extension_to_parse_map<'l>(
-	list: &'l ExtensionList,
-	format_name: &str,
-	file_name: &Path,
-) -> Result<&'l ExtensionRef>
-{
-	let extensions: Vec<&'l ExtensionRef> = list
-		.iter()
-		.filter(|ext| {
-			extension_supports_format_and_maybe_file_ext(
-				ext,
-				format_name,
-				file_name
-					.extension()
-					.map(|os_str| os_str.to_str())
-					.unwrap_or(None),
-			)
-		})
-		.collect();
-
-	if extensions.len() != 1
-	{
-		if extensions.len() > 1
-		{
-			let matches: String = extensions
-				.iter()
-				.map(|ext| ext.get_name())
-				.collect::<Vec<&str>>()
-				.join(", ");
-
-			bail!(
-				"Map file {} in format {format_name} supported by more than one compiler extension: \
-				{matches}. Unable to deduce which one to use.",
-				file_name.display()
-			);
-		}
-		else
-		{
-			bail!(
-				"Map file {} in format {format_name} was not supported by any compiler extensions.",
-				file_name.display()
-			);
-		}
-	}
-
-	return Ok(extensions[0]);
 }
 
 pub fn find_extensions_supporting_source_file_extension<'l>(
