@@ -7,7 +7,7 @@ use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::extensions::{ExtensionList, ExtensionRef, extension_routines};
 use crate::game_configs::GameConfig;
 use crate::toolchain::Toolchain;
-use anyhow::{Result, anyhow, bail, ensure};
+use anyhow::{Context, Result, anyhow, bail, ensure};
 use bspextifc::types::{PortableOption, StringRef};
 use log::{debug, info};
 
@@ -75,6 +75,10 @@ fn run_compile(args: &CompileArgs) -> Result<()>
 			.map(|_| "provided as argument")
 			.unwrap_or("inferred from file extension")
 	);
+
+	let input_file: String = std::fs::read_to_string(&input_path)
+		.with_context(|| format!("Failed to read {}", input_path.display()))
+		.map_err(|err| CompilerError::new_anyhow(CompilerErrorCode::IoError, err))?;
 
 	info!("Compile complete");
 

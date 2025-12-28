@@ -1,9 +1,10 @@
+use std::cell::RefMut;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use crate::extensions::api_impl::map_format_api;
-use crate::extensions::{ExtensionList, ExtensionRef};
-use anyhow::{Result, bail};
-use std::path::Path;
+use crate::extensions::{Extension, ExtensionList, ExtensionRef};
+use anyhow::{Context, Result, bail};
 
 pub struct ExtensionForParsingMapFormat
 {
@@ -41,6 +42,37 @@ pub fn choose_extension_to_parse_map(
 		.unwrap_or_else(|| {
 			choose_extension_to_parse_map_based_on_file_extension(list, input_file, allowed_formats)
 		});
+}
+
+// Expects parse_using to be valid for the list, as the extension and map format
+// should have been produced by a previous call to
+// choose_extension_to_parse_map().
+pub fn parse_map(
+	list: &ExtensionList,
+	input_data: &str,
+	parse_using: ExtensionForParsingMapFormat,
+) -> Result<()>
+{
+	let extension: &ExtensionRef = list
+		.find_by_name(&parse_using.extension_name)
+		.expect("Expected to be able to find appropriate extension to parse map");
+
+	let ext_mut_ref: RefMut<Extension> = extension
+		.get_extension_mut()
+		.with_context(|| "Failed to acquire mutable reference to extension")?;
+
+	let map_format_api: &map_format_api::Endpoint = ext_mut_ref
+		.get_api_endpoints()
+		.map_format_api
+		.as_ref()
+		.expect("Expected to be able to get map format API endpoint to parse map");
+
+	let map_format_def: &map_format_api::MapFormatDefinition = map_format_api
+		.get_definition(&parse_using.map_format_name)
+		.expect("Expected to be able to get map format definition to parse map");
+
+	// TODO: Invoke parse. The classes are too much of a mess at the moment, though.
+	todo!();
 }
 
 fn choose_extension_to_parse_map_based_on_file_extension(
