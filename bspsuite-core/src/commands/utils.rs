@@ -1,40 +1,20 @@
 use super::types::ResultCode;
 use crate::compiler_error::CompilerError;
-use anyhow;
-use log::{error, warn};
+use log::error;
 use paris::formatter::colorize_string;
 use std::any::Any;
 use std::panic::{UnwindSafe, catch_unwind};
 
 pub fn wrap_residual_errors<F>(func: F) -> ResultCode
 where
-	F: FnOnce() -> anyhow::Result<()> + UnwindSafe,
+	F: FnOnce() -> Result<(), CompilerError> + UnwindSafe,
 {
 	return wrap_panics(|| match func()
 	{
 		Err(err) =>
 		{
 			error!("{:#}", err);
-
-			let compiler_error: Option<&CompilerError> = CompilerError::first_error_in_chain(&err);
-
-			// TODO: We should just make the function return a CompilerError and not have to
-			// worry about this.
-			debug_assert!(
-				compiler_error.is_some(),
-				"Encountered a compile error which was not of type CompilerError"
-			);
-
-			if compiler_error.is_none()
-			{
-				warn!(
-					"The above error was not of the expected type CompilerError. This is a programmer oversight!"
-				);
-			}
-
-			compiler_error
-				.map(|err| err.code.into())
-				.unwrap_or(ResultCode::InternalError)
+			err.code.into()
 		}
 		Ok(_) => ResultCode::Ok,
 	});
