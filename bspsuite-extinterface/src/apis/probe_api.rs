@@ -1,5 +1,5 @@
 use super::{dummy_api, log_api, map_format_api};
-use bspsuite_ffim::types::XCStr;
+use bspsuite_ffi::types::XCStr;
 use log::{error, trace};
 use std::result::Result;
 
@@ -84,7 +84,7 @@ impl<'l> ProbeApi<'l>
 pub mod internal
 {
 	use super::*;
-	use crate::{ApiInfo, map_format_api};
+	use crate::{map_format_api, ApiInfo};
 
 	#[doc(hidden)]
 	#[repr(C)]

@@ -1,5 +1,5 @@
 use super::api_info::ApiInfo;
-use bspsuite_ffim::types::XCStr;
+use bspsuite_ffi::types::XCStr;
 use log;
 
 // TODO: Can we build this without a dependency on the log crate?

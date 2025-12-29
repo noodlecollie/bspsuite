@@ -1,7 +1,7 @@
 use super::api_info::ApiInfo;
 use crate::builders::map_blueprint_builder::{IMapBlueprintBuilder, OperationError};
 use crate::types::{DPlane, DVec2, DVec3};
-use bspsuite_ffim::types::{XCOption, XCSlice, XCStr};
+use bspsuite_ffi::types::{XCOption, XCSlice, XCStr};
 use std::ffi::c_void;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
@@ -188,7 +188,7 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 
 pub mod internal
 {
-	use bspsuite_ffim::types::XCSlice;
+	use bspsuite_ffi::types::XCSlice;
 
 	use super::*;
 

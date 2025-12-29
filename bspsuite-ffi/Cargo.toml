@@ -1,5 +1,5 @@
 [package]
-name = "bspsuite-ffim"
+name = "bspsuite-ffi"
 version.workspace = true
 authors.workspace = true
 documentation.workspace = true

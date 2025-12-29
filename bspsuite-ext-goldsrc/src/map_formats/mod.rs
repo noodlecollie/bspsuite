@@ -1,5 +1,5 @@
 use bspextifc::map_format_api::{Api, Callbacks};
-use bspsuite_ffim::types::XCStr;
+use bspsuite_ffi::types::XCStr;
 mod map_valve220;
 
 #[cfg(test)]

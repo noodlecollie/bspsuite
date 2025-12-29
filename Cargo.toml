@@ -7,7 +7,7 @@ members = [
 	"bspsuite-compiler",
 	"bspsuite-ext-goldsrc",
 	"bspsuite-extinterface",
-	"bspsuite-ffim"
+	"bspsuite-ffi"
 ]
 
 [workspace.package]

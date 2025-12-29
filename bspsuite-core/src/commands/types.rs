@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use bspsuite_ffim::types::{XCOption, XCStr};
+use bspsuite_ffi::types::{XCOption, XCStr};
 
 #[derive(Copy, Clone, Debug, strum::Display)]
 #[repr(C)]

@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_residual_errors;
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
-use crate::extensions::{ExtensionList, extension_routines};
+use crate::extensions::{extension_routines, ExtensionList};
 use crate::game_configs::GameConfig;
 use crate::toolchain::Toolchain;
 use anyhow::{Context, Result};
-use bspsuite_ffim::types::{XCOption, XCStr};
+use bspsuite_ffi::types::{XCOption, XCStr};
 use log::{debug, info};
 
 #[repr(C)]

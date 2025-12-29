@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
-use bspsuite_ffim::types::{XCOption, XCStr};
+use bspsuite_ffi::types::{XCOption, XCStr};
 use log::{error, info};
 
 use super::types::{BaseArgs, ResultCode};

@@ -1,7 +1,7 @@
 use bspextifc::builders::map_blueprint_builder::IMapBlueprintBuilder;
 use bspextifc::map_format_api::MapBlueprintBuilder;
 use bspextifc::types::{DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult};
-use bspsuite_ffim::types::XCStr;
+use bspsuite_ffi::types::XCStr;
 use glam;
 use logos::Logos;
 
@@ -622,7 +622,7 @@ fn parse_numeric_vector_after_opening_bracket<const LENGTH: usize>(
 }
 
 fn parse_face_material_number(lexer: &mut logos::Lexer<'_, BrushContext>)
--> Result<f64, ParseError>
+	-> Result<f64, ParseError>
 {
 	return match lexer.next()
 	{

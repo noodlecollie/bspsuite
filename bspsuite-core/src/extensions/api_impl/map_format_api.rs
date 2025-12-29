@@ -1,6 +1,6 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use bspextifc::map_format_api;
-use bspsuite_ffim::types::{XCSlice, XCStr};
+use bspsuite_ffi::types::{XCSlice, XCStr};
 use itertools::Itertools;
 use log::{debug, warn};
 use std::collections::HashMap;
@@ -237,10 +237,10 @@ mod builder_extc
 	use bspextifc::builders::map_blueprint_builder::{
 		IMapBlueprintBuilder, MapBlueprintBuilder as Builder,
 	};
-	use bspextifc::map_format_api::MapParseFn;
 	use bspextifc::map_format_api::internal::CoreBuilderOperationErrorCode;
+	use bspextifc::map_format_api::MapParseFn;
 	use bspextifc::types::{DPlane, DVec2, DVec3};
-	use bspsuite_ffim::types::XCOption;
+	use bspsuite_ffi::types::XCOption;
 
 	pub fn parse_map(data: &XCStr, parse_fn: &MapParseFn) -> Builder
 	{

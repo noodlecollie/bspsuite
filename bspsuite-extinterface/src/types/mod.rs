@@ -1,4 +1,4 @@
-use bspsuite_ffim::types::XCSlice;
+use bspsuite_ffi::types::XCSlice;
 
 mod geometry;
 mod parsing;

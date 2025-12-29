@@ -106,7 +106,7 @@ version = "0.1.0"
 dependencies = [
  "bspsuite-core",
  "bspsuite-extinterface",
- "bspsuite-ffim",
+ "bspsuite-ffi",
  "clap",
  "fern",
  "lazy_static",
@@ -122,7 +122,7 @@ dependencies = [
  "anyhow",
  "bspsuite-buildtasks",
  "bspsuite-extinterface",
- "bspsuite-ffim",
+ "bspsuite-ffi",
  "chrono",
  "const-cstr",
  "constcat",
@@ -144,7 +144,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bspsuite-extinterface",
- "bspsuite-ffim",
+ "bspsuite-ffi",
  "glam",
  "log",
  "logos",
@@ -154,12 +154,12 @@ dependencies = [
 name = "bspsuite-extinterface"
 version = "0.1.0"
 dependencies = [
- "bspsuite-ffim",
+ "bspsuite-ffi",
  "log",
 ]
 
 [[package]]
-name = "bspsuite-ffim"
+name = "bspsuite-ffi"
 version = "0.1.0"
 
 [[package]]
