@@ -53,3 +53,59 @@ It would certainly be useful to leverage vector instructions for the compiler, p
   * Difficult to see how this would be made to work well - these vectors need to be general-purpose, and we don't know the architecture of the user's machine in advance.
   * Might be better to leverage SIMD instructions for the critical algorithms like BSP/VIS/RAD, and use a naive general implementation for the arbitrary maths. Could provide functions to perform these algorithms, which modules could call if they need.
   * This approach seems to be validated by [the design principles described here](https://github.com/Cincinesh/tue): _"SIMD vectors aren't very efficient when used as traditional 3D vectors. ... SIMD instructions should be used to perform the same logic on multiple vectors in parallel."_
+
+# Extension FFI
+
+A plugin-based system in Rust needs careful consideration regarding the exchange of data over the boundary between the plugin host (here, the compiler) and the plugin libraries (here, the extensions). After some experimentation, the general approach for extension calls across a library boundary is as follows.
+
+## FFITable
+
+The `FFITable` is basically a struct containing a context pointer, and one or more `unsafe extern "C"` function pointers.
+
+```
+// In pseudo-Rust:
+FFITable:
+	// Context passed to each function
+  context_ptr,
+
+  // Function 1, taking no other arguments, and returning nothing
+  extern "C" fn fptr_func1(context_ptr),
+
+  // Function 2, taking an additional i32 argument, and returning an i32
+  extern "C" fn fptr_func2(context_ptr, i32) -> i32,
+```
+
+The `FFITable` for an API represents the set of functions implemented by `bspcore.dll` to support the API.
+
+Each of the function pointers stored in the `FFITable` takes a context pointer as its first argument, similarly to `self` in normal Rust. This essentially allows the implementation of the function to act like a member function of a struct, where the struct data is stored opaquely in the context pointer.
+
+The `FFITable` for an API is defined within an `internal` module for that API, to make it obvious that extensions should not use it directly.
+
+## FFIImpl
+
+Within `bspcore.dll`, the functions referenced in the `FFITable` are implemented in a relevant submodule for the API, called `FFIImpl`. This keeps the boilerplate functions separate from the rest of the code.
+
+## Client Struct
+
+The extension code itself interacts with a given API using a "client struct" which presents the API. Internally, the client struct keeps a reference to the `FFITable` for the API, and manages converting arguments and return values to and from FFI-safe types.
+
+The client struct is named after the API. It does not use a prefix on its type name to identify it, since as far as the extension is concerned, this struct is the main way with which to interact with the API.
+
+## Host Struct
+
+When `bspcore.dll` calls into an extension, it provides the extension with a reference to the relevant client struct for the API. When creating the `FFITable` for the client struct to use, the context pointer is set to point to a "host struct". When an `FFIImpl` function is called from the `FFITable`, the context pointer is translated back into a host struct pointer, and the relevant function on the host struct is called.
+
+The host struct is named after the API that it implements, except with a suffix of `Host`. This easily distinguishes its type name from the type name of the client-facing struct type.
+
+## Call Sequence
+
+This is an example of calling a `dummy_action()` functon on an extension, and providing a `DummyApi` client struct for the extension to call into.
+
+1. Host constructs `DummyApiHost` struct.
+2. Host constructs `internal::FFITable`, binding function pointers and setting context pointer to `DummyApiHost`.
+3. Host constructs `DummyApi` struct, providing a reference to `FFITable`.
+4. Host calls `dummy_action()` on extension, passing a reference to `DummyApi` struct.
+5. Within `dummy_action()`, extension call `store_number(3)` on `DummyApi` struct.
+6. `DummyApi` struct calls `self.ffi_table.fptr_store_number(self.ffi_table.context_ptr, num_to_store)`.
+7. The `FFIImpl` function `store_number()` calls `(*context_ptr as DummyApiHost).store_number(num_to_store)`.
+8. After execution of `dummy_action()` has finished, the number `3` is stored in the `DummyApiHost` struct.
