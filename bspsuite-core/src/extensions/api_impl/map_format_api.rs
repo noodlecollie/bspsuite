@@ -239,7 +239,8 @@ mod builder_extc
 	};
 	use bspextifc::map_format_api::MapParseFn;
 	use bspextifc::map_format_api::internal::CoreBuilderOperationErrorCode;
-	use bspextifc::types::{DPlane, DVec2, DVec3, PortableOption};
+	use bspextifc::types::{DPlane, DVec2, DVec3};
+	use bspsuite_ffim::types::XCOption;
 
 	pub fn parse_map(data: &StringRef, parse_fn: &MapParseFn) -> Builder
 	{
@@ -421,17 +422,17 @@ mod builder_extc
 		};
 	}
 
-	unsafe extern "C" fn current_entity_index(context: *const c_void) -> PortableOption<usize>
+	unsafe extern "C" fn current_entity_index(context: *const c_void) -> XCOption<usize>
 	{
 		return unsafe { (*context.cast::<Builder>()).current_entity_index().into() };
 	}
 
-	unsafe extern "C" fn current_brush_index(context: *const c_void) -> PortableOption<usize>
+	unsafe extern "C" fn current_brush_index(context: *const c_void) -> XCOption<usize>
 	{
 		return unsafe { (*context.cast::<Builder>()).current_brush_index().into() };
 	}
 
-	unsafe extern "C" fn current_brush_face_index(context: *const c_void) -> PortableOption<usize>
+	unsafe extern "C" fn current_brush_face_index(context: *const c_void) -> XCOption<usize>
 	{
 		return unsafe {
 			(*context.cast::<Builder>())

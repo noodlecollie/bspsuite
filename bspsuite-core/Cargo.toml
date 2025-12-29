@@ -12,6 +12,7 @@ name = "bspcore"
 crate-type = ["rlib", "dylib"]
 
 [dependencies]
+bspsuite-ffim = { path = "../bspsuite-ffim" }
 bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 bspsuite-buildtasks = { path = "../bspsuite-buildtasks" }
 anyhow.workspace = true

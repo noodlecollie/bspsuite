@@ -1,6 +1,7 @@
 use super::api_info::ApiInfo;
 use crate::builders::map_blueprint_builder::{IMapBlueprintBuilder, OperationError};
-use crate::types::{DPlane, DVec2, DVec3, PortableOption, SliceRef, StringRef};
+use crate::types::{DPlane, DVec2, DVec3, SliceRef, StringRef};
+use bspsuite_ffim::types::XCOption;
 use std::ffi::c_void;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
@@ -271,9 +272,9 @@ pub mod internal
 			unsafe extern "C" fn(*mut c_void, DVec2) -> CoreBuilderOperationErrorCode,
 		pub set_brush_face_material_scale:
 			unsafe extern "C" fn(*mut c_void, DVec2) -> CoreBuilderOperationErrorCode,
-		pub current_entity_index: unsafe extern "C" fn(*const c_void) -> PortableOption<usize>,
-		pub current_brush_index: unsafe extern "C" fn(*const c_void) -> PortableOption<usize>,
-		pub current_brush_face_index: unsafe extern "C" fn(*const c_void) -> PortableOption<usize>,
+		pub current_entity_index: unsafe extern "C" fn(*const c_void) -> XCOption<usize>,
+		pub current_brush_index: unsafe extern "C" fn(*const c_void) -> XCOption<usize>,
+		pub current_brush_face_index: unsafe extern "C" fn(*const c_void) -> XCOption<usize>,
 		pub num_entities: unsafe extern "C" fn(*const c_void) -> usize,
 		pub num_current_brushes: unsafe extern "C" fn(*const c_void) -> usize,
 		pub num_current_brush_faces: unsafe extern "C" fn(*const c_void) -> usize,

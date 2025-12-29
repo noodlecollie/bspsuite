@@ -106,6 +106,7 @@ version = "0.1.0"
 dependencies = [
  "bspsuite-core",
  "bspsuite-extinterface",
+ "bspsuite-ffim",
  "clap",
  "fern",
  "lazy_static",
@@ -121,6 +122,7 @@ dependencies = [
  "anyhow",
  "bspsuite-buildtasks",
  "bspsuite-extinterface",
+ "bspsuite-ffim",
  "chrono",
  "const-cstr",
  "constcat",
@@ -151,6 +153,7 @@ dependencies = [
 name = "bspsuite-extinterface"
 version = "0.1.0"
 dependencies = [
+ "bspsuite-ffim",
  "log",
 ]
 

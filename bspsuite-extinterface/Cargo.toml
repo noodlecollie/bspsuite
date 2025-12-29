@@ -12,4 +12,5 @@ name = "bspextifc"
 crate-type = ["lib"]
 
 [dependencies]
+bspsuite-ffim = { path = "../bspsuite-ffim" }
 log.workspace = true

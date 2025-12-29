@@ -68,6 +68,7 @@ impl<T> XCOption<T>
 	pub fn unmarshal_as_ref_option<'l, U>(&'l self) -> Option<&'l U>
 	where
 		T: RefMarshaller<'l, U>,
+		U: ?Sized,
 	{
 		return match self
 		{

@@ -12,6 +12,7 @@ name = "bspc"
 path = "src/bspc.rs"
 
 [dependencies]
+bspsuite-ffim = { path = "../bspsuite-ffim" }
 bspsuite-core = { path = "../bspsuite-core" }
 bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 clap = { version = "4.5.51", features = ["derive"] }

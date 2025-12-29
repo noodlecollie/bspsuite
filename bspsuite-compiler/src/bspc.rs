@@ -3,7 +3,9 @@ mod cli;
 use std::ffi::{CStr, c_char};
 
 use bspcore::commands as Cmds;
-use bspextifc::types::{PortableOption, StringRef};
+use bspextifc::types::StringRef;
+use bspsuite_ffim::types::{XCOption, XCStr};
+
 use clap::Parser;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter, error, info};
@@ -78,16 +80,14 @@ fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> 
 
 	let args: Cmds::CompileArgs = Cmds::CompileArgs {
 		base: Cmds::BaseArgs {
-			toolchain_root: PortableOption::from(
-				toolchain_path_str.map(|val| StringRef::from(val)),
-			),
+			toolchain_root: XCOption::from(toolchain_path_str.map(|val| XCStr::from(val))),
 		},
-		input_file: StringRef::from(input_path_str.unwrap()),
-		game: StringRef::from(args.game.as_str()),
-		map_format_override: PortableOption::from(
+		input_file: XCStr::from(input_path_str.unwrap()),
+		game: XCStr::from(args.game.as_str()),
+		map_format_override: XCOption::from(
 			args.map_format
 				.as_ref()
-				.map(|val| StringRef::from(val.as_str())),
+				.map(|val| XCStr::from(val.as_str())),
 		),
 	};
 

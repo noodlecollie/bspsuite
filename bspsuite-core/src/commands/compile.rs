@@ -7,16 +7,16 @@ use crate::extensions::{ExtensionList, extension_routines};
 use crate::game_configs::GameConfig;
 use crate::toolchain::Toolchain;
 use anyhow::{Context, Result};
-use bspextifc::types::{PortableOption, StringRef};
+use bspsuite_ffim::types::{XCOption, XCStr};
 use log::{debug, info};
 
 #[repr(C)]
 pub struct CompileArgs<'l>
 {
 	pub base: BaseArgs<'l>,
-	pub input_file: StringRef<'l>,
-	pub game: StringRef<'l>,
-	pub map_format_override: PortableOption<StringRef<'l>>,
+	pub input_file: XCStr<'l>,
+	pub game: XCStr<'l>,
+	pub map_format_override: XCOption<XCStr<'l>>,
 }
 
 #[unsafe(no_mangle)]
@@ -37,14 +37,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 	extension_routines::register_map_formats(&extensions);
 
 	let input_path: PathBuf = PathBuf::from(args.input_file.as_str());
-	let map_format_override: Option<String> = if args.map_format_override.is_some()
-	{
-		Some(args.map_format_override.unwrap_ref().to_string())
-	}
-	else
-	{
-		None
-	};
+	let map_format_override: Option<&str> = args.map_format_override.unmarshal_as_ref_option();
 
 	debug!(
 		"Allowed map formats for game {}: {}",
@@ -61,7 +54,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 				.iter()
 				.map(|fmt| fmt.as_str())
 				.collect(),
-			&map_format_override.as_ref().map(|val| val.as_str()),
+			&map_format_override,
 		);
 
 	let map_format: extension_routines::ExtensionForParsingMapFormat = map_format_result

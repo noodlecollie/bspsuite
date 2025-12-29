@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use bspextifc::types::{PortableOption, StringRef};
+use bspextifc::types::StringRef;
+use bspsuite_ffim::types::{XCOption, XCStr};
 
 #[derive(Copy, Clone, Debug, strum::Display)]
 #[repr(C)]
@@ -33,7 +34,7 @@ pub struct BaseArgs<'l>
 	/// is being used as part of another application, it may not be
 	/// adequate. In this case, the application should supply the
 	/// relevant path here.
-	pub toolchain_root: PortableOption<StringRef<'l>>,
+	pub toolchain_root: XCOption<XCStr<'l>>,
 }
 
 impl<'l> BaseArgs<'l>
@@ -42,8 +43,8 @@ impl<'l> BaseArgs<'l>
 	{
 		return match &self.toolchain_root
 		{
-			PortableOption::Some(path) => Some(PathBuf::from(path.as_str())),
-			PortableOption::None => None,
+			XCOption::Some(path) => Some(PathBuf::from(path.as_str())),
+			XCOption::None => None,
 		};
 	}
 }
@@ -53,7 +54,7 @@ impl<'l> Default for BaseArgs<'l>
 	fn default() -> Self
 	{
 		return Self {
-			toolchain_root: PortableOption::None,
+			toolchain_root: XCOption::None,
 		};
 	}
 }
