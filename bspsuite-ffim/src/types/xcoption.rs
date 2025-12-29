@@ -19,6 +19,7 @@ impl<T> XCOption<T>
 {
 	/// Returns whether the `XCOption` contains a value.
 	#[inline]
+	#[must_use]
 	pub fn is_some(&self) -> bool
 	{
 		return match self
@@ -30,6 +31,7 @@ impl<T> XCOption<T>
 
 	/// Returns whether the `XCOption` is devoid of a value.
 	#[inline]
+	#[must_use]
 	pub fn is_none(&self) -> bool
 	{
 		return !self.is_some();
@@ -65,6 +67,8 @@ impl<T> XCOption<T>
 	///
 	/// For example, this function allows an `XCOption<XCStr>` to be easily
 	/// converted to an `Option<&str>`.
+	#[inline]
+	#[must_use]
 	pub fn unmarshal_as_ref_option<'l, U>(&'l self) -> Option<&'l U>
 	where
 		T: RefMarshaller<'l, U>,
@@ -94,6 +98,7 @@ impl<T> XCOption<T>
 impl<T> From<T> for XCOption<T>
 {
 	/// Converts a `T` value to an `XCOption<T>`.
+	#[inline]
 	fn from(value: T) -> Self
 	{
 		return Self::Some(value);
@@ -103,6 +108,7 @@ impl<T> From<T> for XCOption<T>
 impl<T> From<Option<T>> for XCOption<T>
 {
 	/// Converts an `Option<T>` to an `XCOption<T>`.
+	#[inline]
 	fn from(value: Option<T>) -> Self
 	{
 		return match value
@@ -116,6 +122,7 @@ impl<T> From<Option<T>> for XCOption<T>
 impl<T> Into<Option<T>> for XCOption<T>
 {
 	/// Converts an `XCOption<T>` to an `Option<T>`.
+	#[inline]
 	fn into(self) -> Option<T>
 	{
 		return self.into_option();

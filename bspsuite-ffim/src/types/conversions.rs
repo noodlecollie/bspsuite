@@ -3,6 +3,7 @@ use crate::types::{XCOption, XCSlice, XCStr};
 impl<'l> From<Option<&'l str>> for XCOption<XCStr<'l>>
 {
 	/// Converts an `Option<&str>` to an `XCOption<XCStr>`.
+	#[inline]
 	fn from(value: Option<&'l str>) -> Self
 	{
 		return match value
@@ -16,6 +17,7 @@ impl<'l> From<Option<&'l str>> for XCOption<XCStr<'l>>
 impl<'l> Into<Option<&'l str>> for XCOption<XCStr<'l>>
 {
 	/// Converts an `XCOption<XCStr>` to an `Option<&str>`.
+	#[inline]
 	fn into(self) -> Option<&'l str>
 	{
 		return match self
@@ -29,6 +31,7 @@ impl<'l> Into<Option<&'l str>> for XCOption<XCStr<'l>>
 impl<'l, T> From<Option<&'l [T]>> for XCOption<XCSlice<'l, T>>
 {
 	/// Converts an `Option<&[T]>` to an `XCOption<XCSlice[T]>`.
+	#[inline]
 	fn from(value: Option<&'l [T]>) -> Self
 	{
 		return match value
@@ -42,6 +45,7 @@ impl<'l, T> From<Option<&'l [T]>> for XCOption<XCSlice<'l, T>>
 impl<'l, T> Into<Option<&'l [T]>> for XCOption<XCSlice<'l, T>>
 {
 	/// Converts an `XCOption<XCSlice<T>>` to an `Option<&[T]>`.
+	#[inline]
 	fn into(self) -> Option<&'l [T]>
 	{
 		return match self

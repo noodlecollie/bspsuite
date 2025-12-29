@@ -55,11 +55,15 @@ impl<'l> XCStr<'l>
 
 impl<'l> RefMarshaller<'l, str> for XCStr<'l>
 {
+	/// Marshals a `&str`.
+	#[inline]
 	fn marshal_ref(value: &'l str) -> XCStr<'l>
 	{
 		return XCStr::new(value);
 	}
 
+	/// Unmarshals to a `&str`.
+	#[inline]
 	fn unmarshal_ref(&self) -> &str
 	{
 		return self.as_str();
@@ -69,6 +73,7 @@ impl<'l> RefMarshaller<'l, str> for XCStr<'l>
 impl<'l> From<&'l str> for XCStr<'l>
 {
 	/// Converts a `&str` to a `XCStr`.
+	#[inline]
 	fn from(value: &'l str) -> Self
 	{
 		return XCStr::new(value);
@@ -78,6 +83,7 @@ impl<'l> From<&'l str> for XCStr<'l>
 impl<'l> Borrow<str> for XCStr<'l>
 {
 	/// Borrows a `&str` from the `XCStr`.
+	#[inline]
 	fn borrow(&self) -> &'l str
 	{
 		return self.as_str();
@@ -87,6 +93,7 @@ impl<'l> Borrow<str> for XCStr<'l>
 impl<'l> Into<String> for XCStr<'l>
 {
 	/// Converts an `XCStr` to a `String`.
+	#[inline]
 	fn into(self) -> String
 	{
 		return self.to_string();
@@ -96,6 +103,7 @@ impl<'l> Into<String> for XCStr<'l>
 impl<'l> ToString for XCStr<'l>
 {
 	/// Creates a `String` from an `XCStr`.
+	#[inline]
 	fn to_string(&self) -> String
 	{
 		return self.as_str().to_owned();

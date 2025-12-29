@@ -52,11 +52,15 @@ impl<'l, T> XCSlice<'l, T>
 
 impl<'l, T> RefMarshaller<'l, [T]> for XCSlice<'l, T>
 {
+	#[inline]
+	/// Marshals a slice of `T` elements.
 	fn marshal_ref(value: &'l [T]) -> XCSlice<'l, T>
 	{
 		return XCSlice::new(value);
 	}
 
+	#[inline]
+	/// Unmarshals to a slice of `T` elements.
 	fn unmarshal_ref(&self) -> &[T]
 	{
 		return self.as_slice();
@@ -66,6 +70,7 @@ impl<'l, T> RefMarshaller<'l, [T]> for XCSlice<'l, T>
 impl<'l, T> From<&'l [T]> for XCSlice<'l, T>
 {
 	/// Converts a `&[T]` to an `XCSlice<T>`.
+	#[inline]
 	fn from(value: &'l [T]) -> Self
 	{
 		return XCSlice::new(value);
@@ -76,6 +81,7 @@ impl<'l, T, const LENGTH: usize> From<&'l [T; LENGTH]> for XCSlice<'l, T>
 {
 	/// Converts a `&[T]` with a compile-time constant length to an
 	/// `XCSlice<T>`.
+	#[inline]
 	fn from(value: &'l [T; LENGTH]) -> Self
 	{
 		return XCSlice::new(value.as_slice());
@@ -85,6 +91,7 @@ impl<'l, T, const LENGTH: usize> From<&'l [T; LENGTH]> for XCSlice<'l, T>
 impl<'l, T> Into<&'l [T]> for XCSlice<'l, T>
 {
 	/// Converts an `XCSlice<T>` to a `&[T]`.
+	#[inline]
 	fn into(self) -> &'l [T]
 	{
 		return self.as_slice();
@@ -94,6 +101,7 @@ impl<'l, T> Into<&'l [T]> for XCSlice<'l, T>
 impl<'l, T> Borrow<[T]> for XCSlice<'l, T>
 {
 	/// Borrows a `&[T]` from the `XCSlice`.
+	#[inline]
 	fn borrow(&self) -> &'l [T]
 	{
 		return self.as_slice();
