@@ -1,5 +1,5 @@
 use super::{dummy_api, log_api, map_format_api};
-use crate::types::StringRef;
+use bspsuite_ffim::types::XCStr;
 use log::{error, trace};
 use std::result::Result;
 
@@ -33,7 +33,7 @@ pub enum ProbeResult
 #[repr(C)]
 pub struct ProbeApi<'l>
 {
-	extension_name: StringRef<'l>,
+	extension_name: XCStr<'l>,
 	apis: &'l mut internal::ExportedApis,
 }
 
@@ -100,7 +100,7 @@ pub mod internal
 	where
 		T: Clone,
 	{
-		name: StringRef<'static>,
+		name: XCStr<'static>,
 		version: usize,
 		api: T,
 	}
@@ -109,7 +109,7 @@ pub mod internal
 	#[repr(C)]
 	pub struct CallbacksContainer<T>
 	{
-		name: StringRef<'static>,
+		name: XCStr<'static>,
 		version: usize,
 		callbacks: Option<T>,
 	}
@@ -132,7 +132,7 @@ pub mod internal
 		pub fn new(api_info: &ApiInfo, api: T) -> Self
 		{
 			return Self {
-				name: StringRef::from(api_info.name),
+				name: XCStr::from(api_info.name),
 				version: api_info.version,
 				api: api,
 			};
@@ -172,7 +172,7 @@ pub mod internal
 		pub fn new(api_info: &ApiInfo) -> Self
 		{
 			return Self {
-				name: StringRef::from(api_info.name),
+				name: XCStr::from(api_info.name),
 				version: api_info.version,
 				callbacks: None,
 			};
@@ -295,7 +295,7 @@ pub mod internal
 	) -> ProbeApi<'l>
 	{
 		return ProbeApi {
-			extension_name: StringRef::from(extension_name),
+			extension_name: XCStr::from(extension_name),
 			apis: apis,
 		};
 	}

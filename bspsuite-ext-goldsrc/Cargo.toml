@@ -14,8 +14,9 @@ name = "goldsrcext"
 crate-type = ["cdylib"]
 
 [dependencies]
+bspsuite-extinterface = { path = "../bspsuite-extinterface" }
+bspsuite-ffim = { path = "../bspsuite-ffim" }
 anyhow.workspace = true
 glam.workspace = true
 log = { workspace = true, features = ["std"] }
-bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 logos = "0.16.0"

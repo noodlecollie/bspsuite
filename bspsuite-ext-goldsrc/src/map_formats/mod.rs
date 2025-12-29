@@ -1,6 +1,6 @@
 use bspextifc::map_format_api::{Api, Callbacks};
-use bspextifc::types::{SliceRef, StringRef};
-
+use bspextifc::types::SliceRef;
+use bspsuite_ffim::types::XCStr;
 mod map_valve220;
 
 #[cfg(test)]
@@ -16,8 +16,8 @@ pub fn create_callbacks() -> Callbacks
 pub extern "C" fn register_map_formats(api: &mut Api)
 {
 	api.register_map_format(
-		&StringRef::from("valve220"),
-		&SliceRef::from(&[&StringRef::from("map")]),
+		&XCStr::from("valve220"),
+		&SliceRef::from(&[&XCStr::from("map")]),
 		map_valve220::parse,
 	);
 }

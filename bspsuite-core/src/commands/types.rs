@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use bspextifc::types::StringRef;
 use bspsuite_ffim::types::{XCOption, XCStr};
 
 #[derive(Copy, Clone, Debug, strum::Display)]

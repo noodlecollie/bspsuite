@@ -144,6 +144,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bspsuite-extinterface",
+ "bspsuite-ffim",
  "glam",
  "log",
  "logos",

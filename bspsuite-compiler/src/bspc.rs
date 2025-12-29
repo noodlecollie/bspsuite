@@ -3,7 +3,6 @@ mod cli;
 use std::ffi::{CStr, c_char};
 
 use bspcore::commands as Cmds;
-use bspextifc::types::StringRef;
 use bspsuite_ffim::types::{XCOption, XCStr};
 
 use clap::Parser;
@@ -46,7 +45,8 @@ fn run_info_command(args: &cli::ExtinfoCommandArgs) -> Cmds::ResultCode
 		extension_name: args
 			.extension
 			.as_ref()
-			.map(|val| StringRef::from(val.as_ref())),
+			.map(|val| XCStr::from(val.as_ref()))
+			.into(),
 	};
 
 	return Cmds::bspcore_run_extinfo(&args);

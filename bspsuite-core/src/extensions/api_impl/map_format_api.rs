@@ -1,6 +1,7 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use bspextifc::map_format_api;
-use bspextifc::types::{SliceRef, StringRef};
+use bspextifc::types::SliceRef;
+use bspsuite_ffim::types::XCStr;
 use itertools::Itertools;
 use log::{debug, warn};
 use std::collections::HashMap;
@@ -107,7 +108,7 @@ impl MapParseCallback
 {
 	pub fn parse(&self, data: &str, builder: &mut map_format_api::MapBlueprintBuilder)
 	{
-		(self.parse_fn)(&StringRef::new(data), builder);
+		(self.parse_fn)(&XCStr::new(data), builder);
 	}
 }
 
@@ -130,7 +131,7 @@ impl<'l> ApiImpl<'l>
 	pub fn register_map_format(
 		&mut self,
 		format_name: &str,
-		file_extensions: &[&StringRef],
+		file_extensions: &[&XCStr], // TODO: Slice of &str?
 		parse_fn: map_format_api::MapParseFn,
 	)
 	{
@@ -217,8 +218,8 @@ impl<'l> ApiImpl<'l>
 
 unsafe extern "C" fn register_map_format(
 	context: *mut c_void,
-	format_name: &StringRef,
-	file_extensions: &SliceRef<&StringRef>,
+	format_name: &XCStr,
+	file_extensions: &SliceRef<&XCStr>,
 	parse_fn: map_format_api::MapParseFn,
 )
 {
@@ -242,7 +243,7 @@ mod builder_extc
 	use bspextifc::types::{DPlane, DVec2, DVec3};
 	use bspsuite_ffim::types::XCOption;
 
-	pub fn parse_map(data: &StringRef, parse_fn: &MapParseFn) -> Builder
+	pub fn parse_map(data: &XCStr, parse_fn: &MapParseFn) -> Builder
 	{
 		let mut local_builder: Builder = Builder::new();
 		let mut context: OpaqueMutPtr<Builder> = OpaqueMutPtr::new(&mut local_builder);
@@ -278,7 +279,7 @@ mod builder_extc
 		return local_builder;
 	}
 
-	unsafe extern "C" fn set_failure(context: *mut c_void, description: &StringRef)
+	unsafe extern "C" fn set_failure(context: *mut c_void, description: &XCStr)
 	{
 		unsafe {
 			(*context.cast::<Builder>()).set_failure(description.to_string());
@@ -289,7 +290,7 @@ mod builder_extc
 		context: *mut c_void,
 		line: usize,
 		column: usize,
-		description: &StringRef,
+		description: &XCStr,
 	)
 	{
 		unsafe {
@@ -317,8 +318,8 @@ mod builder_extc
 
 	unsafe extern "C" fn add_entity_keyvalue(
 		context: *mut c_void,
-		key: &StringRef,
-		value: &StringRef,
+		key: &XCStr,
+		value: &XCStr,
 	) -> CoreBuilderOperationErrorCode
 	{
 		return unsafe {
@@ -375,7 +376,7 @@ mod builder_extc
 
 	unsafe extern "C" fn set_brush_face_material(
 		context: *mut c_void,
-		material_name: &StringRef,
+		material_name: &XCStr,
 	) -> CoreBuilderOperationErrorCode
 	{
 		return unsafe {

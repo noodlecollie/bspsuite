@@ -1,12 +1,12 @@
 use super::api_info::ApiInfo;
 use crate::builders::map_blueprint_builder::{IMapBlueprintBuilder, OperationError};
-use crate::types::{DPlane, DVec2, DVec3, SliceRef, StringRef};
-use bspsuite_ffim::types::XCOption;
+use crate::types::{DPlane, DVec2, DVec3, SliceRef};
+use bspsuite_ffim::types::{XCOption, XCStr};
 use std::ffi::c_void;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
 pub type RegisterMapFormatsFn = extern "C" fn(&mut Api);
-pub type MapParseFn = extern "C" fn(&StringRef, &mut MapBlueprintBuilder);
+pub type MapParseFn = extern "C" fn(&XCStr, &mut MapBlueprintBuilder);
 
 #[repr(C)]
 pub struct Api<'l>
@@ -24,8 +24,8 @@ impl<'l> Api<'l>
 {
 	pub fn register_map_format(
 		&mut self,
-		format_name: &StringRef,
-		file_extensions: &SliceRef<&StringRef>,
+		format_name: &XCStr,
+		file_extensions: &SliceRef<&XCStr>,
 		parse_fn: MapParseFn,
 	)
 	{
@@ -53,7 +53,7 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 {
 	fn set_failure(&mut self, description: String)
 	{
-		unsafe { (self.fns.set_failure)(*self.fns.context, &StringRef::new(&description)) };
+		unsafe { (self.fns.set_failure)(*self.fns.context, &XCStr::new(&description)) };
 	}
 
 	fn set_failure_with_location(&mut self, line: usize, column: usize, description: String)
@@ -63,7 +63,7 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 				*self.fns.context,
 				line,
 				column,
-				&StringRef::new(&description),
+				&XCStr::new(&description),
 			)
 		};
 	}
@@ -83,8 +83,8 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 		return unsafe {
 			(self.fns.add_entity_keyvalue)(
 				*self.fns.context,
-				&StringRef::new(&key),
-				&StringRef::new(&value),
+				&XCStr::new(&key),
+				&XCStr::new(&value),
 			)
 			.to_result()
 		};
@@ -118,7 +118,7 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), OperationError>
 	{
 		return unsafe {
-			(self.fns.set_brush_face_material)(*self.fns.context, &StringRef::new(&material_name))
+			(self.fns.set_brush_face_material)(*self.fns.context, &XCStr::new(&material_name))
 				.to_result()
 		};
 	}
@@ -196,7 +196,7 @@ pub mod internal
 		pub context: &'l *mut c_void,
 
 		pub register_map_format_fn:
-			unsafe extern "C" fn(*mut c_void, &StringRef, &SliceRef<&StringRef>, MapParseFn),
+			unsafe extern "C" fn(*mut c_void, &XCStr, &SliceRef<&XCStr>, MapParseFn),
 	}
 
 	#[repr(C)]
@@ -249,15 +249,12 @@ pub mod internal
 	{
 		pub context: &'l *mut c_void,
 
-		pub set_failure: unsafe extern "C" fn(*mut c_void, &StringRef),
-		pub set_failure_with_location: unsafe extern "C" fn(*mut c_void, usize, usize, &StringRef),
+		pub set_failure: unsafe extern "C" fn(*mut c_void, &XCStr),
+		pub set_failure_with_location: unsafe extern "C" fn(*mut c_void, usize, usize, &XCStr),
 		pub begin_entity: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
 		pub end_entity: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
-		pub add_entity_keyvalue: unsafe extern "C" fn(
-			*mut c_void,
-			&StringRef,
-			&StringRef,
-		) -> CoreBuilderOperationErrorCode,
+		pub add_entity_keyvalue:
+			unsafe extern "C" fn(*mut c_void, &XCStr, &XCStr) -> CoreBuilderOperationErrorCode,
 		pub begin_brush: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
 		pub end_brush: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
 		pub begin_brush_face: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
@@ -265,7 +262,7 @@ pub mod internal
 		pub set_brush_face_plane:
 			unsafe extern "C" fn(*mut c_void, DPlane) -> CoreBuilderOperationErrorCode,
 		pub set_brush_face_material:
-			unsafe extern "C" fn(*mut c_void, &StringRef) -> CoreBuilderOperationErrorCode,
+			unsafe extern "C" fn(*mut c_void, &XCStr) -> CoreBuilderOperationErrorCode,
 		pub set_brush_face_material_axes:
 			unsafe extern "C" fn(*mut c_void, DVec3, DVec3) -> CoreBuilderOperationErrorCode,
 		pub set_brush_face_material_translation:
