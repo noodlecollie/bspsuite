@@ -1,7 +1,6 @@
 use super::opaque_ptr::OpaqueMutPtr;
 use bspextifc::map_format_api;
-use bspextifc::types::SliceRef;
-use bspsuite_ffim::types::XCStr;
+use bspsuite_ffim::types::{XCSlice, XCStr};
 use itertools::Itertools;
 use log::{debug, warn};
 use std::collections::HashMap;
@@ -131,7 +130,7 @@ impl<'l> ApiImpl<'l>
 	pub fn register_map_format(
 		&mut self,
 		format_name: &str,
-		file_extensions: &[&XCStr], // TODO: Slice of &str?
+		file_extensions: &[XCStr], // TODO: Slice of &str?
 		parse_fn: map_format_api::MapParseFn,
 	)
 	{
@@ -219,7 +218,7 @@ impl<'l> ApiImpl<'l>
 unsafe extern "C" fn register_map_format(
 	context: *mut c_void,
 	format_name: &XCStr,
-	file_extensions: &SliceRef<&XCStr>,
+	file_extensions: &XCSlice<XCStr>,
 	parse_fn: map_format_api::MapParseFn,
 )
 {

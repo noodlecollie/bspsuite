@@ -1,7 +1,7 @@
 use super::api_info::ApiInfo;
 use crate::builders::map_blueprint_builder::{IMapBlueprintBuilder, OperationError};
-use crate::types::{DPlane, DVec2, DVec3, SliceRef};
-use bspsuite_ffim::types::{XCOption, XCStr};
+use crate::types::{DPlane, DVec2, DVec3};
+use bspsuite_ffim::types::{XCOption, XCSlice, XCStr};
 use std::ffi::c_void;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
@@ -25,7 +25,7 @@ impl<'l> Api<'l>
 	pub fn register_map_format(
 		&mut self,
 		format_name: &XCStr,
-		file_extensions: &SliceRef<&XCStr>,
+		file_extensions: &XCSlice<XCStr>,
 		parse_fn: MapParseFn,
 	)
 	{
@@ -188,6 +188,8 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 
 pub mod internal
 {
+	use bspsuite_ffim::types::XCSlice;
+
 	use super::*;
 
 	#[repr(C)]
@@ -196,7 +198,7 @@ pub mod internal
 		pub context: &'l *mut c_void,
 
 		pub register_map_format_fn:
-			unsafe extern "C" fn(*mut c_void, &XCStr, &SliceRef<&XCStr>, MapParseFn),
+			unsafe extern "C" fn(*mut c_void, &XCStr, &XCSlice<XCStr>, MapParseFn),
 	}
 
 	#[repr(C)]
