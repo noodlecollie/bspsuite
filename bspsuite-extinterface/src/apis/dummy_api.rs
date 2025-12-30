@@ -10,34 +10,34 @@ pub const API_INFO: ApiInfo = ApiInfo::new("DummyApi", 1);
 // The core API calls a function like this on the
 // extension in order to run extension code for
 // this API.
-pub type EntryPointFn = extern "C" fn(&mut Api);
+pub type DummyApiEntryPointFn = extern "C" fn(&mut DummyApi);
 
 // The functions an extension can call to interact with the
 // core library are on a struct named "<api name>Api".
 #[repr(C)]
-pub struct Api<'l>
+pub struct DummyApi<'l>
 {
 	// This struct owns the internal, unsafe implementation of the
 	// functions defined in the core API, and it wraps them for
 	// the extension to call them.
-	fns: internal::CoreFns<'l>,
+	ffi_table: internal::FfiTable<'l>,
 }
 
 // The functions the core library can call to interact with
 // the extension are on a struct named "<api name>Callbacks".
 #[repr(C)]
 #[derive(Clone)]
-pub struct Callbacks
+pub struct DummyApiCallbacks
 {
 	// This function is called by the core library.
 	// It executes code in the extension library.
 	// A mutable reference to the API functions is provided.
-	pub entry_point: EntryPointFn,
+	pub entry_point: DummyApiEntryPointFn,
 }
 
 // Shim wrapper functions for calling into the core library from
 // the extension.
-impl<'l> Api<'l>
+impl<'l> DummyApi<'l>
 {
 	// Store a number in the core library.
 	pub fn store_number(&mut self, value: i32)
@@ -45,7 +45,7 @@ impl<'l> Api<'l>
 		// SAFETY: Core library responsible for ensuring that self.fns.context
 		// is valid for this struct's lifetime, and that the function being
 		// called knows what type to convert the context into.
-		unsafe { (self.fns.store_number_fn)(*self.fns.context, value) };
+		unsafe { (self.ffi_table.store_number_fn)(*self.ffi_table.context, value) };
 	}
 
 	// Get a number from the core library.
@@ -54,7 +54,7 @@ impl<'l> Api<'l>
 		// SAFETY: Core library responsible for ensuring that self.fns.context
 		// is valid for this struct's lifetime, and that the function being
 		// called knows what type to convert the context into.
-		return unsafe { (self.fns.get_magic_number_fn)(*self.fns.context) };
+		return unsafe { (self.ffi_table.get_magic_number_fn)(*self.ffi_table.context) };
 	}
 }
 
@@ -70,7 +70,7 @@ pub mod internal
 	// - Functions stored in the struct convert the context pointer to the correct
 	//   type before they use it.
 	#[repr(C)]
-	pub struct CoreFns<'l>
+	pub struct FfiTable<'l>
 	{
 		// Arbitrary context pointer for the core library functions.
 		// The lifetime indicates that the context must live at least
@@ -83,8 +83,8 @@ pub mod internal
 	}
 
 	// Called by the core library in order to create the dummy API struct.
-	pub fn create_dummy_api<'l>(fns: internal::CoreFns<'l>) -> Api<'l>
+	pub fn create_dummy_api<'l>(ffi_table: internal::FfiTable<'l>) -> DummyApi<'l>
 	{
-		return Api { fns: fns };
+		return DummyApi { ffi_table };
 	}
 }

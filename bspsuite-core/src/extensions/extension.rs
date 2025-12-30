@@ -1,3 +1,4 @@
+use crate::extensions::api_impl::dummy_api::DummyApiEndpoint;
 use crate::extensions::api_impl::{dummy_api_impl, log_api_impl, map_format_api_impl};
 use anyhow::{Context, Result, bail, ensure};
 use bspextifc::probe_api::ProbeResult;
@@ -9,7 +10,6 @@ use bspextifc::{
 use libloading::{Library, Symbol};
 use log::{debug, trace};
 use std::cell::{BorrowError, BorrowMutError, Ref, RefCell, RefMut};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use target_lexicon::{HOST, OperatingSystem};
 
@@ -18,11 +18,9 @@ use libloading::os::unix::Symbol as UnsafeSymbol;
 #[cfg(target_os = "windows")]
 use libloading::os::windows::Symbol as UnsafeSymbol;
 
-type MapFormatParsers = HashMap<String, map_format_api::MapParseFn>;
-
 pub struct ApiEndpoints
 {
-	pub dummy_api: Option<dummy_api_impl::Endpoint>,
+	pub dummy_api: Option<DummyApiEndpoint>,
 	pub map_format_api: Option<map_format_api_impl::Endpoint>,
 }
 
@@ -207,7 +205,7 @@ impl Extension
 			dummy_api: callbacks
 				.dummy_callbacks
 				.take()
-				.map(|cb| dummy_api_impl::Endpoint::new(cb)),
+				.map(|cb| dummy_api_impl::DummyApiEndpoint::new(cb)),
 			map_format_api: callbacks
 				.map_format_callbacks
 				.take()

@@ -54,7 +54,7 @@ impl<'l> ProbeApi<'l>
 	pub fn register_dummy_api_callbacks(
 		&mut self,
 		requested_version: usize,
-		callbacks: dummy_api::Callbacks,
+		callbacks: dummy_api::DummyApiCallbacks,
 	) -> Result<(), RequestError>
 	{
 		return internal::ExportedApis::request_set_callbacks(
@@ -84,7 +84,7 @@ impl<'l> ProbeApi<'l>
 pub mod internal
 {
 	use super::*;
-	use crate::{map_format_api, ApiInfo};
+	use crate::{ApiInfo, map_format_api};
 
 	#[doc(hidden)]
 	#[repr(C)]
@@ -119,7 +119,7 @@ pub mod internal
 	pub struct ExportedApis
 	{
 		pub log_api: ApiProvider<log_api::Api>,
-		pub dummy_callbacks: CallbacksContainer<dummy_api::Callbacks>,
+		pub dummy_callbacks: CallbacksContainer<dummy_api::DummyApiCallbacks>,
 		pub map_format_callbacks: CallbacksContainer<map_format_api::Callbacks>,
 	}
 
