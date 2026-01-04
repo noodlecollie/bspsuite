@@ -53,26 +53,11 @@ impl DummyApiImpl
 mod ffi_impl
 {
 	use super::*;
-	use crate::extensions::api_impl::LinkOpaqueToImpl;
+	use crate::extensions::api_impl::{LinkOpaqueToImpl, link_opaque_to_impl};
 	use bspextifc::dummy_api::internal::{Ctx, OpaqueContext};
 	use bspsuite_ffi::types::internal::ContextPtr;
 
-	impl<'l> LinkOpaqueToImpl<'l, OpaqueContext, DummyApiImpl> for Ctx<'l>
-	{
-		fn new_context(api_impl: &'l RefCell<DummyApiImpl>) -> ContextPtr<'l, OpaqueContext>
-		{
-			unsafe {
-				return ContextPtr::new(api_impl);
-			}
-		}
-
-		fn to_impl(&self) -> &RefCell<DummyApiImpl>
-		{
-			unsafe {
-				return *self.as_void_ptr().cast::<&RefCell<DummyApiImpl>>();
-			}
-		}
-	}
+	link_opaque_to_impl!(OpaqueContext, DummyApiImpl);
 
 	pub(super) fn create_ffi_table<'l>(api_impl: &'l RefCell<DummyApiImpl>) -> FfiTable<'l>
 	{
