@@ -1,7 +1,7 @@
 // Example of the conventions used to create an extension API.
 
 use super::api_info::ApiInfo;
-use std::ffi::c_void;
+use bspsuite_ffi::types::internal::ContextPtr;
 
 // Each API has a name and a version.
 pub const API_INFO: ApiInfo = ApiInfo::new("DummyApi", 1);
@@ -45,7 +45,7 @@ impl<'l> DummyApi<'l>
 		// SAFETY: Core library responsible for ensuring that self.fns.context
 		// is valid for this struct's lifetime, and that the function being
 		// called knows what type to convert the context into.
-		unsafe { (self.ffi_table.store_number_fn)(*self.ffi_table.context, value) };
+		unsafe { (self.ffi_table.store_number_fn)(&mut self.ffi_table.context, value) };
 	}
 
 	// Get a number from the core library.
@@ -54,13 +54,23 @@ impl<'l> DummyApi<'l>
 		// SAFETY: Core library responsible for ensuring that self.fns.context
 		// is valid for this struct's lifetime, and that the function being
 		// called knows what type to convert the context into.
-		return unsafe { (self.ffi_table.get_magic_number_fn)(*self.ffi_table.context) };
+		return unsafe { (self.ffi_table.get_magic_number_fn)(&self.ffi_table.context) };
 	}
 }
 
 pub mod internal
 {
 	use super::*;
+	use core::marker::{PhantomData, PhantomPinned};
+	pub type Ctx<'l> = ContextPtr<'l, OpaqueContext>;
+
+	// Opaque context type. See https://doc.rust-lang.org/nomicon/ffi.html#representing-opaque-structs
+	#[repr(C)]
+	pub struct OpaqueContext
+	{
+		_data: (),
+		_marker: PhantomData<(*mut u8, PhantomPinned)>,
+	}
 
 	// This struct is filled out by the core library.
 	// SAFETY:
@@ -72,14 +82,12 @@ pub mod internal
 	#[repr(C)]
 	pub struct FfiTable<'l>
 	{
-		// Arbitrary context pointer for the core library functions.
-		// The lifetime indicates that the context must live at least
-		// as long as this struct does.
-		pub context: &'l *mut c_void,
+		// Context pointer that is linked to the Dummy API.
+		pub context: Ctx<'l>,
 
 		// Functions implemented by the core library.
-		pub store_number_fn: unsafe extern "C" fn(*mut c_void, i32),
-		pub get_magic_number_fn: unsafe extern "C" fn(*const c_void) -> i32,
+		pub store_number_fn: unsafe extern "C" fn(&mut Ctx, i32),
+		pub get_magic_number_fn: unsafe extern "C" fn(&Ctx) -> i32,
 	}
 
 	// Called by the core library in order to create the dummy API struct.

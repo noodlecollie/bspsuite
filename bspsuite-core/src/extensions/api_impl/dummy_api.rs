@@ -1,7 +1,6 @@
-use super::opaque_ptr::OpaqueMutPtr;
 use bspextifc::dummy_api::internal::{FfiTable, create_dummy_api};
 use bspextifc::dummy_api::{DummyApi, DummyApiCallbacks};
-use std::ffi::c_void;
+use std::cell::RefCell;
 
 pub struct DummyApiEndpoint
 {
@@ -17,9 +16,8 @@ impl DummyApiEndpoint
 
 	pub fn call_entry_point(&self)
 	{
-		let mut api_impl: DummyApiImpl = DummyApiImpl::new(42);
-		let mut context: OpaqueMutPtr<DummyApiImpl> = OpaqueMutPtr::new(&mut api_impl);
-		let ffi_table: FfiTable = ffi_impl::create_ffi_table(&mut context);
+		let mut api_impl: RefCell<DummyApiImpl> = RefCell::new(DummyApiImpl::new(42));
+		let ffi_table: FfiTable = ffi_impl::create_ffi_table(&mut api_impl);
 		let mut api: DummyApi = create_dummy_api(ffi_table);
 		(self.inner.entry_point)(&mut api);
 	}
@@ -55,24 +53,43 @@ impl DummyApiImpl
 mod ffi_impl
 {
 	use super::*;
+	use crate::extensions::api_impl::LinkOpaqueToImpl;
+	use bspextifc::dummy_api::internal::{Ctx, OpaqueContext};
+	use bspsuite_ffi::types::internal::ContextPtr;
 
-	pub(super) fn create_ffi_table<'l>(api_impl: &'l mut OpaqueMutPtr<DummyApiImpl>)
-	-> FfiTable<'l>
+	impl<'l> LinkOpaqueToImpl<'l, OpaqueContext, DummyApiImpl> for Ctx<'l>
+	{
+		fn new_context(api_impl: &'l RefCell<DummyApiImpl>) -> ContextPtr<'l, OpaqueContext>
+		{
+			unsafe {
+				return ContextPtr::new(api_impl);
+			}
+		}
+
+		fn to_impl(&self) -> &RefCell<DummyApiImpl>
+		{
+			unsafe {
+				return *self.as_void_ptr().cast::<&RefCell<DummyApiImpl>>();
+			}
+		}
+	}
+
+	pub(super) fn create_ffi_table<'l>(api_impl: &'l RefCell<DummyApiImpl>) -> FfiTable<'l>
 	{
 		return FfiTable {
-			context: api_impl.as_mut_void_ref(),
+			context: Ctx::new_context(api_impl),
 			store_number_fn: store_number,
 			get_magic_number_fn: get_magic_number,
 		};
 	}
 
-	unsafe extern "C" fn store_number(context: *mut c_void, value: i32)
+	unsafe extern "C" fn store_number(context: &mut Ctx, value: i32)
 	{
-		unsafe { (*context.cast::<DummyApiImpl>()).store_number(value) };
+		context.to_impl().borrow_mut().store_number(value);
 	}
 
-	unsafe extern "C" fn get_magic_number(context: *const c_void) -> i32
+	unsafe extern "C" fn get_magic_number(context: &Ctx) -> i32
 	{
-		return unsafe { (*context.cast::<DummyApiImpl>()).get_magic_number() };
+		return context.to_impl().borrow().get_magic_number();
 	}
 }
