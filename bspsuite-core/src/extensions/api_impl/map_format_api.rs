@@ -1,10 +1,12 @@
-use super::opaque_ptr::OpaqueMutPtr;
+use std::cell::RefCell;
+use std::collections::HashMap;
+
+use bspextifc::builders::map_blueprint_builder::MapBlueprintBuilder;
 use bspextifc::map_format_api;
+use bspextifc::map_format_api::internal::{ApiFfiTable, BuilderFfiTable};
 use bspsuite_ffi::types::{XCSlice, XCStr};
 use itertools::Itertools;
 use log::{debug, warn};
-use std::collections::HashMap;
-use std::ffi::c_void;
 
 pub struct MapParseCallback
 {
@@ -41,20 +43,13 @@ impl Endpoint
 
 	pub fn register_map_formats(&mut self, extension_name: &str)
 	{
-		let mut api_impl: ApiImpl = ApiImpl::new(extension_name);
-		let mut context: OpaqueMutPtr<ApiImpl> = OpaqueMutPtr::new(&mut api_impl);
-
-		let core_fns: map_format_api::internal::ApiFfiTable =
-			map_format_api::internal::ApiFfiTable {
-				context: context.as_mut_void_ref(),
-				register_map_format_fn: register_map_format,
-			};
-
+		let mut api_impl: RefCell<ApiImpl> = RefCell::new(ApiImpl::new(extension_name));
+		let ffi_table: ApiFfiTable = ffi_impl::create_api_ffi_table(&mut api_impl);
 		let mut api: map_format_api::Api =
-			map_format_api::internal::create_map_format_api(core_fns);
-		(self.inner.register_map_formats)(&mut api);
+			map_format_api::internal::create_map_format_api(ffi_table);
 
-		self.map_formats = api_impl.finish();
+		(self.inner.register_map_formats)(&mut api);
+		self.map_formats = api_impl.into_inner().finish();
 	}
 
 	pub fn supports_map_format(&self, format_name: &str) -> bool
@@ -102,28 +97,32 @@ impl Endpoint
 			.map(|(key, val)| (key.as_str(), val))
 			.collect();
 	}
-}
 
-impl MapParseCallback
-{
-	pub fn parse(&self, data: &str, builder: &mut map_format_api::MapBlueprintBuilderApi)
+	fn parse_map(data: &str, parse_fn: &MapParseCallback) -> MapBlueprintBuilder
 	{
-		(self.parse_fn)(&XCStr::new(data), builder);
+		let mut builder_impl: RefCell<MapBlueprintBuilder> =
+			RefCell::new(MapBlueprintBuilder::new());
+		let ffi_table: BuilderFfiTable = ffi_impl::create_builder_ffi_table(&mut builder_impl);
+		let mut builder_api: map_format_api::MapBlueprintBuilderApi =
+			map_format_api::internal::create_map_blueprint_builder_api(ffi_table);
+
+		(parse_fn.parse_fn)(&XCStr::new(data), &mut builder_api);
+		return builder_impl.into_inner();
 	}
 }
 
-struct ApiImpl<'l>
+struct ApiImpl
 {
-	extension_name: &'l str,
+	extension_name: String,
 	formats: HashMap<String, MapFormatDefinition>,
 }
 
-impl<'l> ApiImpl<'l>
+impl ApiImpl
 {
-	pub fn new(extension_name: &'l str) -> Self
+	pub fn new(extension_name: &str) -> Self
 	{
 		return Self {
-			extension_name: extension_name,
+			extension_name: extension_name.to_owned(),
 			formats: HashMap::new(),
 		};
 	}
@@ -216,226 +215,228 @@ impl<'l> ApiImpl<'l>
 	}
 }
 
-unsafe extern "C" fn register_map_format(
-	context: *mut c_void,
-	format_name: &XCStr,
-	file_extensions: &XCSlice<XCStr>,
-	parse_fn: map_format_api::MapParseFn,
-)
+mod ffi_impl
 {
-	unsafe {
-		(*context.cast::<ApiImpl>()).register_map_format(
+	use super::*;
+	use crate::extensions::api_impl::{LinkOpaqueToImpl, link_opaque_to_impl};
+	use bspextifc::builders::map_blueprint_builder::{
+		IMapBlueprintBuilder, MapBlueprintBuilder as BuilderImpl,
+	};
+	use bspextifc::map_format_api::internal::{
+		ApiCtx, ApiFfiTable, ApiOpaqueContext, BuilderCtx, BuilderErrorCode, BuilderFfiTable,
+		BuilderOpaqueContext,
+	};
+	use bspextifc::types::{DPlane, DVec2, DVec3};
+	use bspsuite_ffi::types::XCOption;
+	use bspsuite_ffi::types::internal::ContextPtr;
+
+	link_opaque_to_impl!(ApiOpaqueContext, ApiImpl);
+	link_opaque_to_impl!(BuilderOpaqueContext, BuilderImpl);
+
+	pub(super) fn create_api_ffi_table<'l>(api_impl: &'l RefCell<ApiImpl>) -> ApiFfiTable<'l>
+	{
+		return ApiFfiTable {
+			context: ApiCtx::new_context(api_impl),
+			register_map_format_fn: register_map_format,
+		};
+	}
+
+	pub(super) fn create_builder_ffi_table<'l>(
+		api_impl: &'l RefCell<BuilderImpl>,
+	) -> BuilderFfiTable<'l>
+	{
+		return BuilderFfiTable {
+			context: BuilderCtx::new_context(api_impl),
+			set_failure: set_failure,
+			set_failure_with_location: set_failure_with_location,
+			begin_entity: begin_entity,
+			end_entity: end_entity,
+			add_entity_keyvalue: add_entity_keyvalue,
+			begin_brush: begin_brush,
+			end_brush: end_brush,
+			begin_brush_face: begin_brush_face,
+			end_brush_face: end_brush_face,
+			set_brush_face_plane: set_brush_face_plane,
+			set_brush_face_material: set_brush_face_material,
+			set_brush_face_material_axes: set_brush_face_material_axes,
+			set_brush_face_material_translation: set_brush_face_material_translation,
+			set_brush_face_material_scale: set_brush_face_material_scale,
+			current_entity_index: current_entity_index,
+			current_brush_index: current_brush_index,
+			current_brush_face_index: current_brush_face_index,
+			num_entities: num_entities,
+			num_current_brushes: num_current_brushes,
+			num_current_brush_faces: num_current_brush_faces,
+		};
+	}
+
+	unsafe extern "C" fn register_map_format(
+		context: &mut ApiCtx,
+		format_name: &XCStr,
+		file_extensions: &XCSlice<XCStr>,
+		parse_fn: map_format_api::MapParseFn,
+	)
+	{
+		context.to_impl().borrow_mut().register_map_format(
 			format_name.to_string().as_ref(),
 			file_extensions.as_slice(),
 			parse_fn,
 		);
-	};
-}
-
-mod builder_extc
-{
-	use super::*;
-	use bspextifc::builders::map_blueprint_builder::{
-		IMapBlueprintBuilder, MapBlueprintBuilder as Builder,
-	};
-	use bspextifc::map_format_api::MapParseFn;
-	use bspextifc::map_format_api::internal::BuilderErrorCode;
-	use bspextifc::types::{DPlane, DVec2, DVec3};
-	use bspsuite_ffi::types::XCOption;
-
-	pub fn parse_map(data: &XCStr, parse_fn: &MapParseFn) -> Builder
-	{
-		let mut local_builder: Builder = Builder::new();
-		let mut context: OpaqueMutPtr<Builder> = OpaqueMutPtr::new(&mut local_builder);
-
-		let mut external_builder =
-			bspextifc::map_format_api::internal::create_map_blueprint_builder_api(
-				bspextifc::map_format_api::internal::BuilderFfiTable {
-					context: context.as_mut_void_ref(),
-					set_failure: set_failure,
-					set_failure_with_location: set_failure_with_location,
-					begin_entity: begin_entity,
-					end_entity: end_entity,
-					add_entity_keyvalue: add_entity_keyvalue,
-					begin_brush: begin_brush,
-					end_brush: end_brush,
-					begin_brush_face: begin_brush_face,
-					end_brush_face: end_brush_face,
-					set_brush_face_plane: set_brush_face_plane,
-					set_brush_face_material: set_brush_face_material,
-					set_brush_face_material_axes: set_brush_face_material_axes,
-					set_brush_face_material_translation: set_brush_face_material_translation,
-					set_brush_face_material_scale: set_brush_face_material_scale,
-					current_entity_index: current_entity_index,
-					current_brush_index: current_brush_index,
-					current_brush_face_index: current_brush_face_index,
-					num_entities: num_entities,
-					num_current_brushes: num_current_brushes,
-					num_current_brush_faces: num_current_brush_faces,
-				},
-			);
-
-		parse_fn(data, &mut external_builder);
-		return local_builder;
 	}
 
-	unsafe extern "C" fn set_failure(context: *mut c_void, description: &XCStr)
+	unsafe extern "C" fn set_failure(context: &mut BuilderCtx, description: &XCStr)
 	{
-		unsafe {
-			(*context.cast::<Builder>()).set_failure(description.to_string());
-		}
+		context
+			.to_impl()
+			.borrow_mut()
+			.set_failure(description.to_string());
 	}
 
 	unsafe extern "C" fn set_failure_with_location(
-		context: *mut c_void,
+		context: &mut BuilderCtx,
 		line: usize,
 		column: usize,
 		description: &XCStr,
 	)
 	{
-		unsafe {
-			(*context.cast::<Builder>()).set_failure_with_location(
-				line,
-				column,
-				description.to_string(),
-			);
-		}
+		context.to_impl().borrow_mut().set_failure_with_location(
+			line,
+			column,
+			description.to_string(),
+		);
 	}
 
-	unsafe extern "C" fn begin_entity(context: *mut c_void) -> BuilderErrorCode
+	unsafe extern "C" fn begin_entity(context: &mut BuilderCtx) -> BuilderErrorCode
 	{
-		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).begin_entity()) };
+		return context.to_impl().borrow_mut().begin_entity().into();
 	}
 
-	unsafe extern "C" fn end_entity(context: *mut c_void) -> BuilderErrorCode
+	unsafe extern "C" fn end_entity(context: &mut BuilderCtx) -> BuilderErrorCode
 	{
-		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).end_entity()) };
+		return context.to_impl().borrow_mut().end_entity().into();
 	}
 
 	unsafe extern "C" fn add_entity_keyvalue(
-		context: *mut c_void,
+		context: &mut BuilderCtx,
 		key: &XCStr,
 		value: &XCStr,
 	) -> BuilderErrorCode
 	{
-		return unsafe {
-			BuilderErrorCode::from(
-				(*context.cast::<Builder>())
-					.add_entity_keyvalue(key.to_string(), value.to_string()),
-			)
-		};
+		return context
+			.to_impl()
+			.borrow_mut()
+			.add_entity_keyvalue(key.to_string(), value.to_string())
+			.into();
 	}
 
-	unsafe extern "C" fn begin_brush(context: *mut c_void) -> BuilderErrorCode
+	unsafe extern "C" fn begin_brush(context: &mut BuilderCtx) -> BuilderErrorCode
 	{
-		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).begin_brush()) };
+		return context.to_impl().borrow_mut().begin_brush().into();
 	}
 
-	unsafe extern "C" fn end_brush(context: *mut c_void) -> BuilderErrorCode
+	unsafe extern "C" fn end_brush(context: &mut BuilderCtx) -> BuilderErrorCode
 	{
-		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).end_brush()) };
+		return context.to_impl().borrow_mut().end_brush().into();
 	}
 
-	unsafe extern "C" fn begin_brush_face(context: *mut c_void) -> BuilderErrorCode
+	unsafe extern "C" fn begin_brush_face(context: &mut BuilderCtx) -> BuilderErrorCode
 	{
-		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).begin_brush_face()) };
+		return context.to_impl().borrow_mut().begin_brush_face().into();
 	}
 
-	unsafe extern "C" fn end_brush_face(context: *mut c_void) -> BuilderErrorCode
+	unsafe extern "C" fn end_brush_face(context: &mut BuilderCtx) -> BuilderErrorCode
 	{
-		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).end_brush_face()) };
+		return context.to_impl().borrow_mut().end_brush_face().into();
 	}
 
 	unsafe extern "C" fn set_brush_face_plane(
-		context: *mut c_void,
+		context: &mut BuilderCtx,
 		plane: DPlane,
 	) -> BuilderErrorCode
 	{
-		return unsafe {
-			BuilderErrorCode::from((*context.cast::<Builder>()).set_brush_face_plane(plane))
-		};
+		return context
+			.to_impl()
+			.borrow_mut()
+			.set_brush_face_plane(plane)
+			.into();
 	}
 
 	unsafe extern "C" fn set_brush_face_material(
-		context: *mut c_void,
+		context: &mut BuilderCtx,
 		material_name: &XCStr,
 	) -> BuilderErrorCode
 	{
-		return unsafe {
-			BuilderErrorCode::from(
-				(*context.cast::<Builder>()).set_brush_face_material(material_name.to_string()),
-			)
-		};
+		return context
+			.to_impl()
+			.borrow_mut()
+			.set_brush_face_material(material_name.to_string())
+			.into();
 	}
 
 	unsafe extern "C" fn set_brush_face_material_axes(
-		context: *mut c_void,
+		context: &mut BuilderCtx,
 		u_unit_axis: DVec3,
 		v_unit_axis: DVec3,
 	) -> BuilderErrorCode
 	{
-		return unsafe {
-			BuilderErrorCode::from(
-				(*context.cast::<Builder>()).set_brush_face_material_axes(u_unit_axis, v_unit_axis),
-			)
-		};
+		return context
+			.to_impl()
+			.borrow_mut()
+			.set_brush_face_material_axes(u_unit_axis, v_unit_axis)
+			.into();
 	}
 
 	unsafe extern "C" fn set_brush_face_material_translation(
-		context: *mut c_void,
+		context: &mut BuilderCtx,
 		translation: DVec2,
 	) -> BuilderErrorCode
 	{
-		return unsafe {
-			BuilderErrorCode::from(
-				(*context.cast::<Builder>()).set_brush_face_material_translation(translation),
-			)
-		};
+		return context
+			.to_impl()
+			.borrow_mut()
+			.set_brush_face_material_translation(translation)
+			.into();
 	}
 
 	unsafe extern "C" fn set_brush_face_material_scale(
-		context: *mut c_void,
+		context: &mut BuilderCtx,
 		scale: DVec2,
 	) -> BuilderErrorCode
 	{
-		return unsafe {
-			BuilderErrorCode::from(
-				(*context.cast::<Builder>()).set_brush_face_material_scale(scale),
-			)
-		};
+		return context
+			.to_impl()
+			.borrow_mut()
+			.set_brush_face_material_scale(scale)
+			.into();
 	}
 
-	unsafe extern "C" fn current_entity_index(context: *const c_void) -> XCOption<usize>
+	unsafe extern "C" fn current_entity_index(context: &BuilderCtx) -> XCOption<usize>
 	{
-		return unsafe { (*context.cast::<Builder>()).current_entity_index().into() };
+		return context.to_impl().borrow().current_entity_index().into();
 	}
 
-	unsafe extern "C" fn current_brush_index(context: *const c_void) -> XCOption<usize>
+	unsafe extern "C" fn current_brush_index(context: &BuilderCtx) -> XCOption<usize>
 	{
-		return unsafe { (*context.cast::<Builder>()).current_brush_index().into() };
+		return context.to_impl().borrow().current_brush_index().into();
 	}
 
-	unsafe extern "C" fn current_brush_face_index(context: *const c_void) -> XCOption<usize>
+	unsafe extern "C" fn current_brush_face_index(context: &BuilderCtx) -> XCOption<usize>
 	{
-		return unsafe {
-			(*context.cast::<Builder>())
-				.current_brush_face_index()
-				.into()
-		};
+		return context.to_impl().borrow().current_brush_face_index().into();
 	}
 
-	unsafe extern "C" fn num_entities(context: *const c_void) -> usize
+	unsafe extern "C" fn num_entities(context: &BuilderCtx) -> usize
 	{
-		return unsafe { (*context.cast::<Builder>()).num_entities() };
+		return context.to_impl().borrow().num_entities();
 	}
 
-	unsafe extern "C" fn num_current_brushes(context: *const c_void) -> usize
+	unsafe extern "C" fn num_current_brushes(context: &BuilderCtx) -> usize
 	{
-		return unsafe { (*context.cast::<Builder>()).num_current_brushes() };
+		return context.to_impl().borrow().num_current_brushes();
 	}
 
-	unsafe extern "C" fn num_current_brush_faces(context: *const c_void) -> usize
+	unsafe extern "C" fn num_current_brush_faces(context: &BuilderCtx) -> usize
 	{
-		return unsafe { (*context.cast::<Builder>()).num_current_brush_faces() };
+		return context.to_impl().borrow().num_current_brush_faces();
 	}
 }

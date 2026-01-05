@@ -1,6 +1,7 @@
+use std::cell::RefCell;
+
 use bspextifc::dummy_api::internal::{FfiTable, create_dummy_api};
 use bspextifc::dummy_api::{DummyApi, DummyApiCallbacks};
-use std::cell::RefCell;
 
 pub struct DummyApiEndpoint
 {

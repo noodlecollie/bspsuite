@@ -1,7 +1,6 @@
 // Example of the conventions used to create an extension API.
 
 use super::api_info::ApiInfo;
-use bspsuite_ffi::types::internal::ContextPtr;
 
 // Each API has a name and a version.
 pub const API_INFO: ApiInfo = ApiInfo::new("DummyApi", 1);
@@ -61,7 +60,9 @@ impl<'l> DummyApi<'l>
 pub mod internal
 {
 	use super::*;
+	use bspsuite_ffi::types::internal::ContextPtr;
 	use core::marker::{PhantomData, PhantomPinned};
+
 	pub type Ctx<'l> = ContextPtr<'l, OpaqueContext>;
 
 	// Opaque context type. See https://doc.rust-lang.org/nomicon/ffi.html#representing-opaque-structs
@@ -93,6 +94,8 @@ pub mod internal
 	// Called by the core library in order to create the dummy API struct.
 	pub fn create_dummy_api<'l>(ffi_table: internal::FfiTable<'l>) -> DummyApi<'l>
 	{
-		return DummyApi { ffi_table };
+		return DummyApi {
+			ffi_table: ffi_table,
+		};
 	}
 }
