@@ -4,23 +4,22 @@ use crate::types::{DPlane, DVec2, DVec3};
 use bspsuite_ffi::types::{XCOption, XCSlice, XCStr};
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
-pub type RegisterMapFormatsFn = extern "C" fn(&mut Api);
+pub type RegisterMapFormatsFn = extern "C" fn(&mut MapFormatApi);
 pub type MapParseFn = extern "C" fn(&XCStr, &mut MapBlueprintBuilderApi);
 
-// TODO: Rename from "API"
 #[repr(C)]
-pub struct Api<'l>
+pub struct MapFormatApi<'l>
 {
 	ffi_table: internal::ApiFfiTable<'l>,
 }
 
 #[repr(C)]
-pub struct Callbacks
+pub struct MapFormatApiCallbacks
 {
 	pub register_map_formats: RegisterMapFormatsFn,
 }
 
-impl<'l> Api<'l>
+impl<'l> MapFormatApi<'l>
 {
 	pub fn register_map_format(
 		&mut self,
@@ -313,15 +312,15 @@ pub mod internal
 		pub num_current_brush_faces: unsafe extern "C" fn(&BuilderCtx) -> usize,
 	}
 
-	pub fn create_map_format_api<'l>(ffi_table: internal::ApiFfiTable<'l>) -> Api<'l>
+	pub fn create_map_format_api<'l>(ffi_table: ApiFfiTable<'l>) -> MapFormatApi<'l>
 	{
-		return Api {
+		return MapFormatApi {
 			ffi_table: ffi_table,
 		};
 	}
 
 	pub fn create_map_blueprint_builder_api<'l>(
-		ffi_table: internal::BuilderFfiTable<'l>,
+		ffi_table: BuilderFfiTable<'l>,
 	) -> MapBlueprintBuilderApi<'l>
 	{
 		return MapBlueprintBuilderApi {

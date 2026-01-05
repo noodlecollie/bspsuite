@@ -92,7 +92,7 @@ pub mod internal
 	}
 
 	// Called by the core library in order to create the dummy API struct.
-	pub fn create_dummy_api<'l>(ffi_table: internal::FfiTable<'l>) -> DummyApi<'l>
+	pub fn create_dummy_api<'l>(ffi_table: FfiTable<'l>) -> DummyApi<'l>
 	{
 		return DummyApi {
 			ffi_table: ffi_table,

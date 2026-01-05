@@ -1,18 +1,18 @@
-use bspextifc::map_format_api::{Api, Callbacks};
+use bspextifc::map_format_api::{MapFormatApi, MapFormatApiCallbacks};
 use bspsuite_ffi::types::XCStr;
 mod map_valve220;
 
 #[cfg(test)]
 mod tests;
 
-pub fn create_callbacks() -> Callbacks
+pub fn create_callbacks() -> MapFormatApiCallbacks
 {
-	return Callbacks {
+	return MapFormatApiCallbacks {
 		register_map_formats: register_map_formats,
 	};
 }
 
-pub extern "C" fn register_map_formats(api: &mut Api)
+pub extern "C" fn register_map_formats(api: &mut MapFormatApi)
 {
 	api.register_map_format(
 		&"valve220".into(),

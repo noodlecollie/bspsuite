@@ -68,7 +68,7 @@ impl<'l> ProbeApi<'l>
 	pub fn register_map_format_api_callbacks(
 		&mut self,
 		requested_version: usize,
-		callbacks: map_format_api::Callbacks,
+		callbacks: map_format_api::MapFormatApiCallbacks,
 	) -> Result<(), RequestError>
 	{
 		return internal::ExportedApis::request_set_callbacks(
@@ -120,7 +120,7 @@ pub mod internal
 	{
 		pub log_api: ApiProvider<log_api::Api>,
 		pub dummy_callbacks: CallbacksContainer<dummy_api::DummyApiCallbacks>,
-		pub map_format_callbacks: CallbacksContainer<map_format_api::Callbacks>,
+		pub map_format_callbacks: CallbacksContainer<map_format_api::MapFormatApiCallbacks>,
 	}
 
 	#[doc(hidden)]

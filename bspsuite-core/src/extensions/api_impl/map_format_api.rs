@@ -3,7 +3,9 @@ use std::collections::HashMap;
 
 use bspextifc::builders::map_blueprint_builder::MapBlueprintBuilder;
 use bspextifc::map_format_api;
-use bspextifc::map_format_api::internal::{ApiFfiTable, BuilderFfiTable};
+use bspextifc::map_format_api::internal::{
+	ApiFfiTable, BuilderFfiTable, create_map_blueprint_builder_api, create_map_format_api,
+};
 use bspsuite_ffi::types::{XCSlice, XCStr};
 use itertools::Itertools;
 use log::{debug, warn};
@@ -27,13 +29,13 @@ pub struct MapFormatDefinition
 
 pub struct Endpoint
 {
-	inner: map_format_api::Callbacks,
+	inner: map_format_api::MapFormatApiCallbacks,
 	map_formats: HashMap<String, MapFormatDefinition>,
 }
 
 impl Endpoint
 {
-	pub fn new(callbacks: map_format_api::Callbacks) -> Self
+	pub fn new(callbacks: map_format_api::MapFormatApiCallbacks) -> Self
 	{
 		return Self {
 			inner: callbacks,
@@ -45,8 +47,7 @@ impl Endpoint
 	{
 		let mut api_impl: RefCell<ApiImpl> = RefCell::new(ApiImpl::new(extension_name));
 		let ffi_table: ApiFfiTable = ffi_impl::create_api_ffi_table(&mut api_impl);
-		let mut api: map_format_api::Api =
-			map_format_api::internal::create_map_format_api(ffi_table);
+		let mut api: map_format_api::MapFormatApi = create_map_format_api(ffi_table);
 
 		(self.inner.register_map_formats)(&mut api);
 		self.map_formats = api_impl.into_inner().finish();
@@ -104,7 +105,7 @@ impl Endpoint
 			RefCell::new(MapBlueprintBuilder::new());
 		let ffi_table: BuilderFfiTable = ffi_impl::create_builder_ffi_table(&mut builder_impl);
 		let mut builder_api: map_format_api::MapBlueprintBuilderApi =
-			map_format_api::internal::create_map_blueprint_builder_api(ffi_table);
+			create_map_blueprint_builder_api(ffi_table);
 
 		(parse_fn.parse_fn)(&XCStr::new(data), &mut builder_api);
 		return builder_impl.into_inner();
@@ -130,7 +131,7 @@ impl ApiImpl
 	pub fn register_map_format(
 		&mut self,
 		format_name: &str,
-		file_extensions: &[XCStr], // TODO: Slice of &str?
+		file_extensions: &[XCStr],
 		parse_fn: map_format_api::MapParseFn,
 	)
 	{
