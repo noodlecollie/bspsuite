@@ -45,8 +45,8 @@ impl Endpoint
 
 	pub fn register_map_formats(&mut self, extension_name: &str)
 	{
-		let mut api_impl: RefCell<ApiImpl> = RefCell::new(ApiImpl::new(extension_name));
-		let ffi_table: ApiFfiTable = ffi_impl::create_api_ffi_table(&mut api_impl);
+		let api_impl: RefCell<ApiImpl> = RefCell::new(ApiImpl::new(extension_name));
+		let ffi_table: ApiFfiTable = ffi_impl::create_api_ffi_table(&api_impl);
 		let mut api: map_format_api::MapFormatApi = create_map_format_api(ffi_table);
 
 		(self.inner.register_map_formats)(&mut api);
@@ -208,9 +208,8 @@ impl MapFormatDefinition
 {
 	pub fn parse_map(&self, data: &str) -> MapBlueprintBuilder
 	{
-		let mut builder_impl: RefCell<MapBlueprintBuilder> =
-			RefCell::new(MapBlueprintBuilder::new());
-		let ffi_table: BuilderFfiTable = ffi_impl::create_builder_ffi_table(&mut builder_impl);
+		let builder_impl: RefCell<MapBlueprintBuilder> = RefCell::new(MapBlueprintBuilder::new());
+		let ffi_table: BuilderFfiTable = ffi_impl::create_builder_ffi_table(&builder_impl);
 		let mut builder_api: map_format_api::MapBlueprintBuilderApi =
 			create_map_blueprint_builder_api(ffi_table);
 

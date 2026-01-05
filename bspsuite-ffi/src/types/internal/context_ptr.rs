@@ -21,7 +21,7 @@ impl<'l, OpaqueType> ContextPtr<'l, OpaqueType>
 	pub unsafe fn new<Ctx>(context: &'l RefCell<Ctx>) -> Self
 	{
 		return Self {
-			ptr: context as *const RefCell<Ctx> as *const c_void,
+			ptr: core::ptr::from_ref(context) as *const c_void,
 			phantom: PhantomData,
 		};
 	}

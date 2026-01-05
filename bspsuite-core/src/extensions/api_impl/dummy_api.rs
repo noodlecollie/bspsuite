@@ -17,8 +17,8 @@ impl DummyApiEndpoint
 
 	pub fn call_entry_point(&self)
 	{
-		let mut api_impl: RefCell<DummyApiImpl> = RefCell::new(DummyApiImpl::new(42));
-		let ffi_table: FfiTable = ffi_impl::create_ffi_table(&mut api_impl);
+		let api_impl: RefCell<DummyApiImpl> = RefCell::new(DummyApiImpl::new(42));
+		let ffi_table: FfiTable = ffi_impl::create_ffi_table(&api_impl);
 		let mut api: DummyApi = create_dummy_api(ffi_table);
 		(self.inner.entry_point)(&mut api);
 	}
