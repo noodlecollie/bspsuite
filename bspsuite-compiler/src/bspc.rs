@@ -31,7 +31,7 @@ fn main()
 		Cmds::ResultCode::Ok => (),
 		_ =>
 		{
-			error!("[{subcommand}] failed.");
+			error!("{subcommand} command failed.");
 		}
 	}
 
