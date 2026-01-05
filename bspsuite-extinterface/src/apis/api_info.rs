@@ -1,3 +1,4 @@
+// TODO: Swap str for XCStr to make this FFI-safe
 pub struct ApiInfo
 {
 	pub name: &'static str,

@@ -44,10 +44,11 @@ impl Endpoint
 		let mut api_impl: ApiImpl = ApiImpl::new(extension_name);
 		let mut context: OpaqueMutPtr<ApiImpl> = OpaqueMutPtr::new(&mut api_impl);
 
-		let core_fns: map_format_api::internal::CoreFns = map_format_api::internal::CoreFns {
-			context: context.as_mut_void_ref(),
-			register_map_format_fn: register_map_format,
-		};
+		let core_fns: map_format_api::internal::ApiFfiTable =
+			map_format_api::internal::ApiFfiTable {
+				context: context.as_mut_void_ref(),
+				register_map_format_fn: register_map_format,
+			};
 
 		let mut api: map_format_api::Api =
 			map_format_api::internal::create_map_format_api(core_fns);
@@ -105,7 +106,7 @@ impl Endpoint
 
 impl MapParseCallback
 {
-	pub fn parse(&self, data: &str, builder: &mut map_format_api::MapBlueprintBuilder)
+	pub fn parse(&self, data: &str, builder: &mut map_format_api::MapBlueprintBuilderApi)
 	{
 		(self.parse_fn)(&XCStr::new(data), builder);
 	}
@@ -237,8 +238,8 @@ mod builder_extc
 	use bspextifc::builders::map_blueprint_builder::{
 		IMapBlueprintBuilder, MapBlueprintBuilder as Builder,
 	};
-	use bspextifc::map_format_api::internal::CoreBuilderOperationErrorCode;
 	use bspextifc::map_format_api::MapParseFn;
+	use bspextifc::map_format_api::internal::BuilderErrorCode;
 	use bspextifc::types::{DPlane, DVec2, DVec3};
 	use bspsuite_ffi::types::XCOption;
 
@@ -248,8 +249,8 @@ mod builder_extc
 		let mut context: OpaqueMutPtr<Builder> = OpaqueMutPtr::new(&mut local_builder);
 
 		let mut external_builder =
-			bspextifc::map_format_api::internal::create_map_blueprint_builder(
-				bspextifc::map_format_api::internal::CoreBuilderFns {
+			bspextifc::map_format_api::internal::create_map_blueprint_builder_api(
+				bspextifc::map_format_api::internal::BuilderFfiTable {
 					context: context.as_mut_void_ref(),
 					set_failure: set_failure,
 					set_failure_with_location: set_failure_with_location,
@@ -301,85 +302,67 @@ mod builder_extc
 		}
 	}
 
-	unsafe extern "C" fn begin_entity(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	unsafe extern "C" fn begin_entity(context: *mut c_void) -> BuilderErrorCode
 	{
-		return unsafe {
-			CoreBuilderOperationErrorCode::from_result((*context.cast::<Builder>()).begin_entity())
-		};
+		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).begin_entity()) };
 	}
 
-	unsafe extern "C" fn end_entity(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	unsafe extern "C" fn end_entity(context: *mut c_void) -> BuilderErrorCode
 	{
-		return unsafe {
-			CoreBuilderOperationErrorCode::from_result((*context.cast::<Builder>()).end_entity())
-		};
+		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).end_entity()) };
 	}
 
 	unsafe extern "C" fn add_entity_keyvalue(
 		context: *mut c_void,
 		key: &XCStr,
 		value: &XCStr,
-	) -> CoreBuilderOperationErrorCode
+	) -> BuilderErrorCode
 	{
 		return unsafe {
-			CoreBuilderOperationErrorCode::from_result(
+			BuilderErrorCode::from(
 				(*context.cast::<Builder>())
 					.add_entity_keyvalue(key.to_string(), value.to_string()),
 			)
 		};
 	}
 
-	unsafe extern "C" fn begin_brush(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	unsafe extern "C" fn begin_brush(context: *mut c_void) -> BuilderErrorCode
 	{
-		return unsafe {
-			CoreBuilderOperationErrorCode::from_result((*context.cast::<Builder>()).begin_brush())
-		};
+		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).begin_brush()) };
 	}
 
-	unsafe extern "C" fn end_brush(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	unsafe extern "C" fn end_brush(context: *mut c_void) -> BuilderErrorCode
 	{
-		return unsafe {
-			CoreBuilderOperationErrorCode::from_result((*context.cast::<Builder>()).end_brush())
-		};
+		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).end_brush()) };
 	}
 
-	unsafe extern "C" fn begin_brush_face(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	unsafe extern "C" fn begin_brush_face(context: *mut c_void) -> BuilderErrorCode
 	{
-		return unsafe {
-			CoreBuilderOperationErrorCode::from_result(
-				(*context.cast::<Builder>()).begin_brush_face(),
-			)
-		};
+		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).begin_brush_face()) };
 	}
 
-	unsafe extern "C" fn end_brush_face(context: *mut c_void) -> CoreBuilderOperationErrorCode
+	unsafe extern "C" fn end_brush_face(context: *mut c_void) -> BuilderErrorCode
 	{
-		return unsafe {
-			CoreBuilderOperationErrorCode::from_result(
-				(*context.cast::<Builder>()).end_brush_face(),
-			)
-		};
+		return unsafe { BuilderErrorCode::from((*context.cast::<Builder>()).end_brush_face()) };
 	}
 
 	unsafe extern "C" fn set_brush_face_plane(
 		context: *mut c_void,
 		plane: DPlane,
-	) -> CoreBuilderOperationErrorCode
+	) -> BuilderErrorCode
 	{
 		return unsafe {
-			CoreBuilderOperationErrorCode::from_result(
-				(*context.cast::<Builder>()).set_brush_face_plane(plane),
-			)
+			BuilderErrorCode::from((*context.cast::<Builder>()).set_brush_face_plane(plane))
 		};
 	}
 
 	unsafe extern "C" fn set_brush_face_material(
 		context: *mut c_void,
 		material_name: &XCStr,
-	) -> CoreBuilderOperationErrorCode
+	) -> BuilderErrorCode
 	{
 		return unsafe {
-			CoreBuilderOperationErrorCode::from_result(
+			BuilderErrorCode::from(
 				(*context.cast::<Builder>()).set_brush_face_material(material_name.to_string()),
 			)
 		};
@@ -389,10 +372,10 @@ mod builder_extc
 		context: *mut c_void,
 		u_unit_axis: DVec3,
 		v_unit_axis: DVec3,
-	) -> CoreBuilderOperationErrorCode
+	) -> BuilderErrorCode
 	{
 		return unsafe {
-			CoreBuilderOperationErrorCode::from_result(
+			BuilderErrorCode::from(
 				(*context.cast::<Builder>()).set_brush_face_material_axes(u_unit_axis, v_unit_axis),
 			)
 		};
@@ -401,10 +384,10 @@ mod builder_extc
 	unsafe extern "C" fn set_brush_face_material_translation(
 		context: *mut c_void,
 		translation: DVec2,
-	) -> CoreBuilderOperationErrorCode
+	) -> BuilderErrorCode
 	{
 		return unsafe {
-			CoreBuilderOperationErrorCode::from_result(
+			BuilderErrorCode::from(
 				(*context.cast::<Builder>()).set_brush_face_material_translation(translation),
 			)
 		};
@@ -413,10 +396,10 @@ mod builder_extc
 	unsafe extern "C" fn set_brush_face_material_scale(
 		context: *mut c_void,
 		scale: DVec2,
-	) -> CoreBuilderOperationErrorCode
+	) -> BuilderErrorCode
 	{
 		return unsafe {
-			CoreBuilderOperationErrorCode::from_result(
+			BuilderErrorCode::from(
 				(*context.cast::<Builder>()).set_brush_face_material_scale(scale),
 			)
 		};

@@ -6,12 +6,12 @@ use std::ffi::c_void;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
 pub type RegisterMapFormatsFn = extern "C" fn(&mut Api);
-pub type MapParseFn = extern "C" fn(&XCStr, &mut MapBlueprintBuilder);
+pub type MapParseFn = extern "C" fn(&XCStr, &mut MapBlueprintBuilderApi);
 
 #[repr(C)]
 pub struct Api<'l>
 {
-	fns: internal::CoreFns<'l>,
+	fns: internal::ApiFfiTable<'l>,
 }
 
 #[repr(C)]
@@ -41,15 +41,15 @@ impl<'l> Api<'l>
 }
 
 #[repr(C)]
-pub struct MapBlueprintBuilder<'l>
+pub struct MapBlueprintBuilderApi<'l>
 {
-	fns: internal::CoreBuilderFns<'l>,
+	fns: internal::BuilderFfiTable<'l>,
 }
 
 // SAFETY: Core library responsible for ensuring that self.fns.context
 // is valid for this struct's lifetime, and that the function being
 // called knows what type to convert the context into.
-impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
+impl<'l> IMapBlueprintBuilder for MapBlueprintBuilderApi<'l>
 {
 	fn set_failure(&mut self, description: String)
 	{
@@ -70,12 +70,12 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 
 	fn begin_entity(&mut self) -> Result<(), OperationError>
 	{
-		return unsafe { (self.fns.begin_entity)(*self.fns.context).to_result() };
+		return unsafe { (self.fns.begin_entity)(*self.fns.context).into() };
 	}
 
 	fn end_entity(&mut self) -> Result<(), OperationError>
 	{
-		return unsafe { (self.fns.end_entity)(*self.fns.context).to_result() };
+		return unsafe { (self.fns.end_entity)(*self.fns.context).into() };
 	}
 
 	fn add_entity_keyvalue(&mut self, key: String, value: String) -> Result<(), OperationError>
@@ -86,40 +86,40 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 				&XCStr::new(&key),
 				&XCStr::new(&value),
 			)
-			.to_result()
+			.into()
 		};
 	}
 
 	fn begin_brush(&mut self) -> Result<(), OperationError>
 	{
-		return unsafe { (self.fns.begin_brush)(*self.fns.context).to_result() };
+		return unsafe { (self.fns.begin_brush)(*self.fns.context).into() };
 	}
 
 	fn end_brush(&mut self) -> Result<(), OperationError>
 	{
-		return unsafe { (self.fns.end_brush)(*self.fns.context).to_result() };
+		return unsafe { (self.fns.end_brush)(*self.fns.context).into() };
 	}
 
 	fn begin_brush_face(&mut self) -> Result<(), OperationError>
 	{
-		return unsafe { (self.fns.begin_brush_face)(*self.fns.context).to_result() };
+		return unsafe { (self.fns.begin_brush_face)(*self.fns.context).into() };
 	}
 
 	fn end_brush_face(&mut self) -> Result<(), OperationError>
 	{
-		return unsafe { (self.fns.end_brush_face)(*self.fns.context).to_result() };
+		return unsafe { (self.fns.end_brush_face)(*self.fns.context).into() };
 	}
 
 	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), OperationError>
 	{
-		return unsafe { (self.fns.set_brush_face_plane)(*self.fns.context, plane).to_result() };
+		return unsafe { (self.fns.set_brush_face_plane)(*self.fns.context, plane).into() };
 	}
 
 	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), OperationError>
 	{
 		return unsafe {
 			(self.fns.set_brush_face_material)(*self.fns.context, &XCStr::new(&material_name))
-				.to_result()
+				.into()
 		};
 	}
 
@@ -131,7 +131,7 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 	{
 		return unsafe {
 			(self.fns.set_brush_face_material_axes)(*self.fns.context, u_unit_axis, v_unit_axis)
-				.to_result()
+				.into()
 		};
 	}
 
@@ -141,15 +141,14 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 	) -> Result<(), OperationError>
 	{
 		return unsafe {
-			(self.fns.set_brush_face_material_translation)(*self.fns.context, translation)
-				.to_result()
+			(self.fns.set_brush_face_material_translation)(*self.fns.context, translation).into()
 		};
 	}
 
 	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), OperationError>
 	{
 		return unsafe {
-			(self.fns.set_brush_face_material_scale)(*self.fns.context, scale).to_result()
+			(self.fns.set_brush_face_material_scale)(*self.fns.context, scale).into()
 		};
 	}
 
@@ -188,12 +187,46 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilder<'l>
 
 pub mod internal
 {
+	use super::*;
 	use bspsuite_ffi::types::XCSlice;
 
-	use super::*;
+	#[repr(C)]
+	pub enum BuilderErrorCode
+	{
+		Ok,
+		OperationNotStarted,
+		OperationNotFinished,
+	}
+
+	impl From<Result<(), OperationError>> for BuilderErrorCode
+	{
+		fn from(value: Result<(), OperationError>) -> Self
+		{
+			return value
+				.map(|_| BuilderErrorCode::Ok)
+				.unwrap_or_else(|err| match err
+				{
+					OperationError::OperationNotStarted => BuilderErrorCode::OperationNotStarted,
+					OperationError::OperationNotFinished => BuilderErrorCode::OperationNotFinished,
+				});
+		}
+	}
+
+	impl Into<Result<(), OperationError>> for BuilderErrorCode
+	{
+		fn into(self) -> Result<(), OperationError>
+		{
+			return match self
+			{
+				BuilderErrorCode::Ok => Ok(()),
+				BuilderErrorCode::OperationNotStarted => Err(OperationError::OperationNotStarted),
+				BuilderErrorCode::OperationNotFinished => Err(OperationError::OperationNotFinished),
+			};
+		}
+	}
 
 	#[repr(C)]
-	pub struct CoreFns<'l>
+	pub struct ApiFfiTable<'l>
 	{
 		pub context: &'l *mut c_void,
 
@@ -202,75 +235,28 @@ pub mod internal
 	}
 
 	#[repr(C)]
-	pub enum CoreBuilderOperationErrorCode
-	{
-		Ok,
-		OperationNotStarted,
-		OperationNotFinished,
-	}
-
-	// TODO: Implement from/into?
-	impl CoreBuilderOperationErrorCode
-	{
-		pub fn to_result(self) -> Result<(), OperationError>
-		{
-			return match self
-			{
-				CoreBuilderOperationErrorCode::Ok => Ok(()),
-				CoreBuilderOperationErrorCode::OperationNotStarted =>
-				{
-					Err(OperationError::OperationNotStarted)
-				}
-				CoreBuilderOperationErrorCode::OperationNotFinished =>
-				{
-					Err(OperationError::OperationNotFinished)
-				}
-			};
-		}
-
-		pub fn from_result(result: Result<(), OperationError>) -> Self
-		{
-			return result
-				.map(|_| CoreBuilderOperationErrorCode::Ok)
-				.unwrap_or_else(|err| match err
-				{
-					OperationError::OperationNotStarted =>
-					{
-						CoreBuilderOperationErrorCode::OperationNotStarted
-					}
-					OperationError::OperationNotFinished =>
-					{
-						CoreBuilderOperationErrorCode::OperationNotFinished
-					}
-				});
-		}
-	}
-
-	#[repr(C)]
-	pub struct CoreBuilderFns<'l>
+	pub struct BuilderFfiTable<'l>
 	{
 		pub context: &'l *mut c_void,
 
 		pub set_failure: unsafe extern "C" fn(*mut c_void, &XCStr),
 		pub set_failure_with_location: unsafe extern "C" fn(*mut c_void, usize, usize, &XCStr),
-		pub begin_entity: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
-		pub end_entity: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
+		pub begin_entity: unsafe extern "C" fn(*mut c_void) -> BuilderErrorCode,
+		pub end_entity: unsafe extern "C" fn(*mut c_void) -> BuilderErrorCode,
 		pub add_entity_keyvalue:
-			unsafe extern "C" fn(*mut c_void, &XCStr, &XCStr) -> CoreBuilderOperationErrorCode,
-		pub begin_brush: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
-		pub end_brush: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
-		pub begin_brush_face: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
-		pub end_brush_face: unsafe extern "C" fn(*mut c_void) -> CoreBuilderOperationErrorCode,
-		pub set_brush_face_plane:
-			unsafe extern "C" fn(*mut c_void, DPlane) -> CoreBuilderOperationErrorCode,
-		pub set_brush_face_material:
-			unsafe extern "C" fn(*mut c_void, &XCStr) -> CoreBuilderOperationErrorCode,
+			unsafe extern "C" fn(*mut c_void, &XCStr, &XCStr) -> BuilderErrorCode,
+		pub begin_brush: unsafe extern "C" fn(*mut c_void) -> BuilderErrorCode,
+		pub end_brush: unsafe extern "C" fn(*mut c_void) -> BuilderErrorCode,
+		pub begin_brush_face: unsafe extern "C" fn(*mut c_void) -> BuilderErrorCode,
+		pub end_brush_face: unsafe extern "C" fn(*mut c_void) -> BuilderErrorCode,
+		pub set_brush_face_plane: unsafe extern "C" fn(*mut c_void, DPlane) -> BuilderErrorCode,
+		pub set_brush_face_material: unsafe extern "C" fn(*mut c_void, &XCStr) -> BuilderErrorCode,
 		pub set_brush_face_material_axes:
-			unsafe extern "C" fn(*mut c_void, DVec3, DVec3) -> CoreBuilderOperationErrorCode,
+			unsafe extern "C" fn(*mut c_void, DVec3, DVec3) -> BuilderErrorCode,
 		pub set_brush_face_material_translation:
-			unsafe extern "C" fn(*mut c_void, DVec2) -> CoreBuilderOperationErrorCode,
+			unsafe extern "C" fn(*mut c_void, DVec2) -> BuilderErrorCode,
 		pub set_brush_face_material_scale:
-			unsafe extern "C" fn(*mut c_void, DVec2) -> CoreBuilderOperationErrorCode,
+			unsafe extern "C" fn(*mut c_void, DVec2) -> BuilderErrorCode,
 		pub current_entity_index: unsafe extern "C" fn(*const c_void) -> XCOption<usize>,
 		pub current_brush_index: unsafe extern "C" fn(*const c_void) -> XCOption<usize>,
 		pub current_brush_face_index: unsafe extern "C" fn(*const c_void) -> XCOption<usize>,
@@ -279,15 +265,15 @@ pub mod internal
 		pub num_current_brush_faces: unsafe extern "C" fn(*const c_void) -> usize,
 	}
 
-	pub fn create_map_format_api<'l>(fns: internal::CoreFns<'l>) -> Api<'l>
+	pub fn create_map_format_api<'l>(fns: internal::ApiFfiTable<'l>) -> Api<'l>
 	{
 		return Api { fns: fns };
 	}
 
-	pub fn create_map_blueprint_builder<'l>(
-		fns: internal::CoreBuilderFns<'l>,
-	) -> MapBlueprintBuilder<'l>
+	pub fn create_map_blueprint_builder_api<'l>(
+		fns: internal::BuilderFfiTable<'l>,
+	) -> MapBlueprintBuilderApi<'l>
 	{
-		return MapBlueprintBuilder { fns: fns };
+		return MapBlueprintBuilderApi { fns: fns };
 	}
 }
