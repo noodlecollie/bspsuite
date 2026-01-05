@@ -5,7 +5,7 @@ use paris::formatter::colorize_string;
 use std::any::Any;
 use std::panic::{UnwindSafe, catch_unwind};
 
-pub fn wrap_residual_errors<F>(func: F) -> ResultCode
+pub(super) fn wrap_residual_errors<F>(func: F) -> ResultCode
 where
 	F: FnOnce() -> Result<(), CompilerError> + UnwindSafe,
 {
@@ -21,7 +21,7 @@ where
 }
 
 // Ensures that if a panic occurs, we log a fatal error and exit.
-pub fn wrap_panics<F>(func: F) -> ResultCode
+pub(super) fn wrap_panics<F>(func: F) -> ResultCode
 where
 	F: FnOnce() -> ResultCode + UnwindSafe,
 {

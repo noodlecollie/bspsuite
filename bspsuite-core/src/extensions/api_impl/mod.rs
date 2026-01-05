@@ -5,9 +5,7 @@ pub mod dummy_api;
 pub mod log_api;
 pub mod map_format_api;
 
-// TODO: Use this syntax for other re-exports in this crate?
-// We're probably exporting too much.
-pub(self) use link_opaque_to_impl::{LinkOpaqueToImpl, link_opaque_to_impl};
+use link_opaque_to_impl::{LinkOpaqueToImpl, link_opaque_to_impl};
 
 pub use {
 	dummy_api as dummy_api_impl, log_api as log_api_impl, map_format_api as map_format_api_impl,
