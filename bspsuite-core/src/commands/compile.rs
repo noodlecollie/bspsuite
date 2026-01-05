@@ -3,10 +3,11 @@ use std::path::PathBuf;
 use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_residual_errors;
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
-use crate::extensions::{extension_routines, ExtensionList};
+use crate::extensions::{ExtensionList, extension_routines};
 use crate::game_configs::GameConfig;
 use crate::toolchain::Toolchain;
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
+use bspextifc::builders::map_blueprint_builder::{Entity, MapBlueprintBuilder};
 use bspsuite_ffi::types::{XCOption, XCStr};
 use log::{debug, info};
 
@@ -71,6 +72,20 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 	let input_file: String = std::fs::read_to_string(&input_path)
 		.with_context(|| format!("Failed to read {}", input_path.display()))
 		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
+
+	let builder: MapBlueprintBuilder =
+		extension_routines::parse_map(&extensions, &input_file, &map_format)
+			.with_context(|| "Failed to initiate map parsing")
+			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;
+
+	let build_result: Vec<Entity> = builder.collect().map_err(|err| {
+		CompilerError::from_anyhow(
+			CompilerErrorCode::IoError,
+			anyhow!("Failed to parse map {}. {err}", input_path.display()),
+		)
+	})?;
+
+	// TODO
 
 	info!("Compile complete");
 

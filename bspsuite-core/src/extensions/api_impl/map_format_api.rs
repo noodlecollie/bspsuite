@@ -98,18 +98,6 @@ impl Endpoint
 			.map(|(key, val)| (key.as_str(), val))
 			.collect();
 	}
-
-	fn parse_map(data: &str, parse_fn: &MapParseCallback) -> MapBlueprintBuilder
-	{
-		let mut builder_impl: RefCell<MapBlueprintBuilder> =
-			RefCell::new(MapBlueprintBuilder::new());
-		let ffi_table: BuilderFfiTable = ffi_impl::create_builder_ffi_table(&mut builder_impl);
-		let mut builder_api: map_format_api::MapBlueprintBuilderApi =
-			create_map_blueprint_builder_api(ffi_table);
-
-		(parse_fn.parse_fn)(&XCStr::new(data), &mut builder_api);
-		return builder_impl.into_inner();
-	}
 }
 
 struct ApiImpl
@@ -213,6 +201,21 @@ impl ApiImpl
 	pub fn finish(self) -> HashMap<String, MapFormatDefinition>
 	{
 		return self.formats;
+	}
+}
+
+impl MapFormatDefinition
+{
+	pub fn parse_map(&self, data: &str) -> MapBlueprintBuilder
+	{
+		let mut builder_impl: RefCell<MapBlueprintBuilder> =
+			RefCell::new(MapBlueprintBuilder::new());
+		let ffi_table: BuilderFfiTable = ffi_impl::create_builder_ffi_table(&mut builder_impl);
+		let mut builder_api: map_format_api::MapBlueprintBuilderApi =
+			create_map_blueprint_builder_api(ffi_table);
+
+		(self.parse_fn.parse_fn)(&XCStr::new(data), &mut builder_api);
+		return builder_impl.into_inner();
 	}
 }
 

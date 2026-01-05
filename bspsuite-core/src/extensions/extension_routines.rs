@@ -5,6 +5,7 @@ use std::path::Path;
 use crate::extensions::api_impl::map_format_api;
 use crate::extensions::{Extension, ExtensionList, ExtensionRef};
 use anyhow::{Context, Result, bail};
+use bspextifc::builders::map_blueprint_builder::MapBlueprintBuilder;
 
 pub struct ExtensionForParsingMapFormat
 {
@@ -50,8 +51,8 @@ pub fn choose_extension_to_parse_map(
 pub fn parse_map(
 	list: &ExtensionList,
 	input_data: &str,
-	parse_using: ExtensionForParsingMapFormat,
-) -> Result<()>
+	parse_using: &ExtensionForParsingMapFormat,
+) -> Result<MapBlueprintBuilder>
 {
 	let extension: &ExtensionRef = list
 		.find_by_name(&parse_using.extension_name)
@@ -71,8 +72,7 @@ pub fn parse_map(
 		.get_definition(&parse_using.map_format_name)
 		.expect("Expected to be able to get map format definition to parse map");
 
-	// TODO: Invoke parse. The classes are too much of a mess at the moment, though.
-	todo!();
+	return Ok(map_format_def.parse_map(input_data));
 }
 
 fn choose_extension_to_parse_map_based_on_file_extension(
