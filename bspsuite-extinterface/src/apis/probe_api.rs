@@ -1,5 +1,5 @@
 use super::{dummy_api, log_api, map_format_api};
-use bspffi::types::XCStr;
+use bspffi::types::{XCOption, XCStr};
 use log::{error, trace};
 use std::result::Result;
 
@@ -45,7 +45,7 @@ impl<'l> ProbeApi<'l>
 	) -> Result<log_api::Api, RequestError>
 	{
 		return internal::ExportedApis::request_get_api(
-			self.extension_name.to_string().as_str(),
+			self.extension_name.as_str(),
 			&mut self.apis.log_api,
 			requested_version,
 		);
@@ -58,7 +58,7 @@ impl<'l> ProbeApi<'l>
 	) -> Result<(), RequestError>
 	{
 		return internal::ExportedApis::request_set_callbacks(
-			self.extension_name.to_string().as_str(),
+			self.extension_name.as_str(),
 			&mut self.apis.dummy_callbacks,
 			requested_version,
 			callbacks,
@@ -72,7 +72,7 @@ impl<'l> ProbeApi<'l>
 	) -> Result<(), RequestError>
 	{
 		return internal::ExportedApis::request_set_callbacks(
-			self.extension_name.to_string().as_str(),
+			self.extension_name.as_str(),
 			&mut self.apis.map_format_callbacks,
 			requested_version,
 			callbacks,
@@ -111,7 +111,7 @@ pub mod internal
 	{
 		name: XCStr<'static>,
 		version: usize,
-		callbacks: Option<T>,
+		callbacks: XCOption<T>,
 	}
 
 	#[doc(hidden)]
@@ -174,7 +174,7 @@ pub mod internal
 			return Self {
 				name: XCStr::from(api_info.name),
 				version: api_info.version,
-				callbacks: None,
+				callbacks: XCOption::None,
 			};
 		}
 
@@ -205,12 +205,12 @@ pub mod internal
 				)));
 			}
 
-			self.callbacks = Some(callbacks);
+			self.callbacks = XCOption::Some(callbacks);
 			return Ok(());
 		}
 
 		#[doc(hidden)]
-		pub fn take(self) -> Option<T>
+		pub fn take(self) -> XCOption<T>
 		{
 			return self.callbacks;
 		}

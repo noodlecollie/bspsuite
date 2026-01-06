@@ -205,10 +205,12 @@ impl Extension
 			dummy_api: callbacks
 				.dummy_callbacks
 				.take()
+				.into_option()
 				.map(|cb| dummy_api_impl::DummyApiEndpoint::new(cb)),
 			map_format_api: callbacks
 				.map_format_callbacks
 				.take()
+				.into_option()
 				.map(|cb| map_format_api_impl::Endpoint::new(cb)),
 		};
 
