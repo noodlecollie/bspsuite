@@ -6,7 +6,7 @@ use bspextifc::map_format_api;
 use bspextifc::map_format_api::internal::{
 	ApiFfiTable, BuilderFfiTable, create_map_blueprint_builder_api, create_map_format_api,
 };
-use bspsuite_ffi::types::{XCSlice, XCStr};
+use bspffi::types::{XCSlice, XCStr};
 use itertools::Itertools;
 use log::{debug, warn};
 
@@ -230,8 +230,8 @@ mod ffi_impl
 		BuilderOpaqueContext,
 	};
 	use bspextifc::types::{DPlane, DVec2, DVec3};
-	use bspsuite_ffi::types::XCOption;
-	use bspsuite_ffi::types::internal::ContextPtr;
+	use bspffi::types::XCOption;
+	use bspffi::types::internal::ContextPtr;
 
 	link_opaque_to_impl!(ApiOpaqueContext, ApiImpl);
 	link_opaque_to_impl!(BuilderOpaqueContext, BuilderImpl);

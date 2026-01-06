@@ -56,7 +56,7 @@ mod ffi_impl
 	use super::*;
 	use crate::extensions::api_impl::{LinkOpaqueToImpl, link_opaque_to_impl};
 	use bspextifc::dummy_api::internal::{Ctx, OpaqueContext};
-	use bspsuite_ffi::types::internal::ContextPtr;
+	use bspffi::types::internal::ContextPtr;
 
 	link_opaque_to_impl!(OpaqueContext, DummyApiImpl);
 

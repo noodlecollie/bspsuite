@@ -1,7 +1,7 @@
 use super::api_info::ApiInfo;
 use crate::builders::map_blueprint_builder::{IMapBlueprintBuilder, OperationError};
 use crate::types::{DPlane, DVec2, DVec3};
-use bspsuite_ffi::types::{XCOption, XCSlice, XCStr};
+use bspffi::types::{XCOption, XCSlice, XCStr};
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
 pub type RegisterMapFormatsFn = extern "C" fn(&mut MapFormatApi);
@@ -203,8 +203,8 @@ impl<'l> IMapBlueprintBuilder for MapBlueprintBuilderApi<'l>
 pub mod internal
 {
 	use super::*;
-	use bspsuite_ffi::types::XCSlice;
-	use bspsuite_ffi::types::internal::ContextPtr;
+	use bspffi::types::XCSlice;
+	use bspffi::types::internal::ContextPtr;
 	use core::marker::{PhantomData, PhantomPinned};
 
 	pub type ApiCtx<'l> = ContextPtr<'l, ApiOpaqueContext>;

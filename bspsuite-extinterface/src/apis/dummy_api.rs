@@ -60,7 +60,7 @@ impl<'l> DummyApi<'l>
 pub mod internal
 {
 	use super::*;
-	use bspsuite_ffi::types::internal::ContextPtr;
+	use bspffi::types::internal::ContextPtr;
 	use core::marker::{PhantomData, PhantomPinned};
 
 	pub type Ctx<'l> = ContextPtr<'l, OpaqueContext>;

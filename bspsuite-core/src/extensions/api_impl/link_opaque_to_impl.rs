@@ -1,4 +1,4 @@
-use bspsuite_ffi::types::internal::ContextPtr;
+use bspffi::types::internal::ContextPtr;
 use std::cell::RefCell;
 
 pub trait LinkOpaqueToImpl<'l, OpaqueType, ImplType>

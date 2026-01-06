@@ -1,7 +1,7 @@
 use bspextifc::builders::map_blueprint_builder::IMapBlueprintBuilder;
 use bspextifc::map_format_api::MapBlueprintBuilderApi;
 use bspextifc::types::{DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult};
-use bspsuite_ffi::types::XCStr;
+use bspffi::types::XCStr;
 use glam;
 use logos::Logos;
 

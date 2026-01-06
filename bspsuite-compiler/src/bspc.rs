@@ -3,7 +3,7 @@ mod cli;
 use std::ffi::{CStr, c_char};
 
 use bspcore::commands as Cmds;
-use bspsuite_ffi::types::{XCOption, XCStr};
+use bspffi::types::{XCOption, XCStr};
 
 use clap::Parser;
 use lazy_static::lazy_static;

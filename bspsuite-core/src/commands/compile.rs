@@ -8,7 +8,7 @@ use crate::game_configs::GameConfig;
 use crate::toolchain::Toolchain;
 use anyhow::{Context, Result, anyhow};
 use bspextifc::builders::map_blueprint_builder::{Entity, MapBlueprintBuilder};
-use bspsuite_ffi::types::{XCOption, XCStr};
+use bspffi::types::{XCOption, XCStr};
 use log::{debug, info};
 
 #[repr(C)]
