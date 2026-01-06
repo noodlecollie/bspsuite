@@ -132,7 +132,7 @@ pub mod internal
 		pub fn new(api_info: &ApiInfo, api: T) -> Self
 		{
 			return Self {
-				name: XCStr::from(api_info.name),
+				name: XCStr::from(api_info.name.as_str()),
 				version: api_info.version,
 				api: api,
 			};
@@ -172,7 +172,7 @@ pub mod internal
 		pub fn new(api_info: &ApiInfo) -> Self
 		{
 			return Self {
-				name: XCStr::from(api_info.name),
+				name: XCStr::from(api_info.name.as_str()),
 				version: api_info.version,
 				callbacks: XCOption::None,
 			};

@@ -56,6 +56,8 @@ It would certainly be useful to leverage vector instructions for the compiler, p
 
 # Extension FFI
 
+**TODO:** In future this approach might be better replaced by https://docs.rs/thin_trait_object/latest/thin_trait_object/
+
 A plugin-based system in Rust needs careful consideration regarding the exchange of data over the boundary between the plugin host (here, the compiler) and the plugin libraries (here, the extensions). After some experimentation, the general approach for extension calls across a library boundary is as follows.
 
 ## FfiTable

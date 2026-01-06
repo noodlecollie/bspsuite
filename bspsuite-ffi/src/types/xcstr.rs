@@ -23,7 +23,7 @@ impl<'l> XCStr<'l>
 	/// Constructs a new `XCStr` from a `&str`.
 	#[inline]
 	#[must_use]
-	pub fn new(value: &'l str) -> Self
+	pub const fn new(value: &'l str) -> Self
 	{
 		let slice = value.as_bytes();
 
