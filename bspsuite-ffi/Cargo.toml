@@ -1,0 +1,10 @@
+[package]
+name = "bspsuite-ffi"
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+
+[lib]
+name = "bspffi"
+crate-type = ["lib"]

@@ -1,6 +1,8 @@
+use bspffi::types::XCStr;
+
 pub struct ApiInfo
 {
-	pub name: &'static str,
+	pub name: XCStr<'static>,
 	pub version: usize,
 }
 
@@ -9,7 +11,7 @@ impl ApiInfo
 	pub const fn new(name: &'static str, version: usize) -> Self
 	{
 		return Self {
-			name: name,
+			name: XCStr::new(name),
 			version: version,
 		};
 	}

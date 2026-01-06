@@ -1,5 +1,5 @@
 use super::api_info::ApiInfo;
-use crate::types::StringRef;
+use bspffi::types::XCStr;
 use log;
 
 // TODO: Can we build this without a dependency on the log crate?
@@ -24,7 +24,7 @@ pub struct LogMessageArgs<'l>
 	pub module: &'l str,
 	pub file: &'l str,
 	pub line: u32,
-	pub msg: StringRef<'l>,
+	pub msg: XCStr<'l>,
 }
 
 pub struct ExtensionLogger
@@ -64,7 +64,7 @@ impl log::Log for ExtensionLogger
 				module: record.module_path().unwrap_or("<unknown>"),
 				file: record.file().unwrap_or("<unknown>"),
 				line: record.line().unwrap_or(0),
-				msg: StringRef::from(message.as_ref()),
+				msg: XCStr::from(message.as_ref()),
 			};
 
 			(self.log_api.log_fn)(&args);

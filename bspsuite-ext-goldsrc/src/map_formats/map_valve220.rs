@@ -1,6 +1,7 @@
 use bspextifc::builders::map_blueprint_builder::IMapBlueprintBuilder;
-use bspextifc::map_format_api::MapBlueprintBuilder;
-use bspextifc::types::{DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult, StringRef};
+use bspextifc::map_format_api::MapBlueprintBuilderApi;
+use bspextifc::types::{DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult};
+use bspffi::types::XCStr;
 use glam;
 use logos::Logos;
 
@@ -146,7 +147,7 @@ enum MaterialNameContext
 	String(String),
 }
 
-pub extern "C" fn parse(data: &StringRef, builder: &mut MapBlueprintBuilder)
+pub extern "C" fn parse(data: &XCStr, builder: &mut MapBlueprintBuilderApi)
 {
 	if let Err(err) = parse_map(data.as_str(), builder)
 	{

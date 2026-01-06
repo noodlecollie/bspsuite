@@ -106,6 +106,7 @@ version = "0.1.0"
 dependencies = [
  "bspsuite-core",
  "bspsuite-extinterface",
+ "bspsuite-ffi",
  "clap",
  "fern",
  "lazy_static",
@@ -119,8 +120,8 @@ name = "bspsuite-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bspsuite-buildtasks",
  "bspsuite-extinterface",
+ "bspsuite-ffi",
  "chrono",
  "const-cstr",
  "constcat",
@@ -142,6 +143,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bspsuite-extinterface",
+ "bspsuite-ffi",
  "glam",
  "log",
  "logos",
@@ -151,8 +153,13 @@ dependencies = [
 name = "bspsuite-extinterface"
 version = "0.1.0"
 dependencies = [
+ "bspsuite-ffi",
  "log",
 ]
+
+[[package]]
+name = "bspsuite-ffi"
+version = "0.1.0"
 
 [[package]]
 name = "bumpalo"

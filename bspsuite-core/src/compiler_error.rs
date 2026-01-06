@@ -68,10 +68,19 @@ impl fmt::Display for CompilerError
 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
-		// This only displays the code, as this is the only part of the error that we
-		// actually manage. The {:#} formatting mode should be used to display the whole
-		// error chain, including the source error.
-		write!(f, "{}", self.code)
+		// Keep an eye on this implementation. This line was enough for everything to
+		// work properly on Windows with the ":#" alternate format selector, but printed
+		// the code and nothing else on Linux. The latter code was added following the
+		// anyhow approach: https://github.com/dtolnay/anyhow/blob/master/src/fmt.rs#L10
+		// Things still might not be perfect, though.
+		write!(f, "{}", self.code)?;
+
+		if f.alternate()
+		{
+			write!(f, ": {}", self.wrapped_err)?;
+		}
+
+		return Ok(());
 	}
 }
 

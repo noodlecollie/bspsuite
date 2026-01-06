@@ -12,4 +12,5 @@ name = "bspextifc"
 crate-type = ["lib"]
 
 [dependencies]
+bspsuite-ffi = { path = "../bspsuite-ffi" }
 log.workspace = true

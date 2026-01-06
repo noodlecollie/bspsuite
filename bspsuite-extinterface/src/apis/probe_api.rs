@@ -1,5 +1,5 @@
 use super::{dummy_api, log_api, map_format_api};
-use crate::types::StringRef;
+use bspffi::types::{XCOption, XCStr};
 use log::{error, trace};
 use std::result::Result;
 
@@ -33,7 +33,7 @@ pub enum ProbeResult
 #[repr(C)]
 pub struct ProbeApi<'l>
 {
-	extension_name: StringRef<'l>,
+	extension_name: XCStr<'l>,
 	apis: &'l mut internal::ExportedApis,
 }
 
@@ -45,7 +45,7 @@ impl<'l> ProbeApi<'l>
 	) -> Result<log_api::Api, RequestError>
 	{
 		return internal::ExportedApis::request_get_api(
-			self.extension_name.to_string().as_str(),
+			self.extension_name.as_str(),
 			&mut self.apis.log_api,
 			requested_version,
 		);
@@ -54,11 +54,11 @@ impl<'l> ProbeApi<'l>
 	pub fn register_dummy_api_callbacks(
 		&mut self,
 		requested_version: usize,
-		callbacks: dummy_api::Callbacks,
+		callbacks: dummy_api::DummyApiCallbacks,
 	) -> Result<(), RequestError>
 	{
 		return internal::ExportedApis::request_set_callbacks(
-			self.extension_name.to_string().as_str(),
+			self.extension_name.as_str(),
 			&mut self.apis.dummy_callbacks,
 			requested_version,
 			callbacks,
@@ -68,11 +68,11 @@ impl<'l> ProbeApi<'l>
 	pub fn register_map_format_api_callbacks(
 		&mut self,
 		requested_version: usize,
-		callbacks: map_format_api::Callbacks,
+		callbacks: map_format_api::MapFormatApiCallbacks,
 	) -> Result<(), RequestError>
 	{
 		return internal::ExportedApis::request_set_callbacks(
-			self.extension_name.to_string().as_str(),
+			self.extension_name.as_str(),
 			&mut self.apis.map_format_callbacks,
 			requested_version,
 			callbacks,
@@ -100,7 +100,7 @@ pub mod internal
 	where
 		T: Clone,
 	{
-		name: StringRef<'static>,
+		name: XCStr<'static>,
 		version: usize,
 		api: T,
 	}
@@ -109,9 +109,9 @@ pub mod internal
 	#[repr(C)]
 	pub struct CallbacksContainer<T>
 	{
-		name: StringRef<'static>,
+		name: XCStr<'static>,
 		version: usize,
-		callbacks: Option<T>,
+		callbacks: XCOption<T>,
 	}
 
 	#[doc(hidden)]
@@ -119,8 +119,8 @@ pub mod internal
 	pub struct ExportedApis
 	{
 		pub log_api: ApiProvider<log_api::Api>,
-		pub dummy_callbacks: CallbacksContainer<dummy_api::Callbacks>,
-		pub map_format_callbacks: CallbacksContainer<map_format_api::Callbacks>,
+		pub dummy_callbacks: CallbacksContainer<dummy_api::DummyApiCallbacks>,
+		pub map_format_callbacks: CallbacksContainer<map_format_api::MapFormatApiCallbacks>,
 	}
 
 	#[doc(hidden)]
@@ -132,7 +132,7 @@ pub mod internal
 		pub fn new(api_info: &ApiInfo, api: T) -> Self
 		{
 			return Self {
-				name: StringRef::from(api_info.name),
+				name: XCStr::from(api_info.name.as_str()),
 				version: api_info.version,
 				api: api,
 			};
@@ -172,9 +172,9 @@ pub mod internal
 		pub fn new(api_info: &ApiInfo) -> Self
 		{
 			return Self {
-				name: StringRef::from(api_info.name),
+				name: XCStr::from(api_info.name.as_str()),
 				version: api_info.version,
-				callbacks: None,
+				callbacks: XCOption::None,
 			};
 		}
 
@@ -205,12 +205,12 @@ pub mod internal
 				)));
 			}
 
-			self.callbacks = Some(callbacks);
+			self.callbacks = XCOption::Some(callbacks);
 			return Ok(());
 		}
 
 		#[doc(hidden)]
-		pub fn take(self) -> Option<T>
+		pub fn take(self) -> XCOption<T>
 		{
 			return self.callbacks;
 		}
@@ -295,7 +295,7 @@ pub mod internal
 	) -> ProbeApi<'l>
 	{
 		return ProbeApi {
-			extension_name: StringRef::from(extension_name),
+			extension_name: XCStr::from(extension_name),
 			apis: apis,
 		};
 	}

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
-use bspextifc::types::StringRef;
+use bspffi::types::{XCOption, XCStr};
 use log::{error, info};
 
 use super::types::{BaseArgs, ResultCode};
@@ -14,7 +14,7 @@ use crate::toolchain::Toolchain;
 pub struct ExtinfoArgs<'l>
 {
 	pub base: BaseArgs<'l>,
-	pub extension_name: Option<StringRef<'l>>,
+	pub extension_name: XCOption<XCStr<'l>>,
 }
 
 #[unsafe(no_mangle)]
@@ -30,7 +30,12 @@ pub extern "C" fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 			return ResultCode::Ok;
 		}
 
-		let ext_name: String = args.extension_name.as_ref().unwrap().to_string();
+		let ext_name: String = args
+			.extension_name
+			.unmarshal_as_ref_option()
+			.unwrap()
+			.to_owned();
+
 		let found_ext: Option<&ExtensionRef> = extensions.find_by_name(&ext_name);
 
 		if found_ext.is_none()
@@ -70,7 +75,20 @@ fn get_map_formats(extension: &mut Extension) -> Vec<String>
 	if let Some(map_format_api) = &mut api_endpoints.map_format_api
 	{
 		map_format_api.register_map_formats(&name);
-		return map_format_api.get_supported_map_formats();
+		return map_format_api
+			.get_supported_map_format_defs()
+			.iter()
+			.map(|(name, def)| {
+				if !def.file_extensions.is_empty()
+				{
+					format!("{name} (.{})", def.file_extensions.join(", ."))
+				}
+				else
+				{
+					name.to_string()
+				}
+			})
+			.collect();
 	}
 	else
 	{
