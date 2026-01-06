@@ -75,7 +75,20 @@ fn get_map_formats(extension: &mut Extension) -> Vec<String>
 	if let Some(map_format_api) = &mut api_endpoints.map_format_api
 	{
 		map_format_api.register_map_formats(&name);
-		return map_format_api.get_supported_map_formats();
+		return map_format_api
+			.get_supported_map_format_defs()
+			.iter()
+			.map(|(name, def)| {
+				if !def.file_extensions.is_empty()
+				{
+					format!("{name} (.{})", def.file_extensions.join(", ."))
+				}
+				else
+				{
+					name.to_string()
+				}
+			})
+			.collect();
 	}
 	else
 	{

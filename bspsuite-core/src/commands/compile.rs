@@ -69,23 +69,30 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 			.unwrap_or("inferred from file extension")
 	);
 
+	info!("Loading {}", input_path.display());
+
 	let input_file: String = std::fs::read_to_string(&input_path)
 		.with_context(|| format!("Failed to read {}", input_path.display()))
 		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
+
+	info!("Parsing {}", input_path.display());
 
 	let builder: MapBlueprintBuilder =
 		extension_routines::parse_map(&extensions, &input_file, &map_format)
 			.with_context(|| "Failed to initiate map parsing")
 			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;
 
-	let build_result: Vec<Entity> = builder.collect().map_err(|err| {
+	let parsed_entities: Vec<Entity> = builder.collect().map_err(|err| {
 		CompilerError::from_anyhow(
 			CompilerErrorCode::IoError,
 			anyhow!("Failed to parse map {}. {err}", input_path.display()),
 		)
 	})?;
 
-	// TODO
+	debug!(
+		"Input map parsed successfully, contains {} entities",
+		parsed_entities.len()
+	);
 
 	info!("Compile complete");
 
