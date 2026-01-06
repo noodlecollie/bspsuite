@@ -120,7 +120,6 @@ name = "bspsuite-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bspsuite-buildtasks",
  "bspsuite-extinterface",
  "bspsuite-ffi",
  "chrono",

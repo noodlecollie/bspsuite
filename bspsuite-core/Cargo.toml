@@ -14,7 +14,6 @@ crate-type = ["rlib", "dylib"]
 [dependencies]
 bspsuite-ffi = { path = "../bspsuite-ffi" }
 bspsuite-extinterface = { path = "../bspsuite-extinterface" }
-bspsuite-buildtasks = { path = "../bspsuite-buildtasks" }
 anyhow.workspace = true
 glam.workspace = true
 log.workspace = true
