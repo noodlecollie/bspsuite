@@ -19,6 +19,7 @@ extern "C" fn probe(api: &mut probe_api::ProbeApi) -> probe_api::ProbeResult
 	)
 	{
 		error!("Failed to register for map format API.");
+		return probe_api::ProbeResult::Failure;
 	}
 
 	return probe_api::ProbeResult::Success;
