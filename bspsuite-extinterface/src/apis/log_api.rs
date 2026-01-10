@@ -1,6 +1,5 @@
 use super::api_info::ApiInfo;
 use bspffi::types::{XCOption, XCStr};
-use log;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("LogApi", 1);
 
@@ -39,9 +38,13 @@ pub struct ExtensionLogger
 	log_api: LogApi,
 }
 
-impl From<log::Level> for LogLevel
+pub mod log_internal
 {
-	fn from(value: log::Level) -> Self
+	use super::{ExtensionLogger, LogApi, LogLevel, LogMessageArgs};
+	use bspffi::types::XCStr;
+	use log;
+
+	pub fn ext2int_log_level(value: log::Level) -> LogLevel
 	{
 		return match value
 		{
@@ -52,11 +55,8 @@ impl From<log::Level> for LogLevel
 			log::Level::Trace => LogLevel::Trace,
 		};
 	}
-}
 
-impl From<LogLevel> for log::Level
-{
-	fn from(value: LogLevel) -> Self
+	pub fn int2ext_log_level(value: LogLevel) -> log::Level
 	{
 		return match value
 		{
@@ -67,11 +67,8 @@ impl From<LogLevel> for log::Level
 			LogLevel::Trace => log::Level::Trace,
 		};
 	}
-}
 
-impl LogLevel
-{
-	pub fn from_filter(filter: log::LevelFilter) -> Option<LogLevel>
+	pub fn ext2int_log_filter(filter: log::LevelFilter) -> Option<LogLevel>
 	{
 		return match filter
 		{
@@ -84,7 +81,7 @@ impl LogLevel
 		};
 	}
 
-	pub fn to_filter(level: Option<LogLevel>) -> log::LevelFilter
+	pub fn int2ext_log_filter(level: Option<LogLevel>) -> log::LevelFilter
 	{
 		return level
 			.map(|val| match val
@@ -98,56 +95,51 @@ impl LogLevel
 			.unwrap_or(log::LevelFilter::Off);
 	}
 
-	pub fn into_filter(self) -> log::LevelFilter
+	impl ExtensionLogger
 	{
-		return LogLevel::to_filter(Some(self));
-	}
-}
-
-impl ExtensionLogger
-{
-	pub fn assign_static_logger(log_api: LogApi) -> Result<(), log::SetLoggerError>
-	{
-		let filter: log::LevelFilter =
-			LogLevel::to_filter((log_api.get_log_level_filter_fn)().into_option());
-
-		log::set_boxed_logger(Box::new(Self { log_api: log_api }))?;
-		log::set_max_level(filter);
-
-		return Ok(());
-	}
-}
-
-impl log::Log for ExtensionLogger
-{
-	fn enabled(&self, metadata: &log::Metadata) -> bool
-	{
-		let filter: log::LevelFilter =
-			LogLevel::to_filter((self.log_api.get_log_level_filter_fn)().into_option());
-
-		return metadata.level() <= filter;
-	}
-
-	fn log(&self, record: &log::Record)
-	{
-		if self.enabled(record.metadata())
+		pub fn assign_static_logger(log_api: LogApi) -> Result<(), log::SetLoggerError>
 		{
-			let message: String = format!("{}", record.args());
+			let filter: log::LevelFilter =
+				int2ext_log_filter((log_api.get_log_level_filter_fn)().into_option());
 
-			let args: LogMessageArgs = LogMessageArgs {
-				level: record.metadata().level().into(),
-				target: record.metadata().target().into(),
-				module: record.module_path().unwrap_or("<unknown>").into(),
-				file: record.file().unwrap_or("<unknown>").into(),
-				line: record.line().unwrap_or(0),
-				msg: XCStr::from(message.as_ref()),
-			};
+			log::set_boxed_logger(Box::new(Self { log_api: log_api }))?;
+			log::set_max_level(filter);
 
-			(self.log_api.log_fn)(&args);
+			return Ok(());
 		}
 	}
 
-	fn flush(&self)
+	impl log::Log for ExtensionLogger
 	{
+		fn enabled(&self, metadata: &log::Metadata) -> bool
+		{
+			let filter: log::LevelFilter =
+				int2ext_log_filter((self.log_api.get_log_level_filter_fn)().into_option());
+
+			return metadata.level() <= filter;
+		}
+
+		fn log(&self, record: &log::Record)
+		{
+			if self.enabled(record.metadata())
+			{
+				let message: String = format!("{}", record.args());
+
+				let args: LogMessageArgs = LogMessageArgs {
+					level: ext2int_log_level(record.metadata().level()),
+					target: record.metadata().target().into(),
+					module: record.module_path().unwrap_or("<unknown>").into(),
+					file: record.file().unwrap_or("<unknown>").into(),
+					line: record.line().unwrap_or(0),
+					msg: XCStr::from(message.as_ref()),
+				};
+
+				(self.log_api.log_fn)(&args);
+			}
+		}
+
+		fn flush(&self)
+		{
+		}
 	}
 }

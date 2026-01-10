@@ -14,7 +14,7 @@ pub fn create_api() -> log_api::LogApi
 
 extern "C" fn get_log_level_filter() -> XCOption<log_api::LogLevel>
 {
-	return log_api::LogLevel::from_filter(log::max_level()).into();
+	return log_api::log_internal::ext2int_log_filter(log::max_level()).into();
 }
 
 extern "C" fn log_message(args: &log_api::LogMessageArgs)
@@ -29,7 +29,7 @@ extern "C" fn log_message(args: &log_api::LogMessageArgs)
 		.line(Some(args.line))
 		.target(args.target.as_str())
 		.module_path(Some(args.module.as_str()))
-		.level(args.level.into())
+		.level(log_api::log_internal::int2ext_log_level(args.level))
 		.args(msg_args)
 		.build();
 
