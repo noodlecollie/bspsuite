@@ -42,7 +42,7 @@ impl<'l> ProbeApi<'l>
 	pub fn request_log_api(
 		&mut self,
 		requested_version: usize,
-	) -> Result<log_api::Api, RequestError>
+	) -> Result<log_api::LogApi, RequestError>
 	{
 		return internal::ExportedApis::request_get_api(
 			self.extension_name.as_str(),
@@ -118,7 +118,7 @@ pub mod internal
 	#[repr(C)]
 	pub struct ExportedApis
 	{
-		pub log_api: ApiProvider<log_api::Api>,
+		pub log_api: ApiProvider<log_api::LogApi>,
 		pub dummy_callbacks: CallbacksContainer<dummy_api::DummyApiCallbacks>,
 		pub map_format_callbacks: CallbacksContainer<map_format_api::MapFormatApiCallbacks>,
 	}

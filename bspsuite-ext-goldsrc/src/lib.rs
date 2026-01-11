@@ -1,10 +1,12 @@
-use bspextifc::log_api::{self, ExtensionLogger};
-use bspextifc::{implement_extension_info, map_format_api, probe_api};
+use bspextifc::{
+	implement_extension_info, implement_extension_logger, log_api, map_format_api, probe_api,
+};
 use log::error;
 
 mod map_formats;
 
 implement_extension_info!(probe);
+implement_extension_logger!(ExtensionLogger);
 
 extern "C" fn probe(api: &mut probe_api::ProbeApi) -> probe_api::ProbeResult
 {
@@ -19,6 +21,7 @@ extern "C" fn probe(api: &mut probe_api::ProbeApi) -> probe_api::ProbeResult
 	)
 	{
 		error!("Failed to register for map format API.");
+		return probe_api::ProbeResult::Failure;
 	}
 
 	return probe_api::ProbeResult::Success;
