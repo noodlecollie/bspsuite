@@ -5,6 +5,7 @@ use super::utils::wrap_residual_errors;
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::extensions::{ExtensionList, extension_routines};
 use crate::game_configs::GameConfig;
+use crate::model::MapBlueprint;
 use crate::toolchain::Toolchain;
 use anyhow::{Context, Result, anyhow};
 use bspextifc::builders::map_blueprint_builder::{Entity, MapBlueprintBuilder};
@@ -89,9 +90,11 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 		)
 	})?;
 
+	let map_blueprint: MapBlueprint = parsed_entities.into();
+
 	debug!(
 		"Input map parsed successfully, contains {} entities",
-		parsed_entities.len()
+		map_blueprint.entities.len()
 	);
 
 	info!("Compile complete");
