@@ -1,10 +1,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use bspextifc::builders::map_blueprint_builder::MapBlueprintBuilder;
+use bspextifc::builders::map_source_builder::MapSourceBuilder;
 use bspextifc::map_format_api;
 use bspextifc::map_format_api::internal::{
-	ApiFfiTable, BuilderFfiTable, create_map_blueprint_builder_api, create_map_format_api,
+	ApiFfiTable, BuilderFfiTable, create_map_format_api, create_map_source_builder_api,
 };
 use bspffi::types::{XCSlice, XCStr};
 use itertools::Itertools;
@@ -206,12 +206,12 @@ impl ApiImpl
 
 impl MapFormatDefinition
 {
-	pub fn parse_map(&self, data: &str) -> MapBlueprintBuilder
+	pub fn parse_map(&self, data: &str) -> MapSourceBuilder
 	{
-		let builder_impl: RefCell<MapBlueprintBuilder> = RefCell::new(MapBlueprintBuilder::new());
+		let builder_impl: RefCell<MapSourceBuilder> = RefCell::new(MapSourceBuilder::new());
 		let ffi_table: BuilderFfiTable = ffi_impl::create_builder_ffi_table(&builder_impl);
-		let mut builder_api: map_format_api::MapBlueprintBuilderApi =
-			create_map_blueprint_builder_api(ffi_table);
+		let mut builder_api: map_format_api::MapSourceBuilderApi =
+			create_map_source_builder_api(ffi_table);
 
 		(self.parse_fn.parse_fn)(&XCStr::new(data), &mut builder_api);
 		return builder_impl.into_inner();
@@ -222,8 +222,8 @@ mod ffi_impl
 {
 	use super::*;
 	use crate::extensions::api_impl::{LinkOpaqueToImpl, link_opaque_to_impl};
-	use bspextifc::builders::map_blueprint_builder::{
-		IMapBlueprintBuilder, MapBlueprintBuilder as BuilderImpl,
+	use bspextifc::builders::map_source_builder::{
+		IMapSourceBuilder, MapSourceBuilder as BuilderImpl,
 	};
 	use bspextifc::map_format_api::internal::{
 		ApiCtx, ApiFfiTable, ApiOpaqueContext, BuilderCtx, BuilderErrorCode, BuilderFfiTable,

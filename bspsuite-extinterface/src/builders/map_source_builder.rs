@@ -38,7 +38,7 @@ impl Error for BuilderError
 {
 }
 
-/// Interface for functions used to build a map blueprint from geometry
+/// Interface for functions used to build a map source file from geometry
 /// primitives.
 ///
 /// This interface does not validate properties of the elements (eg. whether all
@@ -50,8 +50,8 @@ impl Error for BuilderError
 /// If functions to set properties on each of these elements are not called, the
 /// properties will remain at their defaults. It is the responsibility of the
 /// CSG phase of map compliation to check whether the resulting geometry
-/// produced by the map blueprint builder is valid.
-pub trait IMapBlueprintBuilder
+/// produced by the map source builder is valid.
+pub trait IMapSourceBuilder
 {
 	/// Sets a failure state on the builder, including the line and column in
 	/// the input where the failure occurred.
@@ -234,7 +234,7 @@ impl Entity
 	}
 }
 
-pub struct MapBlueprintBuilder
+pub struct MapSourceBuilder
 {
 	entities: Vec<Entity>,
 	current_entity: Option<Entity>,
@@ -243,7 +243,7 @@ pub struct MapBlueprintBuilder
 	failure: Option<BuilderError>,
 }
 
-impl MapBlueprintBuilder
+impl MapSourceBuilder
 {
 	pub fn new() -> Self
 	{
@@ -278,7 +278,7 @@ impl MapBlueprintBuilder
 	}
 }
 
-impl IMapBlueprintBuilder for MapBlueprintBuilder
+impl IMapSourceBuilder for MapSourceBuilder
 {
 	fn set_failure(&mut self, description: String)
 	{
@@ -600,7 +600,7 @@ mod tests
 	{
 		// No current entity
 		{
-			let mut builder = MapBlueprintBuilder::new();
+			let mut builder = MapSourceBuilder::new();
 			assert_eq!(
 				builder.end_entity(),
 				Err(OperationError::OperationNotStarted)
@@ -629,7 +629,7 @@ mod tests
 
 		// No current brush
 		{
-			let mut builder = MapBlueprintBuilder::new();
+			let mut builder = MapSourceBuilder::new();
 			assert_eq!(builder.begin_entity(), Ok(()));
 
 			assert_eq!(
@@ -655,7 +655,7 @@ mod tests
 
 		// No current face
 		{
-			let mut builder = MapBlueprintBuilder::new();
+			let mut builder = MapSourceBuilder::new();
 			assert_eq!(builder.begin_entity(), Ok(()));
 			assert_eq!(builder.begin_brush(), Ok(()));
 
@@ -678,7 +678,7 @@ mod tests
 	{
 		// Begin new entity without finishing previous entity
 		{
-			let mut builder = MapBlueprintBuilder::new();
+			let mut builder = MapSourceBuilder::new();
 			assert_eq!(builder.begin_entity(), Ok(()));
 
 			assert_eq!(
@@ -696,7 +696,7 @@ mod tests
 
 		// Begin new brush without finishing previous brush
 		{
-			let mut builder = MapBlueprintBuilder::new();
+			let mut builder = MapSourceBuilder::new();
 			assert_eq!(builder.begin_entity(), Ok(()));
 			assert_eq!(builder.begin_brush(), Ok(()));
 
@@ -715,7 +715,7 @@ mod tests
 
 		// Begin new face without finishing previous face
 		{
-			let mut builder = MapBlueprintBuilder::new();
+			let mut builder = MapSourceBuilder::new();
 			assert_eq!(builder.begin_entity(), Ok(()));
 			assert_eq!(builder.begin_brush(), Ok(()));
 			assert_eq!(builder.begin_brush_face(), Ok(()));
@@ -735,7 +735,7 @@ mod tests
 
 		// Begin new entity without finishing brush
 		{
-			let mut builder = MapBlueprintBuilder::new();
+			let mut builder = MapSourceBuilder::new();
 			assert_eq!(builder.begin_entity(), Ok(()));
 			assert_eq!(builder.begin_brush(), Ok(()));
 
@@ -754,7 +754,7 @@ mod tests
 
 		// Begin new entity or brush without finishing face
 		{
-			let mut builder = MapBlueprintBuilder::new();
+			let mut builder = MapSourceBuilder::new();
 			assert_eq!(builder.begin_entity(), Ok(()));
 			assert_eq!(builder.begin_brush(), Ok(()));
 			assert_eq!(builder.begin_brush_face(), Ok(()));
@@ -781,7 +781,7 @@ mod tests
 	#[test]
 	fn construct_empty()
 	{
-		let builder = MapBlueprintBuilder::new();
+		let builder = MapSourceBuilder::new();
 		let entities = builder.collect();
 		assert!(entities.is_ok());
 		assert_eq!(entities.as_ref().unwrap().len(), 0);
@@ -790,7 +790,7 @@ mod tests
 	#[test]
 	fn construct_single_empty_entity()
 	{
-		let mut builder = MapBlueprintBuilder::new();
+		let mut builder = MapSourceBuilder::new();
 		assert_eq!(builder.begin_entity(), Ok(()));
 		assert_eq!(builder.end_entity(), Ok(()));
 
@@ -808,7 +808,7 @@ mod tests
 	#[test]
 	fn construct_single_entity_and_empty_brush()
 	{
-		let mut builder = MapBlueprintBuilder::new();
+		let mut builder = MapSourceBuilder::new();
 		assert_eq!(builder.begin_entity(), Ok(()));
 		assert_eq!(builder.begin_brush(), Ok(()));
 		assert_eq!(builder.end_brush(), Ok(()));
@@ -831,7 +831,7 @@ mod tests
 	#[test]
 	fn construct_single_entity_and_brush_with_single_face()
 	{
-		let mut builder = MapBlueprintBuilder::new();
+		let mut builder = MapSourceBuilder::new();
 		assert_eq!(builder.begin_entity(), Ok(()));
 		assert_eq!(builder.begin_brush(), Ok(()));
 		assert_eq!(builder.begin_brush_face(), Ok(()));
@@ -870,7 +870,7 @@ mod tests
 		let face_scale = DVec2::new(1.0, 1.5);
 		let face_material = String::from("example_material");
 
-		let mut builder = MapBlueprintBuilder::new();
+		let mut builder = MapSourceBuilder::new();
 		assert_eq!(builder.begin_entity(), Ok(()));
 		assert_eq!(
 			builder.add_entity_keyvalue("classname".to_owned(), "worldspawn".to_owned()),

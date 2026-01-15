@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::dplane3::DPlane3;
-use bspextifc::builders::map_blueprint_builder::{Brush, BrushFace, Entity};
+use bspextifc::builders::map_source_builder::{Brush, BrushFace, Entity};
 use bspextifc::types::{DPlane as ExtPlane, DVec2 as ExtVec2, DVec3 as ExtVec3};
 use glam::{DVec2, DVec3};
 

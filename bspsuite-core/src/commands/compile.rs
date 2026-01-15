@@ -8,7 +8,7 @@ use crate::game_configs::GameConfig;
 use crate::model::MapSourceFile;
 use crate::toolchain::Toolchain;
 use anyhow::{Context, Result, anyhow};
-use bspextifc::builders::map_blueprint_builder::{Entity, MapBlueprintBuilder};
+use bspextifc::builders::map_source_builder::{Entity, MapSourceBuilder};
 use bspffi::types::{XCOption, XCStr};
 use log::{debug, info};
 
@@ -78,7 +78,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 
 	info!("Parsing {}", input_path.display());
 
-	let builder: MapBlueprintBuilder =
+	let builder: MapSourceBuilder =
 		extension_routines::parse_map(&extensions, &input_file, &map_format)
 			.with_context(|| "Failed to initiate map parsing")
 			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;

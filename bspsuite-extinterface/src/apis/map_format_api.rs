@@ -1,11 +1,11 @@
 use super::api_info::ApiInfo;
-use crate::builders::map_blueprint_builder::{IMapBlueprintBuilder, OperationError};
+use crate::builders::map_source_builder::{IMapSourceBuilder, OperationError};
 use crate::types::{DPlane, DVec2, DVec3};
 use bspffi::types::{XCOption, XCSlice, XCStr};
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
 pub type RegisterMapFormatsFn = extern "C" fn(&mut MapFormatApi);
-pub type MapParseFn = extern "C" fn(&XCStr, &mut MapBlueprintBuilderApi);
+pub type MapParseFn = extern "C" fn(&XCStr, &mut MapSourceBuilderApi);
 
 #[repr(C)]
 pub struct MapFormatApi<'l>
@@ -40,7 +40,7 @@ impl<'l> MapFormatApi<'l>
 }
 
 #[repr(C)]
-pub struct MapBlueprintBuilderApi<'l>
+pub struct MapSourceBuilderApi<'l>
 {
 	ffi_table: internal::BuilderFfiTable<'l>,
 }
@@ -48,7 +48,7 @@ pub struct MapBlueprintBuilderApi<'l>
 // SAFETY: Core library responsible for ensuring that self.ffi_table.context
 // is valid for this struct's lifetime, and that the function being
 // called knows what type to convert the context into.
-impl<'l> IMapBlueprintBuilder for MapBlueprintBuilderApi<'l>
+impl<'l> IMapSourceBuilder for MapSourceBuilderApi<'l>
 {
 	fn set_failure(&mut self, description: String)
 	{
@@ -319,11 +319,11 @@ pub mod internal
 		};
 	}
 
-	pub fn create_map_blueprint_builder_api<'l>(
+	pub fn create_map_source_builder_api<'l>(
 		ffi_table: BuilderFfiTable<'l>,
-	) -> MapBlueprintBuilderApi<'l>
+	) -> MapSourceBuilderApi<'l>
 	{
-		return MapBlueprintBuilderApi {
+		return MapSourceBuilderApi {
 			ffi_table: ffi_table,
 		};
 	}
