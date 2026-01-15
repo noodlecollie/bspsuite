@@ -5,7 +5,7 @@ use bspextifc::builders::map_blueprint_builder::{Brush, BrushFace, Entity};
 use bspextifc::types::{DPlane as ExtPlane, DVec2 as ExtVec2, DVec3 as ExtVec3};
 use glam::{DVec2, DVec3};
 
-pub struct BlueprintBrushFace
+pub struct MapSourceBrushFace
 {
 	pub plane: DPlane3,
 	pub material_name: String,
@@ -14,23 +14,23 @@ pub struct BlueprintBrushFace
 	pub material_scale: DVec2,
 }
 
-pub struct BlueprintBrush
+pub struct MapSourceBrush
 {
-	pub faces: Vec<BlueprintBrushFace>,
+	pub faces: Vec<MapSourceBrushFace>,
 }
 
-pub struct BlueprintEntity
+pub struct MapSourceEntity
 {
-	pub brushes: Vec<BlueprintBrush>,
+	pub brushes: Vec<MapSourceBrush>,
 	pub keyvalues: HashMap<String, String>,
 }
 
-pub struct MapBlueprint
+pub struct MapSourceFile
 {
-	pub entities: Vec<BlueprintEntity>,
+	pub entities: Vec<MapSourceEntity>,
 }
 
-impl From<BrushFace> for BlueprintBrushFace
+impl From<BrushFace> for MapSourceBrushFace
 {
 	fn from(value: BrushFace) -> Self
 	{
@@ -44,7 +44,7 @@ impl From<BrushFace> for BlueprintBrushFace
 	}
 }
 
-impl From<Brush> for BlueprintBrush
+impl From<Brush> for MapSourceBrush
 {
 	fn from(value: Brush) -> Self
 	{
@@ -54,7 +54,7 @@ impl From<Brush> for BlueprintBrush
 	}
 }
 
-impl From<Entity> for BlueprintEntity
+impl From<Entity> for MapSourceEntity
 {
 	fn from(value: Entity) -> Self
 	{
@@ -69,7 +69,7 @@ impl From<Entity> for BlueprintEntity
 	}
 }
 
-impl From<Vec<Entity>> for MapBlueprint
+impl From<Vec<Entity>> for MapSourceFile
 {
 	fn from(value: Vec<Entity>) -> Self
 	{
