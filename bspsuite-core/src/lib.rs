@@ -6,6 +6,7 @@ mod extensions;
 mod game_configs;
 mod model;
 mod toolchain;
+mod io;
 
 pub mod commands;
 
