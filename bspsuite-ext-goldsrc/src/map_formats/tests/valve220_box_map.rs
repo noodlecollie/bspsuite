@@ -1,6 +1,6 @@
 use crate::map_formats::map_valve220::parse_map;
-use bspextifc::builders::map_blueprint_builder::{
-	Brush, BrushFace, BuilderError, Entity, MapBlueprintBuilder,
+use bspextifc::builders::map_source_builder::{
+	Brush, BrushFace, BuilderError, Entity, MapSourceBuilder,
 };
 use bspextifc::types::{DPlane, DVec2, DVec3};
 
@@ -84,7 +84,7 @@ const BOX_MAP_SOURCE: &str = r#"
 #[test]
 fn parse_box_map()
 {
-	let mut builder: MapBlueprintBuilder = MapBlueprintBuilder::new();
+	let mut builder: MapSourceBuilder = MapSourceBuilder::new();
 	let result = parse_map(BOX_MAP_SOURCE, &mut builder);
 	let build_result: Result<Vec<Entity>, BuilderError> = builder.collect();
 

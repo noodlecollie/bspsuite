@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::extensions::api_impl::map_format_api;
 use crate::extensions::{Extension, ExtensionList, ExtensionRef};
 use anyhow::{Context, Result, bail};
-use bspextifc::builders::map_blueprint_builder::MapBlueprintBuilder;
+use bspextifc::builders::map_source_builder::MapSourceBuilder;
 
 pub struct ExtensionForParsingMapFormat
 {
@@ -52,7 +52,7 @@ pub fn parse_map(
 	list: &ExtensionList,
 	input_data: &str,
 	parse_using: &ExtensionForParsingMapFormat,
-) -> Result<MapBlueprintBuilder>
+) -> Result<MapSourceBuilder>
 {
 	let extension: &ExtensionRef = list
 		.find_by_name(&parse_using.extension_name)

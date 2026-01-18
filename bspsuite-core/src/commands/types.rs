@@ -1,5 +1,7 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
+use anyhow::{Result, anyhow};
 use bspffi::types::{XCOption, XCStr};
 
 #[derive(Copy, Clone, Debug, strum::Display)]
@@ -55,5 +57,54 @@ impl<'l> Default for BaseArgs<'l>
 		return Self {
 			toolchain_root: XCOption::None,
 		};
+	}
+}
+
+pub struct InputPathMetadata
+{
+	pub full_path: PathBuf,
+	pub directory_path: PathBuf,
+	pub file_name: String,
+	pub file_stem: String,
+	pub file_ext: String,
+}
+
+impl InputPathMetadata
+{
+	pub fn new(input_path: &Path) -> Result<InputPathMetadata>
+	{
+		let directory_path: PathBuf = input_path
+			.parent()
+			.ok_or_else(|| anyhow!("Failed to compute directory of input file"))?
+			.to_path_buf();
+
+		let file_name: String = input_path
+			.file_name()
+			.ok_or_else(|| anyhow!("Failed to compute file name of input file"))?
+			.to_str()
+			.ok_or_else(|| anyhow!("Failed to convert file name of input file to string"))?
+			.to_string();
+
+		let file_stem: String = PathBuf::from(&file_name)
+			.file_stem()
+			.ok_or_else(|| anyhow!("Failed to compute file stem of input file"))?
+			.to_str()
+			.ok_or_else(|| anyhow!("Failed to convert file stem of input file to string"))?
+			.to_string();
+
+		let file_ext: String = PathBuf::from(&file_name)
+			.extension()
+			.ok_or_else(|| anyhow!("Failed to compute file extension of input file"))?
+			.to_str()
+			.ok_or_else(|| anyhow!("Failed to convert file extension of input file to string"))?
+			.to_string();
+
+		return Ok(InputPathMetadata {
+			full_path: input_path.to_path_buf(),
+			directory_path: directory_path,
+			file_name: file_name,
+			file_stem: file_stem,
+			file_ext: file_ext,
+		});
 	}
 }

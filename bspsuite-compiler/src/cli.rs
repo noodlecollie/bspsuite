@@ -51,8 +51,16 @@ pub struct CompileCommandArgs
 	#[arg(short, long)]
 	pub game: String,
 
+	/// Format of the map source file. If this is not specified, the compiler
+	/// will attempt to infer the format based on the file extension and the
+	/// target game.
 	#[arg(short('f'), long)]
 	pub map_format: Option<String>,
+
+	/// If set, an internal representation of the parsed map source file is
+	/// dumped to the input directory.
+	#[arg(long)]
+	pub dump_source_file: bool,
 }
 
 #[derive(clap::Args)]
