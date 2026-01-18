@@ -16,11 +16,13 @@ pub struct MapSourceBrushFace
 
 pub struct MapSourceBrush
 {
+	pub brush_index: usize,
 	pub faces: Vec<MapSourceBrushFace>,
 }
 
 pub struct MapSourceEntity
 {
+	pub entity_index: usize,
 	pub brushes: Vec<MapSourceBrush>,
 	pub keyvalues: HashMap<String, String>,
 }
@@ -28,6 +30,26 @@ pub struct MapSourceEntity
 pub struct MapSourceFile
 {
 	pub entities: Vec<MapSourceEntity>,
+}
+
+impl MapSourceFile
+{
+	pub fn assign_indices(&mut self)
+	{
+		let mut current_brush: usize = 0;
+
+		for (entindex, entity) in self.entities.iter_mut().enumerate()
+		{
+			entity.entity_index = entindex;
+
+			for brush in entity.brushes.iter_mut()
+			{
+				brush.brush_index = current_brush;
+				assert!(current_brush < usize::MAX, "Overflowed max brush index");
+				current_brush += 1;
+			}
+		}
+	}
 }
 
 impl From<BrushFace> for MapSourceBrushFace
@@ -49,6 +71,7 @@ impl From<Brush> for MapSourceBrush
 	fn from(value: Brush) -> Self
 	{
 		return Self {
+			brush_index: 0, // Assigned later
 			faces: value.faces.into_iter().map(|face| face.into()).collect(),
 		};
 	}
@@ -59,6 +82,7 @@ impl From<Entity> for MapSourceEntity
 	fn from(value: Entity) -> Self
 	{
 		return Self {
+			entity_index: 0, // Assigned later
 			brushes: value
 				.brushes
 				.into_iter()
@@ -73,9 +97,12 @@ impl From<Vec<Entity>> for MapSourceFile
 {
 	fn from(value: Vec<Entity>) -> Self
 	{
-		return Self {
+		let mut out = Self {
 			entities: value.into_iter().map(|ent| ent.into()).collect(),
 		};
+
+		out.assign_indices();
+		return out;
 	}
 }
 

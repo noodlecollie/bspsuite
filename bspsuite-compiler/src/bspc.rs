@@ -89,6 +89,7 @@ fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> 
 				.as_ref()
 				.map(|val| XCStr::from(val.as_str())),
 		),
+		dump_source_file: args.dump_source_file,
 	};
 
 	return Cmds::bspcore_run_compile(&args);

@@ -1,6 +1,9 @@
 use crate::model::MapSourceFile;
 use anyhow::{Context, Result};
+use log::info;
+use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 
 pub fn serialize<Writer>(writer: Writer, map: &MapSourceFile) -> Result<()>
 where
@@ -16,6 +19,16 @@ where
 	});
 }
 
+pub fn write(path: &Path, map: &MapSourceFile) -> Result<()>
+{
+	info!("Dumping parsed map source to {}", path.display());
+
+	let out_file: File = File::create(path)
+		.with_context(|| format!("Failed to open file {} for writing", path.display()))?;
+
+	return serialize(out_file, map);
+}
+
 mod version_1
 {
 	use std::collections::HashMap;
@@ -26,7 +39,7 @@ mod version_1
 	};
 	use anyhow::{Context, Result, anyhow};
 	use glam::{DVec2, DVec3};
-	use serde_json::ser::to_writer;
+	use serde_json::ser::to_writer_pretty;
 	use serde_json::{Map, Number, Value};
 
 	type JsonObject = Map<String, Value>;
@@ -50,7 +63,7 @@ mod version_1
 		document.insert("version".to_string(), VERSION.into());
 		document.insert("entities".to_string(), entities.into());
 
-		to_writer(writer, &Value::Object(document))?;
+		to_writer_pretty(writer, &Value::Object(document))?;
 		return Ok(());
 	}
 
@@ -60,6 +73,10 @@ mod version_1
 		let properties: JsonObject = to_json_object(&entity.keyvalues);
 
 		let mut obj: JsonObject = JsonObject::new();
+		obj.insert(
+			"entity_index".to_string(),
+			usize_to_number(entity.entity_index),
+		);
 		obj.insert("properties".to_string(), properties.into());
 		obj.insert("brushes".to_string(), brushes.into());
 
@@ -71,6 +88,10 @@ mod version_1
 		let faces: JsonArray = to_json_array(&brush.faces, |face| process_face(face))?;
 
 		let mut obj: JsonObject = JsonObject::new();
+		obj.insert(
+			"brush_index".to_string(),
+			usize_to_number(brush.brush_index),
+		);
 		obj.insert("faces".to_string(), faces.into());
 
 		return Ok(obj);
@@ -155,5 +176,13 @@ mod version_1
 			.iter()
 			.map(|(key, value)| (key.clone(), Value::String(value.to_string())))
 			.collect();
+	}
+
+	fn usize_to_number(val: usize) -> Value
+	{
+		return Value::Number(
+			Number::try_from(val)
+				.expect("Unexpected failure to represent usize as a JSON number type"),
+		);
 	}
 }
