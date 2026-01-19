@@ -7,6 +7,7 @@ use glam::{DVec2, DVec3};
 
 pub struct MapSourceBrushFace
 {
+	pub face_index: usize,
 	pub plane: DPlane3,
 	pub material_name: String,
 	pub material_axes: (DVec3, DVec3),
@@ -37,6 +38,7 @@ impl MapSourceFile
 	pub fn assign_indices(&mut self)
 	{
 		let mut current_brush: usize = 0;
+		let mut current_face: usize = 0;
 
 		for (entindex, entity) in self.entities.iter_mut().enumerate()
 		{
@@ -47,6 +49,13 @@ impl MapSourceFile
 				brush.brush_index = current_brush;
 				assert!(current_brush < usize::MAX, "Overflowed max brush index");
 				current_brush += 1;
+
+				for face in brush.faces.iter_mut()
+				{
+					face.face_index = current_face;
+					assert!(current_face < usize::MAX, "Overflowed max face index");
+					current_face += 1;
+				}
 			}
 		}
 	}
@@ -57,6 +66,7 @@ impl From<BrushFace> for MapSourceBrushFace
 	fn from(value: BrushFace) -> Self
 	{
 		return Self {
+			face_index: 0, // Assigned later
 			plane: plane3(value.plane),
 			material_name: value.material_name,
 			material_axes: (vec3(value.material_axes.0), vec3(value.material_axes.1)),

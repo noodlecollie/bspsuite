@@ -108,6 +108,7 @@ mod version_1
 
 		let mut obj: JsonObject = JsonObject::new();
 
+		obj.insert("face_index".to_string(), usize_to_number(face.face_index));
 		obj.insert("plane".to_string(), plane.into());
 		obj.insert(
 			"material_name".to_string(),
