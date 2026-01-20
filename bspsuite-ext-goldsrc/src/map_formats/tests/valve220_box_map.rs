@@ -2,7 +2,7 @@ use crate::map_formats::map_valve220::parse_map;
 use bspextifc::builders::map_source_builder::{
 	Brush, BrushFace, BuilderError, Entity, MapSourceBuilder,
 };
-use bspextifc::types::{DPlane, DVec2, DVec3};
+use bspextifc::types::{DPlane3, DVec2, DVec3};
 
 const BOX_MAP_SOURCE: &str = r#"
 // entity 0
@@ -640,17 +640,17 @@ impl PlaneDir
 	}
 }
 
-fn x_plane(dir: PlaneDir, dist: f64) -> DPlane
+fn x_plane(dir: PlaneDir, dist: f64) -> DPlane3
 {
-	return DPlane::new(DVec3::new(dir.as_number(), 0.0, 0.0), dist);
+	return DPlane3::new(DVec3::new(dir.as_number(), 0.0, 0.0), dist);
 }
 
-fn y_plane(dir: PlaneDir, dist: f64) -> DPlane
+fn y_plane(dir: PlaneDir, dist: f64) -> DPlane3
 {
-	return DPlane::new(DVec3::new(0.0, dir.as_number(), 0.0), dist);
+	return DPlane3::new(DVec3::new(0.0, dir.as_number(), 0.0), dist);
 }
 
-fn z_plane(dir: PlaneDir, dist: f64) -> DPlane
+fn z_plane(dir: PlaneDir, dist: f64) -> DPlane3
 {
-	return DPlane::new(DVec3::new(0.0, 0.0, dir.as_number()), dist);
+	return DPlane3::new(DVec3::new(0.0, 0.0, dir.as_number()), dist);
 }

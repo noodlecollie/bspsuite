@@ -32,7 +32,7 @@ pub struct DVec4
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct DPlane
+pub struct DPlane3
 {
 	pub normal: DVec3,
 	pub distance: f64,
@@ -103,7 +103,7 @@ impl PartialEq for DVec4
 	}
 }
 
-impl DPlane
+impl DPlane3
 {
 	pub const NULL: Self = Self::new(DVec3::NULL, 0.0);
 
@@ -121,11 +121,11 @@ impl DPlane
 	#[must_use]
 	pub const fn new_xyzd(x: f64, y: f64, z: f64, distance: f64) -> Self
 	{
-		return DPlane::new(DVec3::new(x, y, z), distance);
+		return DPlane3::new(DVec3::new(x, y, z), distance);
 	}
 }
 
-impl PartialEq for DPlane
+impl PartialEq for DPlane3
 {
 	fn eq(&self, other: &Self) -> bool
 	{

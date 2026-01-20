@@ -1,6 +1,6 @@
 use super::api_info::ApiInfo;
 use crate::builders::map_source_builder::{IMapSourceBuilder, OperationError};
-use crate::types::{DPlane, DVec2, DVec3};
+use crate::types::{DPlane3, DVec2, DVec3};
 use bspffi::types::{XCOption, XCSlice, XCStr};
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
@@ -111,7 +111,7 @@ impl<'l> IMapSourceBuilder for MapSourceBuilderApi<'l>
 		return unsafe { (self.ffi_table.end_brush_face)(&mut self.ffi_table.context).into() };
 	}
 
-	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), OperationError>
+	fn set_brush_face_plane(&mut self, plane: DPlane3) -> Result<(), OperationError>
 	{
 		return unsafe {
 			(self.ffi_table.set_brush_face_plane)(&mut self.ffi_table.context, plane).into()
@@ -295,7 +295,8 @@ pub mod internal
 		pub end_brush: unsafe extern "C" fn(&mut BuilderCtx) -> BuilderErrorCode,
 		pub begin_brush_face: unsafe extern "C" fn(&mut BuilderCtx) -> BuilderErrorCode,
 		pub end_brush_face: unsafe extern "C" fn(&mut BuilderCtx) -> BuilderErrorCode,
-		pub set_brush_face_plane: unsafe extern "C" fn(&mut BuilderCtx, DPlane) -> BuilderErrorCode,
+		pub set_brush_face_plane:
+			unsafe extern "C" fn(&mut BuilderCtx, DPlane3) -> BuilderErrorCode,
 		pub set_brush_face_material:
 			unsafe extern "C" fn(&mut BuilderCtx, &XCStr) -> BuilderErrorCode,
 		pub set_brush_face_material_axes:

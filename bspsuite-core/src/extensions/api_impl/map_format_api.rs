@@ -229,7 +229,7 @@ mod ffi_impl
 		ApiCtx, ApiFfiTable, ApiOpaqueContext, BuilderCtx, BuilderErrorCode, BuilderFfiTable,
 		BuilderOpaqueContext,
 	};
-	use bspextifc::types::{DPlane, DVec2, DVec3};
+	use bspextifc::types::{DPlane3, DVec2, DVec3};
 	use bspffi::types::XCOption;
 	use bspffi::types::internal::ContextPtr;
 
@@ -354,7 +354,7 @@ mod ffi_impl
 
 	unsafe extern "C" fn set_brush_face_plane(
 		context: &mut BuilderCtx,
-		plane: DPlane,
+		plane: DPlane3,
 	) -> BuilderErrorCode
 	{
 		return context

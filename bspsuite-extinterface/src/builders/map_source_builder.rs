@@ -1,4 +1,4 @@
-use crate::types::{DPlane, DVec2, DVec3};
+use crate::types::{DPlane3, DVec2, DVec3};
 use log::trace;
 use std::collections::HashMap;
 use std::error::Error;
@@ -120,7 +120,7 @@ pub trait IMapSourceBuilder
 	///
 	/// If there is no current face, returns
 	/// [BuilderError::OperationNotStarted].
-	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), OperationError>;
+	fn set_brush_face_plane(&mut self, plane: DPlane3) -> Result<(), OperationError>;
 
 	/// Sets the material for the current brush face.
 	///
@@ -181,7 +181,7 @@ pub trait IMapSourceBuilder
 #[derive(Debug)]
 pub struct BrushFace
 {
-	pub plane: DPlane,
+	pub plane: DPlane3,
 	pub material_name: String,
 	pub material_axes: (DVec3, DVec3),
 	pub material_offset: DVec2,
@@ -193,7 +193,7 @@ impl BrushFace
 	pub fn new() -> Self
 	{
 		return Self {
-			plane: DPlane::NULL,
+			plane: DPlane3::NULL,
 			material_name: String::new(),
 			material_axes: (DVec3::NULL, DVec3::NULL),
 			material_offset: (DVec2::NULL),
@@ -440,7 +440,7 @@ impl IMapSourceBuilder for MapSourceBuilder
 		return Ok(());
 	}
 
-	fn set_brush_face_plane(&mut self, plane: DPlane) -> Result<(), OperationError>
+	fn set_brush_face_plane(&mut self, plane: DPlane3) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 			|| self.current_brush.is_none()
@@ -853,7 +853,7 @@ mod tests
 		assert_eq!(brush.faces.len(), 1);
 
 		let face: &BrushFace = &brush.faces[0];
-		assert_eq!(face.plane, DPlane::NULL);
+		assert_eq!(face.plane, DPlane3::NULL);
 		assert_eq!(face.material_name, "");
 		assert_eq!(face.material_axes, (DVec3::NULL, DVec3::NULL));
 		assert_eq!(face.material_offset, DVec2::NULL);
@@ -863,7 +863,7 @@ mod tests
 	#[test]
 	fn construct_with_example_properties()
 	{
-		let face_plane = DPlane::new(DVec3::new(1.0, 0.0, 0.0), 10.0);
+		let face_plane = DPlane3::new(DVec3::new(1.0, 0.0, 0.0), 10.0);
 		let face_axis_u = DVec3::new(-1.0, 0.0, 0.0);
 		let face_axis_v = DVec3::new(0.0, 0.0, 1.0);
 		let face_translation = DVec2::new(10.0, 20.0);

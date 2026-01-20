@@ -31,6 +31,13 @@ impl DPlane3
 	{
 		return self == &DPlane3::NULL;
 	}
+
+	#[inline]
+	#[must_use]
+	pub fn origin(&self) -> Vec3d
+	{
+		return self.normal * self.distance;
+	}
 }
 
 #[cfg(test)]

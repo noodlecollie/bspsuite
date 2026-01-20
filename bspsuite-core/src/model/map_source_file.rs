@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::dplane3::DPlane3;
 use bspextifc::builders::map_source_builder::{Brush, BrushFace, Entity};
-use bspextifc::types::{DPlane as ExtPlane, DVec2 as ExtVec2, DVec3 as ExtVec3};
+use bspextifc::types::{DPlane3 as ExtPlane, DVec2 as ExtVec2, DVec3 as ExtVec3};
 use maths_rs::{Vec2d, Vec3d};
 
 pub struct MapSourceBrushFace

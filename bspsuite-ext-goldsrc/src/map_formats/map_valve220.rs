@@ -1,6 +1,6 @@
 use bspextifc::builders::map_source_builder::IMapSourceBuilder;
 use bspextifc::map_format_api::MapSourceBuilderApi;
-use bspextifc::types::{DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult};
+use bspextifc::types::{DPlane3, DVec2, DVec3, LineCounter, ParseError, ParseResult};
 use bspffi::types::XCStr;
 use logos::Logos;
 use maths_rs;
@@ -650,9 +650,9 @@ fn parse_face_material_number(lexer: &mut logos::Lexer<'_, BrushContext>)
 // For some reason (handedness?), the cross product order must be
 // inverted from the original reference code to produce planes with the
 // orientation that we expect. This was found by trial and error.
-fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane
+fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane3
 {
-	use maths_rs::Vec3d;
+	use maths_rs::{Vec3d, cross, dot, normalize};
 
 	let a: Vec3d = Vec3d::new(points.0.x, points.0.y, points.0.z);
 	let b: Vec3d = Vec3d::new(points.1.x, points.1.y, points.1.z);
@@ -661,10 +661,10 @@ fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane
 	let b_to_c: Vec3d = c - b;
 	let b_to_a: Vec3d = a - b;
 
-	let normal: Vec3d = maths_rs::normalize(maths_rs::cross(b_to_a, b_to_c));
-	let distance: f64 = maths_rs::dot(normal, a);
+	let normal: Vec3d = normalize(cross(b_to_a, b_to_c));
+	let distance: f64 = dot(normal, a);
 
-	return DPlane::new(DVec3::new(normal.x, normal.y, normal.z), distance);
+	return DPlane3::new(DVec3::new(normal.x, normal.y, normal.z), distance);
 }
 
 fn update_line_count<'l, Ctx>(lexer: &mut logos::Lexer<'l, Ctx>) -> logos::Skip
