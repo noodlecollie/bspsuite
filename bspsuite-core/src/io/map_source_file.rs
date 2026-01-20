@@ -38,7 +38,8 @@ mod version_1
 		DPlane3, MapSourceBrush, MapSourceBrushFace, MapSourceEntity, MapSourceFile,
 	};
 	use anyhow::{Context, Result, anyhow};
-	use glam::{DVec2, DVec3};
+	use maths_rs::vec::VecN;
+	use maths_rs::{Vec2d, Vec3d};
 	use serde_json::ser::to_writer_pretty;
 	use serde_json::{Map, Number, Value};
 
@@ -99,10 +100,10 @@ mod version_1
 
 	fn process_face(face: &MapSourceBrushFace) -> Result<JsonObject>
 	{
-		let mat_axis_u: JsonArray = process_dvec3(&face.material_axes.0)?;
-		let mat_axis_v: JsonArray = process_dvec3(&face.material_axes.1)?;
-		let mat_offset: JsonArray = process_dvec2(&face.material_offset)?;
-		let mat_scale: JsonArray = process_dvec2(&face.material_scale)?;
+		let mat_axis_u: JsonArray = process_vec3(&face.material_axes.0)?;
+		let mat_axis_v: JsonArray = process_vec3(&face.material_axes.1)?;
+		let mat_offset: JsonArray = process_vec2(&face.material_offset)?;
+		let mat_scale: JsonArray = process_vec2(&face.material_scale)?;
 		let plane: JsonArray = process_dplane3(face.plane)?;
 		let material_axes = [Value::Array(mat_axis_u), Value::Array(mat_axis_v)];
 
@@ -130,20 +131,20 @@ mod version_1
 			plane.distance,
 		];
 
-		return dvec_slice_to_array(values);
+		return dvec_slice_to_array(&values);
 	}
 
-	fn process_dvec3(vec: &DVec3) -> Result<JsonArray>
+	fn process_vec3(vec: &Vec3d) -> Result<JsonArray>
 	{
-		return dvec_slice_to_array(vec.to_array());
+		return dvec_slice_to_array(vec.as_slice());
 	}
 
-	fn process_dvec2(vec: &DVec2) -> Result<JsonArray>
+	fn process_vec2(vec: &Vec2d) -> Result<JsonArray>
 	{
-		return dvec_slice_to_array(vec.to_array());
+		return dvec_slice_to_array(vec.as_slice());
 	}
 
-	fn dvec_slice_to_array<const LEN: usize>(contents: [f64; LEN]) -> Result<JsonArray>
+	fn dvec_slice_to_array(contents: &[f64]) -> Result<JsonArray>
 	{
 		return to_json_array(&contents, |num| {
 			Number::from_f64(*num)

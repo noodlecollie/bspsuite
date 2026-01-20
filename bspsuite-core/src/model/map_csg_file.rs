@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use crate::model::{DPlane3, MapSourceBrush, MapSourceBrushFace, MapSourceFile};
 use anyhow::Result;
-use glam::{DVec2, DVec3};
+use maths_rs::{Vec2d, Vec3d};
 
 pub struct MapCsgVertex
 {
-	pub pos: DVec3,
-	pub tex_coord: DVec2,
+	pub pos: Vec3d,
+	pub tex_coord: Vec2d,
 }
 
 pub struct MapCsgBrushFace
@@ -61,8 +61,6 @@ fn compute_faces_from_planes(brush_faces: &Vec<MapSourceBrushFace>) -> Vec<MapCs
 	//   V - E + F = 2
 	// where V = vertex count, E = edge count and F = face count.
 	// If this formula is not satisfied, the volume is not valid.
-
-	// TODO: Need the rust_3d crate in order to do this.
 	todo!();
 }
 

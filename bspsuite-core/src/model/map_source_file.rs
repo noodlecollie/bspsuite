@@ -3,16 +3,16 @@ use std::collections::HashMap;
 use super::dplane3::DPlane3;
 use bspextifc::builders::map_source_builder::{Brush, BrushFace, Entity};
 use bspextifc::types::{DPlane as ExtPlane, DVec2 as ExtVec2, DVec3 as ExtVec3};
-use glam::{DVec2, DVec3};
+use maths_rs::{Vec2d, Vec3d};
 
 pub struct MapSourceBrushFace
 {
 	pub face_index: usize,
 	pub plane: DPlane3,
 	pub material_name: String,
-	pub material_axes: (DVec3, DVec3),
-	pub material_offset: DVec2,
-	pub material_scale: DVec2,
+	pub material_axes: (Vec3d, Vec3d),
+	pub material_offset: Vec2d,
+	pub material_scale: Vec2d,
 }
 
 pub struct MapSourceBrush
@@ -116,14 +116,14 @@ impl From<Vec<Entity>> for MapSourceFile
 	}
 }
 
-fn vec2(vec: ExtVec2) -> DVec2
+fn vec2(vec: ExtVec2) -> Vec2d
 {
-	return DVec2 { x: vec.x, y: vec.y };
+	return Vec2d { x: vec.x, y: vec.y };
 }
 
-fn vec3(vec: ExtVec3) -> DVec3
+fn vec3(vec: ExtVec3) -> Vec3d
 {
-	return DVec3 {
+	return Vec3d {
 		x: vec.x,
 		y: vec.y,
 		z: vec.z,

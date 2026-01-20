@@ -18,6 +18,6 @@ edition = "2024"
 
 [workspace.dependencies]
 anyhow = "1.0.100"
-glam = "0.30.9"
+maths-rs = "0.2.7"
 strum = "0.27.2"
 log = "0.4.28"

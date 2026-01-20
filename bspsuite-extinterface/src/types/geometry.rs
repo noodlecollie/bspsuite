@@ -1,7 +1,7 @@
 //! This module contains simple FFI-safe types used to describe geometry.
 //! These are only intended for being passed across the dynamic library
 //! boundary. You will probably want to convert these to proper objects (eg.
-//! Glam vectors) before you use them.
+//! vectors from a library like glam or maths_rs) before you use them.
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

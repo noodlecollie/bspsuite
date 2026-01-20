@@ -126,10 +126,10 @@ dependencies = [
  "const-cstr",
  "constcat",
  "fern",
- "glam",
  "itertools",
  "libloading",
  "log",
+ "maths-rs",
  "paris",
  "serde",
  "serde_json",
@@ -145,9 +145,9 @@ dependencies = [
  "anyhow",
  "bspsuite-extinterface",
  "bspsuite-ffi",
- "glam",
  "log",
  "logos",
+ "maths-rs",
 ]
 
 [[package]]
@@ -306,12 +306,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
-name = "glam"
-version = "0.30.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd47b05dddf0005d850e5644cae7f2b14ac3df487979dbfff3b56f20b1a6ae46"
-
-[[package]]
 name = "glob"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -455,6 +449,12 @@ checksum = "d151b2ae667f69e10b8738f5cac0c746faa22b2e15ea7e83b55476afec3767dc"
 dependencies = [
  "logos-codegen",
 ]
+
+[[package]]
+name = "maths-rs"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "294eeb9091a188eb266fcb3dcb2d3adccf4499fdf05b5d9c42b91866b5384a82"
 
 [[package]]
 name = "memchr"
