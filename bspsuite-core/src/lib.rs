@@ -4,9 +4,10 @@ use constcat::concat;
 mod compiler_error;
 mod extensions;
 mod game_configs;
-mod model;
-mod toolchain;
 mod io;
+mod model;
+mod ops;
+mod toolchain;
 
 pub mod commands;
 
