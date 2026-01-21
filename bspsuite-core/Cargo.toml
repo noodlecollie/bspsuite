@@ -16,7 +16,7 @@ bspsuite-ffi = { path = "../bspsuite-ffi" }
 bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 anyhow.workspace = true
 log.workspace = true
-maths-rs.workspace = true
+glam.workspace = true
 strum = { workspace = true, features = ["derive"] }
 fern = { version = "0.7.1", features = ["colored"] }
 paris = { version = "1.5.15", features = ["no_logger"] }

@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use crate::model::{DPlane3, MapSourceBrush, MapSourceBrushFace, MapSourceFile};
 use anyhow::Result;
-use maths_rs::{Vec2d, Vec3d};
+use glam::{DVec2, DVec3};
 
 pub struct MapCsgVertex
 {
-	pub pos: Vec3d,
-	pub tex_coord: Vec2d,
+	pub pos: DVec3,
+	pub tex_coord: DVec2,
 }
 
 pub struct MapCsgBrushFace

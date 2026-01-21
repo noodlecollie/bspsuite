@@ -1,6 +1,6 @@
 use crate::model::{MapCsgBrush, MapCsgBrushFace, MapSourceBrush, MapSourceBrushFace};
 use anyhow::{Result, bail};
-use maths_rs::Vec3d;
+use glam::DVec3;
 
 pub fn construct_brush(source: MapSourceBrush) -> Result<MapCsgBrush>
 {
@@ -78,7 +78,7 @@ fn order_vertices_clockwise(face: MapCsgBrushFace) -> MapCsgBrushFace
 	todo!();
 }
 
-fn is_point_in_front_of_any_face(point: Vec3d, brush_faces: &Vec<MapSourceBrushFace>) -> bool
+fn is_point_in_front_of_any_face(point: &DVec3, brush_faces: &Vec<MapSourceBrushFace>) -> bool
 {
 	todo!();
 }

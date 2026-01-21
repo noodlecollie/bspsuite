@@ -77,6 +77,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -126,10 +135,10 @@ dependencies = [
  "const-cstr",
  "constcat",
  "fern",
+ "glam",
  "itertools",
  "libloading",
  "log",
- "maths-rs",
  "paris",
  "serde",
  "serde_json",
@@ -146,9 +155,9 @@ dependencies = [
  "anyhow",
  "bspsuite-extinterface",
  "bspsuite-ffi",
+ "glam",
  "log",
  "logos",
- "maths-rs",
 ]
 
 [[package]]
@@ -307,6 +316,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "glam"
+version = "0.30.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19fc433e8437a212d1b6f1e68c7824af3aed907da60afa994e7f542d18d12aa9"
+dependencies = [
+ "approx",
+]
+
+[[package]]
 name = "glob"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -450,12 +468,6 @@ checksum = "d151b2ae667f69e10b8738f5cac0c746faa22b2e15ea7e83b55476afec3767dc"
 dependencies = [
  "logos-codegen",
 ]
-
-[[package]]
-name = "maths-rs"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "294eeb9091a188eb266fcb3dcb2d3adccf4499fdf05b5d9c42b91866b5384a82"
 
 [[package]]
 name = "memchr"

@@ -3,8 +3,6 @@ use bspextifc::map_format_api::MapSourceBuilderApi;
 use bspextifc::types::{DPlane3, DVec2, DVec3, LineCounter, ParseError, ParseResult};
 use bspffi::types::XCStr;
 use logos::Logos;
-use maths_rs;
-use maths_rs::num::Base;
 
 // Documentation on the Goldsrc map format:
 // https://developer.valvesoftware.com/wiki/MAP_(file_format)
@@ -652,17 +650,22 @@ fn parse_face_material_number(lexer: &mut logos::Lexer<'_, BrushContext>)
 // orientation that we expect. This was found by trial and error.
 fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane3
 {
-	use maths_rs::{Vec3d, cross, dot, normalize};
+	use glam;
+	type GVec3 = glam::DVec3;
 
-	let a: Vec3d = Vec3d::new(points.0.x, points.0.y, points.0.z);
-	let b: Vec3d = Vec3d::new(points.1.x, points.1.y, points.1.z);
-	let c: Vec3d = Vec3d::new(points.2.x, points.2.y, points.2.z);
+	let a: GVec3 = GVec3::new(points.0.x, points.0.y, points.0.z);
+	let b: GVec3 = GVec3::new(points.1.x, points.1.y, points.1.z);
+	let c: GVec3 = GVec3::new(points.2.x, points.2.y, points.2.z);
 
-	let b_to_c: Vec3d = c - b;
-	let b_to_a: Vec3d = a - b;
+	let b_to_c: GVec3 = c - b;
+	let b_to_a: GVec3 = a - b;
 
-	let normal: Vec3d = normalize(cross(b_to_a, b_to_c));
-	let distance: f64 = dot(normal, a);
+	let normal: GVec3 = b_to_a
+		.cross(b_to_c)
+		.try_normalize()
+		.unwrap_or_else(|| GVec3::ZERO);
+
+	let distance: f64 = normal.dot(a);
 
 	return DPlane3::new(DVec3::new(normal.x, normal.y, normal.z), distance);
 }

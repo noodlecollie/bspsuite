@@ -17,6 +17,6 @@ crate-type = ["cdylib"]
 bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 bspsuite-ffi = { path = "../bspsuite-ffi" }
 anyhow.workspace = true
-maths-rs.workspace = true
+glam.workspace = true
 log = { workspace = true, features = ["std"] }
 logos = "0.16.0"

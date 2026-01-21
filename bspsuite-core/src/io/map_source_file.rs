@@ -38,8 +38,7 @@ mod version_1
 		DPlane3, MapSourceBrush, MapSourceBrushFace, MapSourceEntity, MapSourceFile,
 	};
 	use anyhow::{Context, Result, anyhow};
-	use maths_rs::vec::VecN;
-	use maths_rs::{Vec2d, Vec3d};
+	use glam::{DVec2, DVec3};
 	use serde_json::ser::to_writer_pretty;
 	use serde_json::{Map, Number, Value};
 
@@ -131,20 +130,20 @@ mod version_1
 			plane.distance,
 		];
 
-		return dvec_slice_to_array(&values);
+		return dvec_slice_to_array(values);
 	}
 
-	fn process_vec3(vec: &Vec3d) -> Result<JsonArray>
+	fn process_vec3(vec: &DVec3) -> Result<JsonArray>
 	{
-		return dvec_slice_to_array(vec.as_slice());
+		return dvec_slice_to_array(vec.to_array());
 	}
 
-	fn process_vec2(vec: &Vec2d) -> Result<JsonArray>
+	fn process_vec2(vec: &DVec2) -> Result<JsonArray>
 	{
-		return dvec_slice_to_array(vec.as_slice());
+		return dvec_slice_to_array(vec.to_array());
 	}
 
-	fn dvec_slice_to_array(contents: &[f64]) -> Result<JsonArray>
+	fn dvec_slice_to_array<const LEN: usize>(contents: [f64; LEN]) -> Result<JsonArray>
 	{
 		return to_json_array(&contents, |num| {
 			Number::from_f64(*num)

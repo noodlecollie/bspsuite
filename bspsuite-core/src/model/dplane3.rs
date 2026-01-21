@@ -1,9 +1,9 @@
-use maths_rs::Vec3d;
+use glam::DVec3;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct DPlane3
 {
-	pub normal: Vec3d,
+	pub normal: DVec3,
 	pub distance: f64,
 }
 
@@ -13,7 +13,7 @@ impl DPlane3
 
 	#[inline]
 	#[must_use]
-	pub const fn new(normal: Vec3d, distance: f64) -> Self
+	pub const fn new(normal: DVec3, distance: f64) -> Self
 	{
 		return DPlane3 { normal, distance };
 	}
@@ -22,7 +22,7 @@ impl DPlane3
 	#[must_use]
 	pub const fn new_xyzd(x: f64, y: f64, z: f64, d: f64) -> Self
 	{
-		return Self::new(Vec3d { x: x, y: y, z: z }, d);
+		return Self::new(DVec3::new(x, y, z), d);
 	}
 
 	#[inline]
@@ -34,7 +34,7 @@ impl DPlane3
 
 	#[inline]
 	#[must_use]
-	pub fn origin(&self) -> Vec3d
+	pub fn origin(&self) -> DVec3
 	{
 		return self.normal * self.distance;
 	}
@@ -49,13 +49,13 @@ mod tests
 	fn construct_null_plane()
 	{
 		let null1: DPlane3 = DPlane3 {
-			normal: Vec3d::new(0.0, 0.0, 0.0),
+			normal: DVec3::new(0.0, 0.0, 0.0),
 			distance: 0.0,
 		};
 
 		assert!(null1.is_null());
 
-		let null2: DPlane3 = DPlane3::new(Vec3d::new(0.0, 0.0, 0.0), 0.0);
+		let null2: DPlane3 = DPlane3::new(DVec3::new(0.0, 0.0, 0.0), 0.0);
 		assert!(null2.is_null());
 
 		let null3: DPlane3 = DPlane3::new_xyzd(0.0, 0.0, 0.0, 0.0);
