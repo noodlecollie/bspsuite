@@ -2,9 +2,10 @@ use const_cstr::{ConstCStr, const_cstr};
 use constcat::concat;
 
 mod compiler_error;
+mod configs;
 mod extensions;
-mod game_configs;
 mod io;
+mod math;
 mod model;
 mod ops;
 mod toolchain;
