@@ -1,5 +1,6 @@
 use crate::model::{MapCsgBrush, MapCsgBrushFace, MapSourceBrush, MapSourceBrushFace};
-use anyhow::Result;
+use anyhow::{Result, bail};
+use maths_rs::Vec3d;
 
 pub fn construct_brush(source: MapSourceBrush) -> Result<MapCsgBrush>
 {
@@ -25,8 +26,35 @@ fn create_faces_from_planes(brush_faces: &Vec<MapSourceBrushFace>) -> Vec<MapCsg
 
 fn compute_all_planar_intersection_points(
 	brush_faces: &Vec<MapSourceBrushFace>,
-) -> Vec<MapCsgBrushFace>
+) -> Result<Vec<MapCsgBrushFace>>
 {
+	if brush_faces.len() < 4
+	{
+		bail!("Not enough planes to form a valid solid")
+	}
+
+	for plane1_index in 0..brush_faces.len() - 2
+	{
+		for plane2_index in 0..brush_faces.len() - 1
+		{
+			for plane3_index in 0..brush_faces.len()
+			{
+				if plane1_index == plane2_index && plane2_index == plane3_index
+				{
+					continue;
+				}
+
+				let planes = (
+					&brush_faces[plane1_index].plane,
+					&brush_faces[plane2_index].plane,
+					&brush_faces[plane3_index].plane,
+				);
+
+				todo!();
+			}
+		}
+	}
+
 	todo!();
 }
 
@@ -46,6 +74,11 @@ fn order_vertices_clockwise_on_all_faces(csg_faces: Vec<MapCsgBrushFace>) -> Vec
 }
 
 fn order_vertices_clockwise(face: MapCsgBrushFace) -> MapCsgBrushFace
+{
+	todo!();
+}
+
+fn is_point_in_front_of_any_face(point: Vec3d, brush_faces: &Vec<MapSourceBrushFace>) -> bool
 {
 	todo!();
 }
