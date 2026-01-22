@@ -7,7 +7,7 @@ use std::ffi::c_char;
 
 pub use compile::{CompileArgs, bspcore_run_compile};
 pub use extinfo::{ExtinfoArgs, bspcore_run_extinfo};
-pub use types::{BaseArgs, ResultCode};
+pub use types::{BaseArgs, InputPathMetadata, ResultCode};
 
 use crate::BUILD_IDENTIFIER;
 

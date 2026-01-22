@@ -1,6 +1,7 @@
 use const_cstr::{ConstCStr, const_cstr};
 use constcat::concat;
 
+mod compile_context;
 mod compiler_error;
 mod configs;
 mod extensions;
