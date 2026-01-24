@@ -27,9 +27,9 @@ pub struct CompileTuningParametersConfig
 	/// too large may cause vertices very close together to be merged.
 	pub equal_point_radius_epsilon: Option<f64>,
 
-	/// Value for deciding whether two vectors are equal. The vectors are
-	/// considered equal if, for each pair of their components, the absolute
-	/// difference between the components is less than this value.
+	/// Value for deciding whether two vectors are component-wise equal. The
+	/// vectors are considered equal if, for each pair of their components, the
+	/// absolute difference between the components is less than this value.
 	///
 	/// This value is different to [equal_point_radius_epsilon] because it is
 	/// intended to mitigate against rounding errors when comparing individual
@@ -42,6 +42,12 @@ pub struct CompileTuningParametersConfig
 
 	/// Value for deciding if a number should be considered zero. If the
 	/// magnitude of the number is less than this value, is is considered zero.
+	///
+	/// This value is commonly used when comparing small vector lengths for
+	/// equality, by deciding whether the difference between the lengths of the
+	/// two vectors is small enough to be negligible. This method is used in
+	/// preference to [equal_vector_component_epsilon] when it is the length of
+	/// the vectors that is salient, rather than their particular components.
 	pub zero_epsilon: Option<f64>,
 }
 

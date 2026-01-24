@@ -3,6 +3,8 @@ use crate::math::{DLine3, DPlane3};
 use glam::DVec3;
 
 // Built on https://en.wikipedia.org/wiki/Plane%E2%80%93plane_intersection#Formulation
+// The direction of the intersection line is right-handed with respect to the
+// plane normals.
 pub fn intersect_planes(a: &DPlane3, b: &DPlane3, zero_epsilon: f64) -> Option<DLine3>
 {
 	if a.is_null(zero_epsilon) || b.is_null(zero_epsilon)
@@ -44,5 +46,55 @@ pub fn intersect_planes(a: &DPlane3, b: &DPlane3, zero_epsilon: f64) -> Option<D
 	return Some(DLine3::unit_from_point_and_direction(
 		line_origin,
 		intersection_dir,
+		zero_epsilon,
 	));
+}
+
+#[cfg(test)]
+mod tests
+{
+	use super::*;
+	use crate::math::compile_tuning_parameters::{
+		DEFAULT_EQUAL_VECTOR_COMPONENT_EPSILON, DEFAULT_ZERO_EPSILON,
+	};
+	use crate::math::fuzzy_comparison::vectors_are_equal;
+
+	#[test]
+	fn plane_intersections()
+	{
+		{
+			let plane1: DPlane3 = DPlane3::new_xyzd(1.0, 0.0, 0.0, 5.0);
+			let plane2: DPlane3 = DPlane3::new_xyzd(1.0, 0.0, 0.0, 10.0);
+			let result = intersect_planes(&plane1, &plane2, DEFAULT_ZERO_EPSILON);
+			assert!(result.is_none());
+		}
+
+		{
+			let plane1: DPlane3 = DPlane3::new_xyzd(1.0, 0.0, 0.0, 5.0);
+			let plane2: DPlane3 = DPlane3::new_xyzd(0.0, 0.0, 1.0, 10.0);
+			let result = intersect_planes(&plane1, &plane2, DEFAULT_ZERO_EPSILON);
+			assert!(result.is_some());
+			assert!(vectors_are_equal(
+				result.unwrap().direction,
+				-DVec3::Y,
+				DEFAULT_EQUAL_VECTOR_COMPONENT_EPSILON
+			));
+
+			// TODO: Check points on line
+		}
+
+		{
+			let plane1: DPlane3 = DPlane3::new_xyzd(1.0, 0.0, 0.0, 5.0);
+			let plane2: DPlane3 = DPlane3::new_xyzd(0.0, 1.0, 0.0, 10.0);
+			let result = intersect_planes(&plane1, &plane2, DEFAULT_ZERO_EPSILON);
+			assert!(result.is_some());
+			assert!(vectors_are_equal(
+				result.unwrap().direction,
+				DVec3::Z,
+				DEFAULT_EQUAL_VECTOR_COMPONENT_EPSILON
+			));
+
+			// TODO: Check points on line
+		}
+	}
 }

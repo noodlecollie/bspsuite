@@ -82,6 +82,7 @@ impl<'l> CsgBrushBuilder<'l>
 	) -> Result<()>
 	{
 		// TODO: Intersect the two face planes to produce a line
+		todo!();
 	}
 }
 
