@@ -18,10 +18,10 @@ where
 	/// Given a reference to a `value` of `NativeType`, wraps the reference and
 	/// returns an instance of the marshaller. This marshaller can be used to
 	/// unmarshal the reference later with [unmarshal_ref].
-	#[must_use]
+	#[must_use = "Constructed marshaller was not used"]
 	fn marshal_ref(value: &'l NativeType) -> Self;
 
 	/// Returns a reference to a value previously marshalled with [marshal_ref].
-	#[must_use]
+	#[must_use = "Returned reference was not used"]
 	fn unmarshal_ref(&'l self) -> &'l NativeType;
 }

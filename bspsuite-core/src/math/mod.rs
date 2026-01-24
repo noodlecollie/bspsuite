@@ -1,8 +1,12 @@
 mod classification;
 mod compile_tuning_parameters;
+mod dline3;
 mod dplane3;
-mod fuzzy_comparison;
+
+pub mod const_fns;
+pub mod fuzzy_comparison;
 
 pub use classification::Classification;
 pub use compile_tuning_parameters::CompileTuningParameters;
+pub use dline3::DLine3;
 pub use dplane3::DPlane3;

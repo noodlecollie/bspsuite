@@ -17,7 +17,7 @@ impl<'l, OpaqueType> ContextPtr<'l, OpaqueType>
 	// user of the returned struct has the responsibility of knowing what the type
 	// Ctx was when this function was called.
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed object was not used"]
 	pub unsafe fn new<Ctx>(context: &'l RefCell<Ctx>) -> Self
 	{
 		return Self {
@@ -32,7 +32,7 @@ impl<'l, OpaqueType> ContextPtr<'l, OpaqueType>
 	// The caller must also know what the type of the pointer was when the new()
 	// function was originally called.
 	#[inline]
-	#[must_use]
+	#[must_use = "Returned pointer was not used"]
 	pub unsafe fn as_void_ptr(&self) -> *const c_void
 	{
 		return self.ptr;

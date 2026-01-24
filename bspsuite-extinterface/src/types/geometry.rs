@@ -43,7 +43,7 @@ impl DVec2
 	pub const NULL: Self = Self::new(0.0, 0.0);
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed vector was not used"]
 	pub const fn new(x: f64, y: f64) -> Self
 	{
 		return Self { x: x, y: y };
@@ -63,7 +63,7 @@ impl DVec3
 	pub const NULL: Self = Self::new(0.0, 0.0, 0.0);
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed vector was not used"]
 	pub const fn new(x: f64, y: f64, z: f64) -> Self
 	{
 		return Self { x: x, y: y, z: z };
@@ -83,7 +83,7 @@ impl DVec4
 	pub const NULL: Self = Self::new(0.0, 0.0, 0.0, 0.0);
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed vector was not used"]
 	pub const fn new(x: f64, y: f64, z: f64, w: f64) -> Self
 	{
 		return Self {
@@ -108,7 +108,7 @@ impl DPlane3
 	pub const NULL: Self = Self::new(DVec3::NULL, 0.0);
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed plane was not used"]
 	pub const fn new(normal: DVec3, distance: f64) -> Self
 	{
 		return Self {
@@ -118,7 +118,7 @@ impl DPlane3
 	}
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed plane was not used"]
 	pub const fn new_xyzd(x: f64, y: f64, z: f64, distance: f64) -> Self
 	{
 		return DPlane3::new(DVec3::new(x, y, z), distance);

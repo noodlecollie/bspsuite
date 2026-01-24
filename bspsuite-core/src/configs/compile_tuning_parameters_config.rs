@@ -26,6 +26,23 @@ pub struct CompileTuningParametersConfig
 	/// value too small may cause erroneous duplication of vertices; making it
 	/// too large may cause vertices very close together to be merged.
 	pub equal_point_radius_epsilon: Option<f64>,
+
+	/// Value for deciding whether two vectors are equal. The vectors are
+	/// considered equal if, for each pair of their components, the absolute
+	/// difference between the components is less than this value.
+	///
+	/// This value is different to [equal_point_radius_epsilon] because it is
+	/// intended to mitigate against rounding errors when comparing individual
+	/// floating point values, and so is less forgiving than
+	/// [equal_point_radius_epsilon]. It is primarily used for computing the
+	/// equality of directional vectors such as normals, and as such does not
+	/// have a straightforward relation to physical space like
+	/// [equal_point_radius_epsilon].
+	pub equal_vector_component_epsilon: Option<f64>,
+
+	/// Value for deciding if a number should be considered zero. If the
+	/// magnitude of the number is less than this value, is is considered zero.
+	pub zero_epsilon: Option<f64>,
 }
 
 impl CompileTuningParametersConfig
@@ -46,6 +63,11 @@ impl CompileTuningParametersConfig
 				existing_cfg.equal_point_radius_epsilon,
 				override_cfg.equal_point_radius_epsilon,
 			),
+			equal_vector_component_epsilon: decide_property(
+				existing_cfg.equal_vector_component_epsilon,
+				override_cfg.equal_vector_component_epsilon,
+			),
+			zero_epsilon: decide_property(existing_cfg.zero_epsilon, override_cfg.zero_epsilon),
 		};
 	}
 }

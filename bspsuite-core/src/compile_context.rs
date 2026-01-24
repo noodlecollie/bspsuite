@@ -84,5 +84,9 @@ fn create_compile_tuning_parameters(
 		equal_point_radius_epsilon: config
 			.equal_point_radius_epsilon
 			.unwrap_or(defaults.equal_point_radius_epsilon),
+		equal_vector_component_epsilon: config
+			.equal_vector_component_epsilon
+			.unwrap_or(defaults.equal_vector_component_epsilon),
+		zero_epsilon: config.zero_epsilon.unwrap_or(defaults.zero_epsilon),
 	};
 }

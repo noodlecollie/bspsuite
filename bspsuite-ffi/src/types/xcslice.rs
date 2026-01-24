@@ -22,7 +22,7 @@ impl<'l, T> XCSlice<'l, T>
 {
 	/// Constructs a new `XCSlice<T>` from a `&[T]`.
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed slice was not used"]
 	pub fn new(slice: &'l [T]) -> Self
 	{
 		return Self {
@@ -37,7 +37,7 @@ impl<'l, T> XCSlice<'l, T>
 	/// The slice reference may not live longer than the `XCSlice` it was
 	/// created from.
 	#[inline]
-	#[must_use]
+	#[must_use = "Returned slice was not used"]
 	pub fn as_slice(&self) -> &'l [T]
 	{
 		// SAFETY:

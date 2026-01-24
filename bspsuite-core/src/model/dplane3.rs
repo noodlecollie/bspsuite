@@ -12,28 +12,26 @@ impl DPlane3
 	pub const NULL: Self = Self::new_xyzd(0.0, 0.0, 0.0, 0.0);
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed plane was not used"]
 	pub const fn new(normal: DVec3, distance: f64) -> Self
 	{
 		return DPlane3 { normal, distance };
 	}
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed plane was not used"]
 	pub const fn new_xyzd(x: f64, y: f64, z: f64, d: f64) -> Self
 	{
 		return Self::new(DVec3::new(x, y, z), d);
 	}
 
 	#[inline]
-	#[must_use]
 	pub fn is_null(&self) -> bool
 	{
 		return self == &DPlane3::NULL;
 	}
 
 	#[inline]
-	#[must_use]
 	pub fn origin(&self) -> DVec3
 	{
 		return self.normal * self.distance;
