@@ -7,7 +7,7 @@ use glam::{DVec2, DVec3};
 
 pub struct MapSourceBrushFace
 {
-	pub face_index: usize,
+	pub global_face_index: usize,
 	pub plane: DPlane3,
 	pub material_name: String,
 	pub material_axes: (DVec3, DVec3),
@@ -17,13 +17,13 @@ pub struct MapSourceBrushFace
 
 pub struct MapSourceBrush
 {
-	pub brush_index: usize,
+	pub global_brush_index: usize,
 	pub faces: Vec<MapSourceBrushFace>,
 }
 
 pub struct MapSourceEntity
 {
-	pub entity_index: usize,
+	pub global_entity_index: usize,
 	pub brushes: Vec<MapSourceBrush>,
 	pub keyvalues: HashMap<String, String>,
 }
@@ -35,24 +35,24 @@ pub struct MapSourceFile
 
 impl MapSourceFile
 {
-	pub fn assign_indices(&mut self)
+	pub fn assign_global_indices(&mut self)
 	{
 		let mut current_brush: usize = 0;
 		let mut current_face: usize = 0;
 
 		for (entindex, entity) in self.entities.iter_mut().enumerate()
 		{
-			entity.entity_index = entindex;
+			entity.global_entity_index = entindex;
 
 			for brush in entity.brushes.iter_mut()
 			{
-				brush.brush_index = current_brush;
+				brush.global_brush_index = current_brush;
 				assert!(current_brush < usize::MAX, "Overflowed max brush index");
 				current_brush += 1;
 
 				for face in brush.faces.iter_mut()
 				{
-					face.face_index = current_face;
+					face.global_face_index = current_face;
 					assert!(current_face < usize::MAX, "Overflowed max face index");
 					current_face += 1;
 				}
@@ -66,7 +66,7 @@ impl From<BrushFace> for MapSourceBrushFace
 	fn from(value: BrushFace) -> Self
 	{
 		return Self {
-			face_index: 0, // Assigned later
+			global_face_index: 0, // Assigned later
 			plane: plane3(value.plane),
 			material_name: value.material_name,
 			material_axes: (vec3(value.material_axes.0), vec3(value.material_axes.1)),
@@ -81,7 +81,7 @@ impl From<Brush> for MapSourceBrush
 	fn from(value: Brush) -> Self
 	{
 		return Self {
-			brush_index: 0, // Assigned later
+			global_brush_index: 0, // Assigned later
 			faces: value.faces.into_iter().map(|face| face.into()).collect(),
 		};
 	}
@@ -92,7 +92,7 @@ impl From<Entity> for MapSourceEntity
 	fn from(value: Entity) -> Self
 	{
 		return Self {
-			entity_index: 0, // Assigned later
+			global_entity_index: 0, // Assigned later
 			brushes: value
 				.brushes
 				.into_iter()
@@ -111,7 +111,7 @@ impl From<Vec<Entity>> for MapSourceFile
 			entities: value.into_iter().map(|ent| ent.into()).collect(),
 		};
 
-		out.assign_indices();
+		out.assign_global_indices();
 		return out;
 	}
 }

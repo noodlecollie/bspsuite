@@ -74,8 +74,8 @@ mod version_1
 
 		let mut obj: JsonObject = JsonObject::new();
 		obj.insert(
-			"entity_index".to_string(),
-			usize_to_number(entity.entity_index),
+			"global_entity_index".to_string(),
+			usize_to_number(entity.global_entity_index),
 		);
 		obj.insert("properties".to_string(), properties.into());
 		obj.insert("brushes".to_string(), brushes.into());
@@ -89,8 +89,8 @@ mod version_1
 
 		let mut obj: JsonObject = JsonObject::new();
 		obj.insert(
-			"brush_index".to_string(),
-			usize_to_number(brush.brush_index),
+			"global_brush_index".to_string(),
+			usize_to_number(brush.global_brush_index),
 		);
 		obj.insert("faces".to_string(), faces.into());
 
@@ -108,7 +108,10 @@ mod version_1
 
 		let mut obj: JsonObject = JsonObject::new();
 
-		obj.insert("face_index".to_string(), usize_to_number(face.face_index));
+		obj.insert(
+			"global_face_index".to_string(),
+			usize_to_number(face.global_face_index),
+		);
 		obj.insert("plane".to_string(), plane.into());
 		obj.insert(
 			"material_name".to_string(),

@@ -1,84 +1,31 @@
+use crate::math::CompileTuningParameters;
 use crate::model::{MapCsgBrush, MapCsgBrushFace, MapSourceBrush, MapSourceBrushFace};
-use anyhow::{Result, bail};
-use glam::DVec3;
+use anyhow::Result;
 
-pub fn construct_brush(source: MapSourceBrush) -> Result<MapCsgBrush>
+// In combination with the Stefan Hajnoczi paper (see the notes directory in
+// this repo), and with
+// https://math.stackexchange.com/questions/5120422/how-to-verify-whether-a-collection-of-3d-planes-forms-a-valid-convex-hull/5120722,
+// the approach we follow here is:
+// For each plane (face):
+//   Check intersections with all other planes. For each intersection (edge):
+//     Check intersections with all remaining planes to create vertex list.
+//     Remove extraneous vertices (in front of any planes).
+//     If edge vertices != 2, solid is not valid.
+//     Add vertices and edges to respective faces.
+//   If faace vertices < 3, solid is not valid.
+//   Order face's vertices clockwise, using edges to link vertices.
+//   Compute texture co-ordinates for each vertex.
+// Normalise texture co-ordinates for all vertices in brush.
+pub fn construct_brush(
+	source: MapSourceBrush,
+	params: &CompileTuningParameters,
+) -> Result<MapCsgBrush>
 {
 	let faces: Vec<MapCsgBrushFace> = create_faces_from_planes(&source.faces);
 	todo!();
 }
 
-// As per the Stefan Hajnoczi paper (see the notes directory in this repo),
-// we will need to perform the following:
-// - Compute all intersection points between all triplets of planes.
-// - Discard extraneous points which are in front of any plane.
-// - Order the points clockwise on each face.
-// At this stage, we will also need to verify whether the convex volume
-// is closed (ie. not missing any faces). This can be done using Euler's
-// formula:
-//   V - E + F = 2
-// where V = vertex count, E = edge count and F = face count.
-// If this formula is not satisfied, the volume is not valid.
 fn create_faces_from_planes(brush_faces: &Vec<MapSourceBrushFace>) -> Vec<MapCsgBrushFace>
-{
-	todo!();
-}
-
-fn compute_all_planar_intersection_points(
-	brush_faces: &Vec<MapSourceBrushFace>,
-) -> Result<Vec<MapCsgBrushFace>>
-{
-	if brush_faces.len() < 4
-	{
-		bail!("Not enough planes to form a valid solid")
-	}
-
-	for plane1_index in 0..brush_faces.len() - 2
-	{
-		for plane2_index in 0..brush_faces.len() - 1
-		{
-			for plane3_index in 0..brush_faces.len()
-			{
-				if plane1_index == plane2_index && plane2_index == plane3_index
-				{
-					continue;
-				}
-
-				let planes = (
-					&brush_faces[plane1_index].plane,
-					&brush_faces[plane2_index].plane,
-					&brush_faces[plane3_index].plane,
-				);
-
-				todo!();
-			}
-		}
-	}
-
-	todo!();
-}
-
-fn discard_intersection_points_outside_minimum_convex_hull(
-	csg_faces: Vec<MapCsgBrushFace>,
-) -> Vec<MapCsgBrushFace>
-{
-	todo!();
-}
-
-fn order_vertices_clockwise_on_all_faces(csg_faces: Vec<MapCsgBrushFace>) -> Vec<MapCsgBrushFace>
-{
-	return csg_faces
-		.into_iter()
-		.map(|face| order_vertices_clockwise(face))
-		.collect();
-}
-
-fn order_vertices_clockwise(face: MapCsgBrushFace) -> MapCsgBrushFace
-{
-	todo!();
-}
-
-fn is_point_in_front_of_any_face(point: &DVec3, brush_faces: &Vec<MapSourceBrushFace>) -> bool
 {
 	todo!();
 }

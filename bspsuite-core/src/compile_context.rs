@@ -38,7 +38,7 @@ impl CompileContext
 			Some(
 				// TODO: Make load() return compiler error?
 				CompileTuningParametersConfig::load(path_buf.as_path()).map_err(|err| {
-					CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err)
+					CompilerError::from_anyhow(CompilerErrorCode::ConfigError, err)
 				})?,
 			)
 		}
@@ -81,5 +81,8 @@ fn create_compile_tuning_parameters(
 
 	return CompileTuningParameters {
 		on_plane_epsilon: config.on_plane_epsilon.unwrap_or(defaults.on_plane_epsilon),
+		equal_point_radius_epsilon: config
+			.equal_point_radius_epsilon
+			.unwrap_or(defaults.equal_point_radius_epsilon),
 	};
 }
