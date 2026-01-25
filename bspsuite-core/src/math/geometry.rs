@@ -61,13 +61,13 @@ pub fn intersect_planes(a: &DPlane3, b: &DPlane3, zero_epsilon: f64) -> Option<D
 	));
 }
 
-pub fn point_distance_from_line(point: DVec3, line: DLine3) -> f64
+pub fn point_distance_from_line(point: DVec3, line: &DLine3) -> f64
 {
 	let projected_point: DVec3 = project_point_onto_line(point, line);
 	return (point - projected_point).length();
 }
 
-pub fn project_point_onto_line(point: DVec3, line: DLine3) -> DVec3
+pub fn project_point_onto_line(point: DVec3, line: &DLine3) -> DVec3
 {
 	assert!(!line.is_null(), "Expected non-null line");
 
@@ -77,7 +77,7 @@ pub fn project_point_onto_line(point: DVec3, line: DLine3) -> DVec3
 	return line.origin() + (multiples_of_direction * line.direction());
 }
 
-pub fn point_lies_on_line(point: DVec3, line: DLine3, contact_epsilon: f64) -> bool
+pub fn point_lies_on_line(point: DVec3, line: &DLine3, contact_epsilon: f64) -> bool
 {
 	return point_distance_from_line(point, line).abs() < contact_epsilon;
 }
@@ -120,7 +120,7 @@ mod tests
 			let point_on_line: DVec3 = DVec3::new(5.0, 0.0, 10.0);
 
 			assert!(
-				point_lies_on_line(point_on_line, line, DEFAULT_CONTACT_EPSILON),
+				point_lies_on_line(point_on_line, &line, DEFAULT_CONTACT_EPSILON),
 				"Expected point {:?} to be on line {:?}",
 				point_on_line,
 				line
@@ -144,7 +144,7 @@ mod tests
 			let point_on_line: DVec3 = DVec3::new(5.0, 10.0, 20.333);
 
 			assert!(
-				point_lies_on_line(point_on_line, line, DEFAULT_CONTACT_EPSILON),
+				point_lies_on_line(point_on_line, &line, DEFAULT_CONTACT_EPSILON),
 				"Expected point {:?} to be on line {:?}",
 				point_on_line,
 				line
@@ -162,7 +162,7 @@ mod tests
 		);
 
 		let point: DVec3 = DVec3::new(3.0, 1.0, 2.0);
-		let projected_point: DVec3 = project_point_onto_line(point, line);
+		let projected_point: DVec3 = project_point_onto_line(point, &line);
 
 		assert!(
 			vectors_are_equal(
@@ -175,7 +175,7 @@ mod tests
 			point
 		);
 
-		let point_dist_from_line: f64 = point_distance_from_line(point, line);
+		let point_dist_from_line: f64 = point_distance_from_line(point, &line);
 		let expected_distance: f64 = 1.0;
 
 		assert!(
@@ -190,7 +190,7 @@ mod tests
 		let point_on_line: DVec3 = DVec3::new(3.0, 1.0, 1.0);
 
 		assert!(
-			point_lies_on_line(point_on_line, line, DEFAULT_CONTACT_EPSILON),
+			point_lies_on_line(point_on_line, &line, DEFAULT_CONTACT_EPSILON),
 			"Expected point {:?} to be considered on line",
 			point_on_line
 		);
@@ -199,7 +199,7 @@ mod tests
 			DVec3::new(3.0, 1.0, 1.0 + (DEFAULT_CONTACT_EPSILON / 2.0));
 
 		assert!(
-			point_lies_on_line(fuzzy_point_on_line, line, DEFAULT_CONTACT_EPSILON),
+			point_lies_on_line(fuzzy_point_on_line, &line, DEFAULT_CONTACT_EPSILON),
 			"Expected point {:?} to be considered on line",
 			fuzzy_point_on_line
 		);
@@ -209,6 +209,6 @@ mod tests
 	#[should_panic]
 	fn project_point_onto_null_line()
 	{
-		project_point_onto_line(DVec3::new(1.0, 2.0, 3.0), DLine3::NULL);
+		project_point_onto_line(DVec3::new(1.0, 2.0, 3.0), &DLine3::NULL);
 	}
 }
