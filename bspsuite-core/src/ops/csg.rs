@@ -1,5 +1,5 @@
 use crate::math::CompileTuningParameters;
-use crate::math::fuzzy_comparison::points_are_equal_radial_sq;
+use crate::math::comparison::points_are_equal_radial_sq;
 use crate::model::{MapCsgBrush, MapCsgBrushFace, MapSourceBrush, MapSourceBrushFace};
 use anyhow::Result;
 use glam::DVec3;

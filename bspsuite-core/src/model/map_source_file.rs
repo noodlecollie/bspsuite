@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::dplane3::DPlane3;
+use crate::math::{CompileTuningParameters, DPlane3};
 use bspextifc::builders::map_source_builder::{Brush, BrushFace, Entity};
 use bspextifc::types::{DPlane3 as ExtPlane, DVec2 as ExtVec2, DVec3 as ExtVec3};
 use glam::{DVec2, DVec3};
@@ -35,7 +35,20 @@ pub struct MapSourceFile
 
 impl MapSourceFile
 {
-	pub fn assign_global_indices(&mut self)
+	pub fn create(entities: Vec<Entity>, compile_params: &CompileTuningParameters) -> Self
+	{
+		let mut out = Self {
+			entities: entities
+				.into_iter()
+				.map(|ent| into_entity(ent, compile_params))
+				.collect(),
+		};
+
+		out.assign_global_indices();
+		return out;
+	}
+
+	fn assign_global_indices(&mut self)
 	{
 		let mut current_brush: usize = 0;
 		let mut current_face: usize = 0;
@@ -61,79 +74,57 @@ impl MapSourceFile
 	}
 }
 
-impl From<BrushFace> for MapSourceBrushFace
+fn into_face(input: BrushFace, compile_params: &CompileTuningParameters) -> MapSourceBrushFace
 {
-	fn from(value: BrushFace) -> Self
-	{
-		return Self {
-			global_face_index: 0, // Assigned later
-			plane: plane3(value.plane),
-			material_name: value.material_name,
-			material_axes: (vec3(value.material_axes.0), vec3(value.material_axes.1)),
-			material_offset: vec2(value.material_offset),
-			material_scale: vec2(value.material_scale),
-		};
-	}
-}
-
-impl From<Brush> for MapSourceBrush
-{
-	fn from(value: Brush) -> Self
-	{
-		return Self {
-			global_brush_index: 0, // Assigned later
-			faces: value.faces.into_iter().map(|face| face.into()).collect(),
-		};
-	}
-}
-
-impl From<Entity> for MapSourceEntity
-{
-	fn from(value: Entity) -> Self
-	{
-		return Self {
-			global_entity_index: 0, // Assigned later
-			brushes: value
-				.brushes
-				.into_iter()
-				.map(|brush| brush.into())
-				.collect(),
-			keyvalues: value.keyvalues,
-		};
-	}
-}
-
-impl From<Vec<Entity>> for MapSourceFile
-{
-	fn from(value: Vec<Entity>) -> Self
-	{
-		let mut out = Self {
-			entities: value.into_iter().map(|ent| ent.into()).collect(),
-		};
-
-		out.assign_global_indices();
-		return out;
-	}
-}
-
-fn vec2(vec: ExtVec2) -> DVec2
-{
-	return DVec2 { x: vec.x, y: vec.y };
-}
-
-fn vec3(vec: ExtVec3) -> DVec3
-{
-	return DVec3 {
-		x: vec.x,
-		y: vec.y,
-		z: vec.z,
+	return MapSourceBrushFace {
+		global_face_index: 0, // Assigned later
+		plane: into_plane3(input.plane, compile_params.zero_epsilon),
+		material_name: input.material_name,
+		material_axes: (
+			into_vec3(input.material_axes.0),
+			into_vec3(input.material_axes.1),
+		),
+		material_offset: into_vec2(input.material_offset),
+		material_scale: into_vec2(input.material_scale),
 	};
 }
 
-fn plane3(plane: ExtPlane) -> DPlane3
+fn into_brush(input: Brush, compile_params: &CompileTuningParameters) -> MapSourceBrush
 {
-	return DPlane3 {
-		normal: vec3(plane.normal),
-		distance: plane.distance,
+	return MapSourceBrush {
+		global_brush_index: 0, // Assigned later
+		faces: input
+			.faces
+			.into_iter()
+			.map(|face| into_face(face, compile_params))
+			.collect(),
 	};
+}
+
+fn into_entity(input: Entity, compile_params: &CompileTuningParameters) -> MapSourceEntity
+{
+	return MapSourceEntity {
+		global_entity_index: 0, // Assigned later
+		brushes: input
+			.brushes
+			.into_iter()
+			.map(|brush| into_brush(brush, compile_params))
+			.collect(),
+		keyvalues: input.keyvalues,
+	};
+}
+
+fn into_vec2(vec: ExtVec2) -> DVec2
+{
+	return DVec2::new(vec.x, vec.y);
+}
+
+fn into_vec3(vec: ExtVec3) -> DVec3
+{
+	return DVec3::new(vec.x, vec.y, vec.z);
+}
+
+fn into_plane3(plane: ExtPlane, zero_epsilon: f64) -> DPlane3
+{
+	return DPlane3::new(into_vec3(plane.normal), plane.distance, zero_epsilon);
 }

@@ -1,19 +1,29 @@
+use crate::math::DPlane3;
 use crate::math::const_fns::{dvec3_length_sq, dvec3_subtract};
-use crate::math::{Classification, DPlane3};
 use glam::DVec3;
+
+pub enum Classification
+{
+	Behind,
+	On,
+	InFront,
+}
 
 #[inline]
 #[must_use = "Classification was not used"]
-pub fn classify_point_against_plane(point: DVec3, plane: DPlane3, tolerance: f64)
--> Classification
+pub fn classify_point_against_plane(
+	point: DVec3,
+	plane: DPlane3,
+	contact_epsilon: f64,
+) -> Classification
 {
-	let dist: f64 = plane.normal.dot(point) - plane.distance;
+	let dist: f64 = plane.normal().dot(point) - plane.distance();
 
-	if dist < -tolerance
+	if dist < -contact_epsilon
 	{
 		return Classification::Behind;
 	}
-	else if dist > tolerance
+	else if dist > contact_epsilon
 	{
 		return Classification::InFront;
 	}
@@ -50,7 +60,7 @@ pub const fn length_is_equal(vec: DVec3, val: f64, zero_epsilon: f64) -> bool
 #[inline]
 pub const fn length_is_zero(vec: DVec3, zero_epsilon: f64) -> bool
 {
-	return length_is_equal(vec, 0.0, zero_epsilon);
+	return value_is_zero(dvec3_length_sq(vec), zero_epsilon * zero_epsilon);
 }
 
 #[inline]

@@ -34,9 +34,8 @@ mod version_1
 	use std::collections::HashMap;
 	use std::io::Write;
 
-	use crate::model::{
-		DPlane3, MapSourceBrush, MapSourceBrushFace, MapSourceEntity, MapSourceFile,
-	};
+	use crate::math::DPlane3;
+	use crate::model::{MapSourceBrush, MapSourceBrushFace, MapSourceEntity, MapSourceFile};
 	use anyhow::{Context, Result, anyhow};
 	use glam::{DVec2, DVec3};
 	use serde_json::ser::to_writer_pretty;
@@ -126,13 +125,8 @@ mod version_1
 
 	fn process_dplane3(plane: DPlane3) -> Result<JsonArray>
 	{
-		let values: [f64; 4] = [
-			plane.normal.x,
-			plane.normal.y,
-			plane.normal.z,
-			plane.distance,
-		];
-
+		let normal: DVec3 = plane.normal();
+		let values: [f64; 4] = [normal.x, normal.y, normal.z, plane.distance()];
 		return dvec_slice_to_array(values);
 	}
 

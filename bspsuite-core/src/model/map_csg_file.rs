@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use crate::model::{DPlane3, MapSourceFile};
+use crate::math::DPlane3;
+use crate::model::MapSourceFile;
 use anyhow::Result;
 use glam::{DVec2, DVec3};
 

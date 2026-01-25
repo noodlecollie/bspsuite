@@ -80,7 +80,7 @@ fn create_compile_tuning_parameters(
 	let defaults: CompileTuningParameters = CompileTuningParameters::default();
 
 	return CompileTuningParameters {
-		on_plane_epsilon: config.on_plane_epsilon.unwrap_or(defaults.on_plane_epsilon),
+		contact_epsilon: config.contact_epsilon.unwrap_or(defaults.contact_epsilon),
 		equal_point_radius_epsilon: config
 			.equal_point_radius_epsilon
 			.unwrap_or(defaults.equal_point_radius_epsilon),

@@ -95,7 +95,8 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 		)
 	})?;
 
-	let map_source: MapSourceFile = parsed_entities.into();
+	let map_source: MapSourceFile =
+		MapSourceFile::create(parsed_entities, &ctx.compile_tuning_parameters);
 
 	debug!(
 		"Input map parsed successfully, contains {} entities",
