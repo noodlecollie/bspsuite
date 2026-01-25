@@ -414,6 +414,50 @@ mod tests
 	}
 
 	#[test]
+	fn points_and_planes()
+	{
+		let plane: DPlane3 = DPlane3::new(DVec3::new(0.0, 0.0, 1.0), 5.0, DEFAULT_ZERO_EPSILON);
+		let point: DVec3 = DVec3::new(10.0, 20.0, 0.0);
+		let projected_point: DVec3 = project_point_onto_plane(point, &plane);
+		let expected_point: DVec3 = DVec3::new(10.0, 20.0, 5.0);
+
+		assert!(
+			vectors_are_equal(
+				projected_point,
+				expected_point,
+				DEFAULT_EQUAL_VECTOR_COMPONENT_EPSILON
+			),
+			"Expected projected point {:?} to equal {:?}",
+			projected_point,
+			expected_point
+		);
+
+		let point_distance: f64 = point_distance_from_plane(point, &plane);
+		let expected_distance: f64 = 5.0;
+
+		assert!(
+			values_are_equal(point_distance, expected_distance, DEFAULT_ZERO_EPSILON),
+			"Expected projected point distance {point_distance} to be {expected_distance}"
+		);
+
+		assert!(!point_lies_on_plane(point, &plane, DEFAULT_CONTACT_EPSILON));
+
+		let point_on_plane: DVec3 = DVec3::new(10.0, 20.0, 5.0);
+
+		assert!(point_lies_on_plane(
+			point_on_plane,
+			&plane,
+			DEFAULT_CONTACT_EPSILON
+		));
+
+		assert!(point_lies_on_plane(
+			point_on_plane + DVec3::new(0.0, 0.0, DEFAULT_CONTACT_EPSILON / 2.0),
+			&plane,
+			DEFAULT_CONTACT_EPSILON
+		));
+	}
+
+	#[test]
 	#[should_panic]
 	fn intersect_one_null_plane_a()
 	{
