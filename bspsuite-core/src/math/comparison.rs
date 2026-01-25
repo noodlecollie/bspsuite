@@ -2,37 +2,6 @@ use crate::math::DPlane3;
 use crate::math::const_fns::{dvec3_length_sq, dvec3_subtract};
 use glam::DVec3;
 
-pub enum Classification
-{
-	Behind,
-	On,
-	InFront,
-}
-
-#[inline]
-#[must_use = "Classification was not used"]
-pub fn classify_point_against_plane(
-	point: DVec3,
-	plane: DPlane3,
-	contact_epsilon: f64,
-) -> Classification
-{
-	let dist: f64 = plane.normal().dot(point) - plane.distance();
-
-	if dist < -contact_epsilon
-	{
-		return Classification::Behind;
-	}
-	else if dist > contact_epsilon
-	{
-		return Classification::InFront;
-	}
-	else
-	{
-		return Classification::On;
-	}
-}
-
 #[inline]
 pub const fn points_are_equal_radial_sq(a: DVec3, b: DVec3, zero_epsilon_squared: f64) -> bool
 {

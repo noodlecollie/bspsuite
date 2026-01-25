@@ -57,6 +57,37 @@ impl LinePlaneIntersection
 	}
 }
 
+pub enum PointVsPlane
+{
+	Behind,
+	On,
+	InFront,
+}
+
+#[inline]
+#[must_use = "Classification was not used"]
+pub fn classify_point_against_plane(
+	point: DVec3,
+	plane: DPlane3,
+	contact_epsilon: f64,
+) -> PointVsPlane
+{
+	let dist: f64 = plane.normal().dot(point) - plane.distance();
+
+	if dist < -contact_epsilon
+	{
+		return PointVsPlane::Behind;
+	}
+	else if dist > contact_epsilon
+	{
+		return PointVsPlane::InFront;
+	}
+	else
+	{
+		return PointVsPlane::On;
+	}
+}
+
 // Given a vector, returns (normalised, true) if the vector's length was not
 // zero, or (zero, false) if it was zero.
 pub fn vector_to_unit_or_null(vec: DVec3, zero_epsilon: f64) -> (DVec3, bool)
