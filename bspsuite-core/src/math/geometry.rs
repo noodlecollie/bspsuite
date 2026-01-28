@@ -64,11 +64,41 @@ pub enum PointVsPlane
 	InFront,
 }
 
+impl PointVsPlane
+{
+	pub fn is_in_front(&self) -> bool
+	{
+		return match self
+		{
+			PointVsPlane::InFront => true,
+			_ => false,
+		};
+	}
+
+	pub fn is_behind(&self) -> bool
+	{
+		return match self
+		{
+			PointVsPlane::Behind => true,
+			_ => false,
+		};
+	}
+
+	pub fn is_on(&self) -> bool
+	{
+		return match self
+		{
+			PointVsPlane::On => true,
+			_ => false,
+		};
+	}
+}
+
 #[inline]
 #[must_use = "Classification was not used"]
 pub fn classify_point_against_plane(
 	point: DVec3,
-	plane: DPlane3,
+	plane: &DPlane3,
 	contact_epsilon: f64,
 ) -> PointVsPlane
 {
@@ -107,6 +137,23 @@ pub fn vector_to_unit_or_null(vec: DVec3, zero_epsilon: f64) -> (DVec3, bool)
 	{
 		return (vec.normalize(), true);
 	}
+}
+
+pub fn snap_point_to_nearest_integer_grid_point_if_close_enough(
+	point: DVec3,
+	equal_point_radius_epsilon: f64,
+) -> DVec3
+{
+	let nearest: DVec3 = point.round();
+
+	return if (nearest - point).length() < equal_point_radius_epsilon
+	{
+		nearest
+	}
+	else
+	{
+		point
+	};
 }
 
 // Built on https://en.wikipedia.org/wiki/Plane%E2%80%93plane_intersection#Formulation

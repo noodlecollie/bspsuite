@@ -1,9 +1,12 @@
-use crate::math::CompileTuningParameters;
 use crate::math::comparison::points_are_equal_radial_sq;
+use crate::math::geometry::{
+	LinePlaneIntersection, PointVsPlane, classify_point_against_plane,
+	snap_point_to_nearest_integer_grid_point_if_close_enough,
+};
+use crate::math::{CompileTuningParameters, DLine3, DPlane3, geometry};
 use crate::model::{MapCsgBrush, MapCsgBrushFace, MapSourceBrush, MapSourceBrushFace};
-use anyhow::Result;
+use anyhow::{Result, bail};
 use glam::DVec3;
-use itertools::equal;
 
 // In combination with the Stefan Hajnoczi paper (see the notes directory in
 // this repo), and with
@@ -15,7 +18,7 @@ use itertools::equal;
 //     Remove extraneous vertices (in front of any planes).
 //     If edge vertices != 2, solid is not valid.
 //     Add vertices and edges to respective faces.
-//   If faace vertices < 3, solid is not valid.
+//   If face vertices < 3, solid is not valid.
 //   Order face's vertices clockwise, using edges to link vertices.
 //   Compute texture co-ordinates for each vertex.
 // Normalise texture co-ordinates for all vertices in brush.
@@ -75,14 +78,142 @@ impl<'l> CsgBrushBuilder<'l>
 		return Ok(());
 	}
 
+	// TODO: Before we get to this point, we should probably have snapped plane
+	// normals to axes if close enough.
 	fn process_faces(
-		&self,
+		&mut self,
 		face_1: (usize, &MapSourceBrushFace),
 		face_2: (usize, &MapSourceBrushFace),
 	) -> Result<()>
 	{
-		// TODO: Intersect the two face planes to produce a line
+		let intersection: Option<DLine3> =
+			geometry::intersect_planes(&face_1.1.plane, &face_2.1.plane, self.params.zero_epsilon);
+
+		if intersection.is_none()
+		{
+			// Planes are parallel, nothing to do.
+			return Ok(());
+		}
+
+		let intersection: DLine3 = intersection.unwrap();
+
+		// Find the vertices for each end of the edge.
+		let (v0, v1) = self.find_edge_bounds(&intersection, (face_1.0, face_2.0))?;
+
+		let v0: DVec3 = self
+			.vertices
+			.add(snap_point_to_nearest_integer_grid_point_if_close_enough(
+				v0,
+				self.params.equal_point_radius_epsilon,
+			))
+			.1;
+
+		let v1: DVec3 = self
+			.vertices
+			.add(snap_point_to_nearest_integer_grid_point_if_close_enough(
+				v1,
+				self.params.equal_point_radius_epsilon,
+			))
+			.1;
+
 		todo!();
+	}
+
+	// Intersect the edge with all faces in the brush to find the minimal edge span.
+	fn find_edge_bounds(
+		&self,
+		edge: &DLine3,
+		face_indices: (usize, usize),
+	) -> Result<(DVec3, DVec3)>
+	{
+		struct Intersection<'l>
+		{
+			pub point: DVec3,
+			pub from_plane: &'l DPlane3,
+		}
+
+		let mut intersections: (Option<Intersection>, Option<Intersection>) = (None, None);
+
+		for (face_index, face) in self.source.faces.iter().enumerate()
+		{
+			if face_index == face_indices.0 || face_index == face_indices.1
+			{
+				continue;
+			}
+
+			let result: LinePlaneIntersection = geometry::intersect_line_and_plane(
+				edge,
+				&face.plane,
+				self.params.zero_epsilon,
+				self.params.contact_epsilon,
+			);
+
+			let intersection: Intersection = match result
+			{
+				LinePlaneIntersection::Point(point) => Intersection {
+					point: point,
+					from_plane: &face.plane,
+				},
+				_ => continue,
+			};
+
+			if intersections.0.is_none()
+			{
+				intersections.0 = Some(intersection);
+				continue;
+			}
+
+			if intersections.1.is_none()
+			{
+				intersections.1 = Some(intersection);
+				continue;
+			}
+
+			// Replace old points if they are in front of the new plane.
+
+			let p0_in_front: bool = classify_point_against_plane(
+				intersections.0.as_ref().unwrap().point,
+				intersection.from_plane,
+				self.params.contact_epsilon,
+			)
+			.is_in_front();
+
+			let p1_in_front: bool = classify_point_against_plane(
+				intersections.1.as_ref().unwrap().point,
+				intersection.from_plane,
+				self.params.contact_epsilon,
+			)
+			.is_in_front();
+
+			if p0_in_front
+			{
+				intersections.0 = Some(intersection);
+
+				if p1_in_front
+				{
+					// Both points were in front, so condense back down to one point.
+					intersections.1 = None;
+				}
+			}
+			else if p1_in_front
+			{
+				intersections.1 = Some(intersection);
+			}
+		}
+
+		if intersections.0.is_none() || intersections.1.is_none()
+		{
+			bail!(
+				"Edge between faces {} and {} was not bounded",
+				face_indices.0,
+				face_indices.1
+			);
+		}
+
+		return Ok((
+			intersections.0.unwrap().point,
+			intersections.1.unwrap().point,
+		));
 	}
 }
 
@@ -102,12 +233,14 @@ impl PointCollection
 		};
 	}
 
-	pub fn add(&mut self, point: DVec3) -> usize
+	pub fn add(&mut self, point: DVec3) -> (usize, DVec3)
 	{
-		return self.index_of(point).unwrap_or_else(|| {
+		let index = self.index_of(point).unwrap_or_else(|| {
 			self.points_vec.push(point);
 			return self.points_vec.len() - 1;
 		});
+
+		return (index, self.points_vec[index]);
 	}
 
 	pub fn index_of(&self, point: DVec3) -> Option<usize>
