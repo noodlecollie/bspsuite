@@ -55,7 +55,7 @@ impl<'l> CsgBrushBuilder<'l>
 		return builder.build_internal();
 	}
 
-	fn build_internal(self) -> Result<MapCsgBrush>
+	fn build_internal(mut self) -> Result<MapCsgBrush>
 	{
 		for (face_index, face) in self.source.faces.iter().enumerate()
 		{
@@ -65,7 +65,7 @@ impl<'l> CsgBrushBuilder<'l>
 		todo!();
 	}
 
-	fn process_face(&self, face: (usize, &MapSourceBrushFace)) -> Result<()>
+	fn process_face(&mut self, face: (usize, &MapSourceBrushFace)) -> Result<()>
 	{
 		// Compare against all faces after the current one,
 		// since comparisons with faces before it will already have happened.
