@@ -29,7 +29,7 @@ impl DPlane3
 		return if not_null
 		{
 			Self {
-				_normal: normal.normalize(),
+				_normal: normal,
 				_distance: distance,
 			}
 		}

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::math::geometry::{snap_normal_to_axis_if_close_enough, vector_to_unit_or_null};
 use crate::math::{CompileTuningParameters, DPlane3};
 use bspextifc::builders::map_source_builder::{Brush, BrushFace, Entity};
 use bspextifc::types::{DPlane3 as ExtPlane, DVec2 as ExtVec2, DVec3 as ExtVec3};
@@ -78,7 +79,11 @@ fn into_face(input: BrushFace, compile_params: &CompileTuningParameters) -> MapS
 {
 	return MapSourceBrushFace {
 		global_face_index: 0, // Assigned later
-		plane: into_plane3(input.plane, compile_params.zero_epsilon),
+		plane: into_plane3_snapped(
+			input.plane,
+			compile_params.equal_vector_component_epsilon,
+			compile_params.zero_epsilon,
+		),
 		material_name: input.material_name,
 		material_axes: (
 			into_vec3(input.material_axes.0),
@@ -124,7 +129,12 @@ fn into_vec3(vec: ExtVec3) -> DVec3
 	return DVec3::new(vec.x, vec.y, vec.z);
 }
 
-fn into_plane3(plane: ExtPlane, zero_epsilon: f64) -> DPlane3
+fn into_plane3_snapped(plane: ExtPlane, component_epsilon: f64, zero_epsilon: f64) -> DPlane3
 {
-	return DPlane3::new(into_vec3(plane.normal), plane.distance, zero_epsilon);
+	let normal: DVec3 = vector_to_unit_or_null(into_vec3(plane.normal), zero_epsilon).0;
+
+	return DPlane3::new_unchecked(
+		snap_normal_to_axis_if_close_enough(normal, component_epsilon),
+		plane.distance,
+	);
 }

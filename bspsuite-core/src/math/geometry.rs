@@ -1,4 +1,4 @@
-use crate::math::comparison::{length_is_zero, value_is_zero, values_are_equal};
+use crate::math::comparison::{length_is_zero, value_is_zero, values_are_equal, vectors_are_equal};
 use crate::math::{DLine3, DPlane3};
 use glam::DVec3;
 
@@ -154,6 +154,26 @@ pub fn snap_point_to_nearest_integer_grid_point_if_close_enough(
 	{
 		point
 	};
+}
+
+pub fn snap_normal_to_axis_if_close_enough(normal: DVec3, component_epsilon: f64) -> DVec3
+{
+	for axis in 0..3
+	{
+		let axis_vec: DVec3 = match axis
+		{
+			0 => DVec3::X,
+			1 => DVec3::Y,
+			_ => DVec3::Z,
+		};
+
+		if vectors_are_equal(axis_vec, normal, component_epsilon)
+		{
+			return axis_vec;
+		}
+	}
+
+	return normal;
 }
 
 // Built on https://en.wikipedia.org/wiki/Plane%E2%80%93plane_intersection#Formulation
