@@ -39,7 +39,7 @@ struct CsgBrushBuilder<'l>
 	params: &'l CompileTuningParameters,
 
 	vertices: PointCollection,
-	faces: Vec<MapCsgBrushFace>,
+	face_edges: Vec<EdgeCollection>,
 }
 
 impl<'l> CsgBrushBuilder<'l>
@@ -53,17 +53,7 @@ impl<'l> CsgBrushBuilder<'l>
 			source: source,
 			params: params,
 			vertices: PointCollection::new(params.equal_point_radius_epsilon),
-			faces: source
-				.faces
-				.iter()
-				.map(|face| {
-					MapCsgBrushFace::new(
-						face.global_face_index,
-						face.plane.clone(),
-						face.material_name.clone(),
-					)
-				})
-				.collect(),
+			face_edges: source.faces.iter().map(|_| EdgeCollection::new()).collect(),
 		};
 
 		return builder.build_internal();
@@ -132,20 +122,6 @@ impl<'l> CsgBrushBuilder<'l>
 				"Vertices {bound_0} and {bound_1} were snapped to the same point {}",
 				v0.1
 			);
-		}
-
-		{
-			let csg_face_1: &mut MapCsgBrushFace = &mut self.faces[face_1.0];
-
-			csg_face_1.vertices.push(MapCsgBrushFaceVertex::new(v0.0));
-			csg_face_1.vertices.push(MapCsgBrushFaceVertex::new(v1.0));
-		}
-
-		{
-			let csg_face_2: &mut MapCsgBrushFace = &mut self.faces[face_2.0];
-
-			csg_face_2.vertices.push(MapCsgBrushFaceVertex::new(v0.0));
-			csg_face_2.vertices.push(MapCsgBrushFaceVertex::new(v1.0));
 		}
 
 		todo!();
@@ -304,5 +280,125 @@ impl Into<Vec<DVec3>> for PointCollection
 	fn into(self) -> Vec<DVec3>
 	{
 		return self.points_vec;
+	}
+}
+
+struct EdgeCollection
+{
+	edges_vec: Vec<(usize, usize)>,
+}
+
+impl EdgeCollection
+{
+	pub fn new() -> Self
+	{
+		return Self {
+			edges_vec: Vec::new(),
+		};
+	}
+
+	pub fn add(&mut self, edge: (usize, usize)) -> Result<()>
+	{
+		// Each edge on a face connects two vertices, and each vertex should connect
+		// only two edges. We try and insert edges into the list so that iterating up
+		// the list iterates over connected chains of edges.
+
+		if self.contains(&edge)
+		{
+			bail!("Duplicate edge");
+		}
+
+		for index in 0..self.edges_vec.len()
+		{
+			let existing: &(usize, usize) = &self.edges_vec[index];
+
+			if existing.1 == edge.0
+			{
+				// Existing edge connects to the beginning of our new edge, so insert the new
+				// edge in front.
+				self.edges_vec.insert(index + 1, edge);
+				return Ok(());
+			}
+
+			if existing.0 == edge.1
+			{
+				// Existing edge connects to the end of our new edge, so insert the edge behind.
+				self.edges_vec.insert(index, edge);
+				return Ok(());
+			}
+
+			if existing.0 == edge.0
+			{
+				// Existing edge connects to the end of our new edge, and the
+				// new edge should be the other way around. Insert the edge behind.
+				self.edges_vec.insert(index, (edge.1, edge.0));
+				return Ok(());
+			}
+
+			if existing.1 == edge.1
+			{
+				// Existing edge connects to the beginning of our new edge, and
+				// the new edge should be the other way around. Insert the new
+				// edge in front.
+				self.edges_vec.insert(index + 1, (edge.1, edge.0));
+				return Ok(());
+			}
+		}
+
+		// No matches, so just add on the end.
+		self.edges_vec.push(edge);
+		return Ok(());
+	}
+
+	pub fn contains(&self, edge: &(usize, usize)) -> bool
+	{
+		return self
+			.edges_vec
+			.iter()
+			.find(|item| *item == edge || *item == &(edge.1, edge.0))
+			.is_some();
+	}
+
+	// Returns a vector of slices, where each slice represents a chain of connected
+	// edges. If the vector is empty, there are no edges.
+	pub fn chains(&self) -> Vec<&[(usize, usize)]>
+	{
+		let mut out: Vec<&[(usize, usize)]> = Vec::new();
+		let mut slice_indices: Option<(usize, usize)> = None;
+
+		for index in 0..self.edges_vec.len()
+		{
+			if index == 0 || slice_indices.is_none()
+			{
+				slice_indices = Some((index, index));
+				continue;
+			}
+
+			let edge: &(usize, usize) = &self.edges_vec[index];
+			let last_edge: &(usize, usize) = &self.edges_vec[index - 1];
+
+			if last_edge.1 == edge.0
+			{
+				// Lengthen the chain.
+				slice_indices = Some((slice_indices.unwrap().0, index))
+			}
+			else
+			{
+				// Commit the chain and start a new one.
+				let indices = slice_indices.unwrap();
+				out.push(&self.edges_vec[indices.0..=indices.1]);
+
+				slice_indices = Some((index, index));
+			}
+		}
+
+		// Commit any remaining chain.
+		if slice_indices.is_some()
+		{
+			let indices = slice_indices.unwrap();
+			out.push(&self.edges_vec[indices.0..=indices.1]);
+		}
+
+		return out;
 	}
 }
