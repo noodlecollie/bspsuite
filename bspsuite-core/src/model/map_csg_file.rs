@@ -44,3 +44,27 @@ impl MapCsgFile
 		todo!();
 	}
 }
+
+impl MapCsgBrushFace
+{
+	pub fn new(global_index: usize, plane: DPlane3, material: String) -> Self
+	{
+		return Self {
+			global_face_index: global_index,
+			plane: plane,
+			vertices: Vec::new(),
+			material: material,
+		};
+	}
+}
+
+impl MapCsgBrushFaceVertex
+{
+	pub fn new(index_in_brush: usize) -> Self
+	{
+		return Self {
+			index_in_brush: index_in_brush,
+			tex_coord: DVec2::new(0.0, 0.0),
+		};
+	}
+}

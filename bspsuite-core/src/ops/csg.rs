@@ -4,7 +4,9 @@ use crate::math::geometry::{
 	snap_point_to_nearest_integer_grid_point_if_close_enough,
 };
 use crate::math::{CompileTuningParameters, DLine3, DPlane3, geometry};
-use crate::model::{MapCsgBrush, MapCsgBrushFace, MapSourceBrush, MapSourceBrushFace};
+use crate::model::{
+	MapCsgBrush, MapCsgBrushFace, MapCsgBrushFaceVertex, MapSourceBrush, MapSourceBrushFace,
+};
 use anyhow::{Result, bail};
 use glam::DVec3;
 
@@ -37,6 +39,7 @@ struct CsgBrushBuilder<'l>
 	params: &'l CompileTuningParameters,
 
 	vertices: PointCollection,
+	faces: Vec<MapCsgBrushFace>,
 }
 
 impl<'l> CsgBrushBuilder<'l>
@@ -50,6 +53,17 @@ impl<'l> CsgBrushBuilder<'l>
 			source: source,
 			params: params,
 			vertices: PointCollection::new(params.equal_point_radius_epsilon),
+			faces: source
+				.faces
+				.iter()
+				.map(|face| {
+					MapCsgBrushFace::new(
+						face.global_face_index,
+						face.plane.clone(),
+						face.material_name.clone(),
+					)
+				})
+				.collect(),
 		};
 
 		return builder.build_internal();
@@ -78,8 +92,6 @@ impl<'l> CsgBrushBuilder<'l>
 		return Ok(());
 	}
 
-	// TODO: Before we get to this point, we should probably have snapped plane
-	// normals to axes if close enough.
 	fn process_faces(
 		&mut self,
 		face_1: (usize, &MapSourceBrushFace),
@@ -98,23 +110,43 @@ impl<'l> CsgBrushBuilder<'l>
 		let intersection: DLine3 = intersection.unwrap();
 
 		// Find the vertices for each end of the edge.
-		let (v0, v1) = self.find_edge_bounds(&intersection, (face_1.0, face_2.0))?;
+		let (bound_0, bound_1) = self.find_edge_bounds(&intersection, (face_1.0, face_2.0))?;
 
-		let v0: DVec3 = self
+		let v0 = self
 			.vertices
 			.add(snap_point_to_nearest_integer_grid_point_if_close_enough(
-				v0,
+				bound_0,
 				self.params.equal_point_radius_epsilon,
-			))
-			.1;
+			));
 
-		let v1: DVec3 = self
+		let v1 = self
 			.vertices
 			.add(snap_point_to_nearest_integer_grid_point_if_close_enough(
-				v1,
+				bound_1,
 				self.params.equal_point_radius_epsilon,
-			))
-			.1;
+			));
+
+		if v0.0 == v1.0
+		{
+			bail!(
+				"Vertices {bound_0} and {bound_1} were snapped to the same point {}",
+				v0.1
+			);
+		}
+
+		{
+			let csg_face_1: &mut MapCsgBrushFace = &mut self.faces[face_1.0];
+
+			csg_face_1.vertices.push(MapCsgBrushFaceVertex::new(v0.0));
+			csg_face_1.vertices.push(MapCsgBrushFaceVertex::new(v1.0));
+		}
+
+		{
+			let csg_face_2: &mut MapCsgBrushFace = &mut self.faces[face_2.0];
+
+			csg_face_2.vertices.push(MapCsgBrushFaceVertex::new(v0.0));
+			csg_face_2.vertices.push(MapCsgBrushFaceVertex::new(v1.0));
+		}
 
 		todo!();
 	}
