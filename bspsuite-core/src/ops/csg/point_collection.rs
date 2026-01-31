@@ -58,3 +58,94 @@ impl Into<Vec<DVec3>> for PointCollection
 		return self.points_vec;
 	}
 }
+
+#[cfg(test)]
+mod tests
+{
+	use super::*;
+	use crate::math::DEFAULT_EQUAL_POINT_RADIUS_EPSILON;
+
+	#[test]
+	fn identical_points()
+	{
+		let mut collection: PointCollection =
+			PointCollection::new(DEFAULT_EQUAL_POINT_RADIUS_EPSILON);
+
+		let vec: DVec3 = DVec3::new(1.0, 2.0, 3.0);
+		let p0 = collection.add(vec);
+		let p1 = collection.add(vec);
+
+		assert_eq!(p0, p1);
+		assert_eq!(collection.index_of(vec).unwrap(), p0.0);
+	}
+
+	#[test]
+	fn close_enough_points()
+	{
+		let mut collection: PointCollection = PointCollection::new(0.5);
+
+		let p0 = collection.add(DVec3::new(1.0, 2.0, 3.0));
+		let p1 = collection.add(DVec3::new(1.1, 2.1, 3.0));
+
+		assert_eq!(p0, p1);
+
+		assert_eq!(
+			collection.index_of(DVec3::new(1.0, 2.0, 3.0)).unwrap(),
+			p0.0
+		);
+		assert_eq!(
+			collection.index_of(DVec3::new(1.1, 2.1, 3.0)).unwrap(),
+			p0.0
+		);
+		assert_eq!(
+			collection.index_of(DVec3::new(1.0, 2.0, 3.0)).unwrap(),
+			p1.0
+		);
+		assert_eq!(
+			collection.index_of(DVec3::new(1.1, 2.1, 3.0)).unwrap(),
+			p1.0
+		);
+	}
+
+	#[test]
+	fn distinct_points()
+	{
+		let mut collection: PointCollection = PointCollection::new(0.5);
+
+		let p0 = collection.add(DVec3::new(1.0, 2.0, 3.0));
+		let p1 = collection.add(DVec3::new(2.0, 2.0, 3.0));
+
+		assert_ne!(p0, p1);
+
+		assert_eq!(
+			collection.index_of(DVec3::new(1.0, 2.0, 3.0)).unwrap(),
+			p0.0
+		);
+
+		assert_eq!(
+			collection.index_of(DVec3::new(2.0, 2.0, 3.0)).unwrap(),
+			p1.0
+		);
+	}
+
+	#[test]
+	fn threshold_points()
+	{
+		let mut collection: PointCollection = PointCollection::new(0.5);
+
+		let p0 = collection.add(DVec3::new(1.0, 2.0, 3.0));
+		let p1 = collection.add(DVec3::new(1.5, 2.0, 3.0));
+
+		assert_ne!(p0, p1);
+
+		assert_eq!(
+			collection.index_of(DVec3::new(1.0, 2.0, 3.0)).unwrap(),
+			p0.0
+		);
+
+		assert_eq!(
+			collection.index_of(DVec3::new(1.5, 2.0, 3.0)).unwrap(),
+			p1.0
+		);
+	}
+}
