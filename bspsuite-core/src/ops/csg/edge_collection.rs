@@ -1,190 +1,294 @@
-use crate::math::geometry::vector_to_unit_or_null;
 use anyhow::{Result, bail};
-use glam::DVec3;
 
 pub(super) struct EdgeCollection
 {
-	edges_vec: Vec<(usize, usize)>,
+	chains: Vec<Chain>,
+}
+
+type Chain = Vec<usize>;
+
+enum Mergeable
+{
+	No,
+	Yes(usize),
+	Reversed(usize),
+}
+
+impl Mergeable
+{
+	pub fn is_reversed(&self) -> bool
+	{
+		return match self
+		{
+			Mergeable::Reversed(_) => true,
+			_ => false,
+		};
+	}
 }
 
 impl EdgeCollection
 {
 	pub fn new() -> Self
 	{
-		return Self {
-			edges_vec: Vec::new(),
-		};
+		return Self { chains: Vec::new() };
 	}
 
 	pub fn add(&mut self, edge: (usize, usize)) -> Result<()>
 	{
-		// Each edge on a face connects two vertices, and each vertex should connect
-		// only two edges. We try and insert edges into the list so that iterating up
-		// the list iterates over connected chains of edges.
-
-		if self.contains(&edge)
+		if edge.0 == edge.1
 		{
-			bail!("Duplicate edge");
+			bail!("Edge vertices must be different");
 		}
 
-		for index in 0..self.edges_vec.len()
+		match self.check_merge_chain(None, edge)
 		{
-			let existing: &(usize, usize) = &self.edges_vec[index];
-
-			if existing.1 == edge.0
+			Mergeable::Yes(target_index) =>
 			{
-				// Existing edge connects to the beginning of our new edge, so insert the new
-				// edge in front.
-				self.edges_vec.insert(index + 1, edge);
+				self.merge_with_chain(vec![edge.0, edge.1].into(), target_index);
+			}
+			Mergeable::Reversed(target_index) =>
+			{
+				self.merge_with_chain(vec![edge.1, edge.0].into(), target_index);
+			}
+			Mergeable::No =>
+			{
+				self.chains.push(vec![edge.0, edge.1].into());
+
+				// Could not merge with any existing chain, so no need to run
+				// try_merge_chains().
 				return Ok(());
 			}
+		};
 
-			if existing.0 == edge.1
+		// We merged the new edge into one of the existing chains.
+		// Now see if this allows us to merge any of our existing chains together. Keep
+		// trying until there are no more to merge.
+		loop
+		{
+			if !self.try_merge_chains()
 			{
-				// Existing edge connects to the end of our new edge, so insert the edge behind.
-				self.edges_vec.insert(index, edge);
-				return Ok(());
-			}
-
-			if existing.0 == edge.0
-			{
-				// Existing edge connects to the end of our new edge, and the
-				// new edge should be the other way around. Insert the edge behind.
-				self.edges_vec.insert(index, (edge.1, edge.0));
-				return Ok(());
-			}
-
-			if existing.1 == edge.1
-			{
-				// Existing edge connects to the beginning of our new edge, and
-				// the new edge should be the other way around. Insert the new
-				// edge in front.
-				self.edges_vec.insert(index + 1, (edge.1, edge.0));
-				return Ok(());
+				break;
 			}
 		}
 
-		// No matches, so just add on the end.
-		self.edges_vec.push(edge);
 		return Ok(());
 	}
 
-	pub fn contains(&self, edge: &(usize, usize)) -> bool
+	pub fn has_single_edge_loop(&self) -> bool
 	{
-		return self
-			.edges_vec
-			.iter()
-			.find(|item| *item == edge || *item == &(edge.1, edge.0))
-			.is_some();
-	}
-
-	// Returns a vector of slices, where each slice represents a chain of connected
-	// edges. If the vector is empty, there are no edges.
-	pub fn chains(&self) -> Vec<&[(usize, usize)]>
-	{
-		let mut out: Vec<&[(usize, usize)]> = Vec::new();
-		let mut slice_indices: Option<(usize, usize)> = None;
-
-		for index in 0..self.edges_vec.len()
+		if self.chains.len() != 1
 		{
-			if index == 0 || slice_indices.is_none()
-			{
-				slice_indices = Some((index, index));
-				continue;
-			}
-
-			let edge: &(usize, usize) = &self.edges_vec[index];
-			let last_edge: &(usize, usize) = &self.edges_vec[index - 1];
-
-			if last_edge.1 == edge.0
-			{
-				// Lengthen the chain.
-				slice_indices = Some((slice_indices.unwrap().0, index))
-			}
-			else
-			{
-				// Commit the chain and start a new one.
-				let indices = slice_indices.unwrap();
-				out.push(&self.edges_vec[indices.0..=indices.1]);
-
-				slice_indices = Some((index, index));
-			}
+			return false;
 		}
 
-		// Commit any remaining chain.
-		if slice_indices.is_some()
-		{
-			let indices = slice_indices.unwrap();
-			out.push(&self.edges_vec[indices.0..=indices.1]);
-		}
+		let chain: &Chain = self.chains.first().unwrap();
+		assert!(chain.len() >= 2);
 
-		return out;
+		return *chain.first().unwrap() == *chain.last().unwrap();
 	}
 
-	pub fn verify(&self) -> Result<()>
+	pub fn num_chains(&self) -> usize
 	{
-		let chains: Vec<&[(usize, usize)]> = self.chains();
+		return self.chains.len();
+	}
 
-		if chains.len() == 0
+	pub fn into_edge_loop(mut self) -> Result<Vec<usize>>
+	{
+		if !self.has_single_edge_loop()
+		{
+			bail!("Container does not contain a single edge loop");
+		}
+
+		let mut out: Chain = self.chains.pop().unwrap();
+
+		// Remove the last element since it'll be a duplicate of the first.
+		out.pop();
+
+		return Ok(out);
+	}
+
+	pub fn validate(&self) -> Result<()>
+	{
+		if self.chains.len() < 1
 		{
 			bail!("No edges found");
 		}
 
-		if chains.len() > 1
+		if !self.has_single_edge_loop()
 		{
-			bail!("Could not compute contiguous edge sequence");
-		}
-
-		let chain: &[(usize, usize)] = chains[0];
-		let first_edge = chain.first().unwrap();
-		let last_edge = chain.last().unwrap();
-
-		if first_edge.0 != last_edge.1
-		{
-			bail!(
-				"Edges did not form closed loop (first vertex {} was different to last vertex {})",
-				first_edge.0,
-				last_edge.1
-			);
+			if self.chains.len() == 1
+			{
+				bail!("Edges did not form a closed loop");
+			}
+			else
+			{
+				bail!(
+					"Edges did not form a single closed loop (found {} chains of edges)",
+					self.chains.len()
+				);
+			}
 		}
 
 		return Ok(());
 	}
 
-	// Only applies if the edge collection is valid (ie. verify() returns success).
-	// Otherwise, results are undefined. Vertices list must be large enough to be
-	// indexed into by edges, otherwise the function will panic.
-	pub fn normal(&self, vertices: &Vec<DVec3>, zero_epsilon: f64) -> Option<DVec3>
+	// Check all chains of edges in the container, and try and merge two of them
+	// together to form a longer chain. Returns true if this was possible, and false
+	// if not.
+	fn try_merge_chains(&mut self) -> bool
 	{
-		if self.edges_vec.len() < 2
+		if self.chains.len() < 2
 		{
-			return None;
+			return false;
 		}
 
-		let v0_index: usize = self.edges_vec[0].0;
-		let v1_index: usize = self.edges_vec[0].1;
-		let v2_index: usize = self.edges_vec[1].1;
+		for (candidate_index, candidate) in self.chains.iter().enumerate()
+		{
+			match self.check_merge_chain(
+				Some(candidate_index),
+				(*candidate.first().unwrap(), *candidate.last().unwrap()),
+			)
+			{
+				Mergeable::No => continue,
+				Mergeable::Yes(target_index) =>
+				{
+					self.merge_chains(candidate_index, target_index, false);
+				}
+				Mergeable::Reversed(target_index) =>
+				{
+					self.merge_chains(candidate_index, target_index, true);
+				}
+			};
 
-		assert!(v0_index < vertices.len());
-		assert!(v1_index < vertices.len());
-		assert!(v2_index < vertices.len());
+			return true;
+		}
 
-		let v0: DVec3 = vertices[v0_index];
-		let v1: DVec3 = vertices[v1_index];
-		let v2: DVec3 = vertices[v2_index];
-
-		let normal = vector_to_unit_or_null((v1 - v0).cross(v2 - v0), zero_epsilon);
-		return if normal.1 { Some(normal.0) } else { None };
+		return false;
 	}
 
-	pub fn reverse(&mut self)
+	fn check_merge_chain(&self, chain_index: Option<usize>, chain: (usize, usize)) -> Mergeable
 	{
-		self.edges_vec.reverse();
+		for (target_index, target_chain) in self.chains.iter().enumerate()
+		{
+			if let Some(idx) = chain_index
+				&& target_index == idx
+			{
+				continue;
+			}
 
-		self.edges_vec = self
-			.edges_vec
-			.iter_mut()
-			.map(|edge| (edge.1, edge.0))
-			.collect();
+			assert!(target_chain.len() >= 2);
+
+			let mergeable: Mergeable = EdgeCollection::can_merge(
+				chain,
+				(
+					*target_chain.first().unwrap(),
+					*target_chain.last().unwrap(),
+				),
+				target_index,
+			);
+
+			match mergeable
+			{
+				Mergeable::No => continue,
+				_ => return mergeable,
+			}
+		}
+
+		return Mergeable::No;
+	}
+
+	fn merge_chains(&mut self, candidate_index: usize, target_index: usize, reverse: bool)
+	{
+		let mut candidate_chain: Chain = self.chains.remove(candidate_index);
+		assert!(candidate_chain.len() >= 2);
+
+		if reverse
+		{
+			candidate_chain.reverse();
+		}
+
+		let target_index = if candidate_index < target_index
+		{
+			target_index - 1
+		}
+		else
+		{
+			target_index
+		};
+
+		self.merge_with_chain(candidate_chain, target_index);
+	}
+
+	fn merge_with_chain(&mut self, mut to_merge: Chain, target_index: usize)
+	{
+		let target_chain: &mut Chain = &mut self.chains[target_index];
+		assert!(target_chain.len() >= 2);
+
+		if to_merge.first().unwrap() == target_chain.last().unwrap()
+		{
+			to_merge.remove(0);
+			target_chain.extend(to_merge.into_iter());
+			return;
+		}
+
+		if to_merge.last().unwrap() == target_chain.first().unwrap()
+		{
+			to_merge.pop();
+			target_chain.splice(0..0, to_merge.into_iter());
+			return;
+		}
+
+		unreachable!("Expected candidate and target edge chains to link up");
+	}
+
+	fn can_merge(
+		candidate: (usize, usize),
+		target: (usize, usize),
+		target_index: usize,
+	) -> Mergeable
+	{
+		if candidate.0 == target.1 || candidate.1 == target.0
+		{
+			return Mergeable::Yes(target_index);
+		}
+
+		if candidate.0 == target.0 || candidate.1 == target.1
+		{
+			return Mergeable::Reversed(target_index);
+		}
+
+		return Mergeable::No;
+	}
+}
+
+#[cfg(test)]
+mod tests
+{
+	use super::*;
+
+	#[test]
+	fn no_edges()
+	{
+		let collection: EdgeCollection = EdgeCollection::new();
+
+		assert_eq!(collection.num_chains(), 0);
+		assert!(!collection.has_single_edge_loop());
+	}
+
+	#[test]
+	fn one_edge()
+	{
+		{
+			let mut collection: EdgeCollection = EdgeCollection::new();
+			collection.add((0, 1));
+
+			assert_eq!(collection.num_chains(), 1);
+			assert!(!collection.has_single_edge_loop());
+		}
+
+		{
+			let mut collection: EdgeCollection = EdgeCollection::new();
+			assert!(collection.add((0, 0)).is_err());
+		}
 	}
 }

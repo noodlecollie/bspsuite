@@ -4,6 +4,7 @@ use crate::math::comparison::{values_are_equal, vectors_are_equal};
 use crate::math::geometry::{
 	LinePlaneIntersection, classify_point_against_plane, intersect_line_and_plane,
 	intersect_planes, snap_point_to_nearest_integer_grid_point_if_close_enough,
+	vector_to_unit_or_null,
 };
 use crate::math::{CompileTuningParameters, DLine3, DPlane3};
 use crate::model::{MapCsgBrush, MapSourceBrush, MapSourceBrushFace};
@@ -16,7 +17,7 @@ pub(super) struct CsgBrushBuilder<'l>
 	params: &'l CompileTuningParameters,
 
 	vertices: PointCollection,
-	face_edges: Vec<EdgeCollection>,
+	face_edge_loops: Vec<Vec<usize>>,
 }
 
 impl<'l> CsgBrushBuilder<'l>
@@ -44,7 +45,7 @@ impl<'l> CsgBrushBuilder<'l>
 			source: source,
 			params: params,
 			vertices: PointCollection::new(params.equal_point_radius_epsilon),
-			face_edges: source.faces.iter().map(|_| EdgeCollection::new()).collect(),
+			face_edge_loops: source.faces.iter().map(|_| Vec::new()).collect(),
 		};
 
 		return builder.build_internal();
@@ -52,40 +53,47 @@ impl<'l> CsgBrushBuilder<'l>
 
 	fn build_internal(mut self) -> Result<MapCsgBrush>
 	{
+		let mut edges_by_face: Vec<EdgeCollection> = self
+			.source
+			.faces
+			.iter()
+			.map(|_| EdgeCollection::new())
+			.collect();
+
 		for (face_index, face) in self.source.faces.iter().enumerate()
 		{
-			self.build_face((face_index, face))?;
+			// Compare against all faces after the current one,
+			// since comparisons with faces before it will already have happened.
+			for other_face_index in (face_index + 1)..self.source.faces.len()
+			{
+				self.compute_edges_from_faces(
+					&mut edges_by_face,
+					(face_index, face),
+					(
+						other_face_index,
+						&self.source.faces[other_face_index]
+					),
+				)
+				.with_context(|| {
+					format!(
+						"Failed to compute intersection of brush face {face_index} with other face {other_face_index}",
+					)
+				})?;
+			}
 		}
 
-		self.verify_geometry_and_handedness_of_all_face_edges()?;
+		// TODO: Probably want to transform this entire struct into another struct,
+		// instead of doing it piecemeal with the members.
+		self.face_edge_loops = self.convert_edge_collections_to_edge_loops(edges_by_face)?;
 
 		todo!(
 			"Compute texture co-ordinates, and then construct brush object from computed geometry"
 		);
 	}
 
-	fn build_face(&mut self, face: (usize, &MapSourceBrushFace)) -> Result<()>
-	{
-		// Compare against all faces after the current one,
-		// since comparisons with faces before it will already have happened.
-		for other_face_index in (face.0 + 1)..self.source.faces.len()
-		{
-			let other_face = (other_face_index, &self.source.faces[other_face_index]);
-
-			self.compute_edges_from_faces(face, other_face)
-				.with_context(|| {
-					format!(
-						"Failed to compute intersection of brush face {} with other face {}",
-						face.0, other_face.0
-					)
-				})?;
-		}
-
-		return Ok(());
-	}
-
 	fn compute_edges_from_faces(
 		&mut self,
+		edges_by_face: &mut Vec<EdgeCollection>,
 		face_1: (usize, &MapSourceBrushFace),
 		face_2: (usize, &MapSourceBrushFace),
 	) -> Result<()>
@@ -130,12 +138,12 @@ impl<'l> CsgBrushBuilder<'l>
 
 		let edge: (usize, usize) = (v0.0, v1.0);
 
-		if let Err(err) = self.face_edges[face_1.0].add(edge)
+		if let Err(err) = edges_by_face[face_1.0].add(edge)
 		{
 			bail!("Failed to add edge {} -> {}. {err}", v0.1, v1.1);
 		}
 
-		if let Err(err) = self.face_edges[face_2.0].add(edge)
+		if let Err(err) = edges_by_face[face_2.0].add(edge)
 		{
 			bail!("Failed to add edge {} -> {}. {err}", v0.1, v1.1);
 		}
@@ -143,17 +151,25 @@ impl<'l> CsgBrushBuilder<'l>
 		return Ok(());
 	}
 
-	fn verify_geometry_and_handedness_of_all_face_edges(&mut self) -> Result<()>
+	fn convert_edge_collections_to_edge_loops(
+		&self,
+		edge_collections: Vec<EdgeCollection>,
+	) -> Result<Vec<Vec<usize>>>
 	{
-		for (face_index, edges) in self.face_edges.iter_mut().enumerate()
+		let mut out: Vec<Vec<usize>> = Vec::new();
+
+		for (face_index, edges) in edge_collections.into_iter().enumerate()
 		{
-			if let Err(err) = edges.verify()
+			if let Err(err) = edges.validate()
 			{
 				bail!("Invalid geometry computed for brush face {face_index}. {err}");
 			}
 
-			let normal: Option<DVec3> =
-				edges.normal(self.vertices.points(), self.params.zero_epsilon);
+			let mut edge_loop = edges.into_edge_loop().with_context(|| {
+				format!("Invalid geometry computed for brush face {face_index}")
+			})?;
+
+			let normal: Option<DVec3> = self.compute_normal(&edge_loop);
 
 			if normal.is_none()
 			{
@@ -179,20 +195,20 @@ impl<'l> CsgBrushBuilder<'l>
 			if normal_dir < 0.0
 			{
 				// Need to reverse the edges so that they match the normal of the plane.
-				edges.reverse();
+				edge_loop.reverse();
 
 				// Sanity:
 				debug_assert!(vectors_are_equal(
-					edges
-						.normal(self.vertices.points(), self.params.zero_epsilon)
-						.unwrap(),
+					self.compute_normal(&edge_loop).unwrap(),
 					self.source.faces[face_index].plane.normal(),
 					self.params.equal_point_radius_epsilon
 				));
 			}
+
+			out.push(edge_loop);
 		}
 
-		return Ok(());
+		return Ok(out);
 	}
 
 	// Intersect the edge with all faces in the brush to find the minimal edge span.
@@ -290,5 +306,37 @@ impl<'l> CsgBrushBuilder<'l>
 			intersections.0.unwrap().point,
 			intersections.1.unwrap().point,
 		));
+	}
+
+	fn compute_normal(&self, edges: &Vec<usize>) -> Option<DVec3>
+	{
+		let vertices: &Vec<DVec3> = self.vertices.points();
+
+		if vertices.len() < 3 || edges.len() < 3
+		{
+			return None;
+		}
+
+		let vert_indices = (edges[0], edges[1], edges[2]);
+
+		let verts = (
+			vertices[vert_indices.0],
+			vertices[vert_indices.1],
+			vertices[vert_indices.2],
+		);
+
+		let edges = (verts.1 - verts.0, verts.2 - verts.0);
+
+		let cross_product =
+			vector_to_unit_or_null(edges.0.cross(edges.1), self.params.zero_epsilon);
+
+		return if cross_product.1
+		{
+			Some(cross_product.0)
+		}
+		else
+		{
+			None
+		};
 	}
 }
