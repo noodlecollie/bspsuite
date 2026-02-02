@@ -7,9 +7,11 @@ use crate::math::geometry::{
 	vector_to_unit_or_null,
 };
 use crate::math::{CompileTuningParameters, DLine3, DPlane3};
-use crate::model::{MapCsgBrush, MapCsgBrushFace, MapSourceBrush, MapSourceBrushFace};
+use crate::model::{
+	MapCsgBrush, MapCsgBrushFace, MapCsgBrushFaceVertex, MapSourceBrush, MapSourceBrushFace,
+};
 use anyhow::{Context, Result, bail};
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 pub(super) struct CsgBrushBuilder<'l>
 {
@@ -57,9 +59,8 @@ impl<'l> CsgBrushBuilder<'l>
 		let face_edge_loops: Vec<Vec<usize>> =
 			self.convert_edge_collections_to_edge_loops(edges_by_face, &vertices)?;
 
-		// TODO: Calc + normalise tex co-ords per face.
-
-		let faces: Vec<MapCsgBrushFace> = self.finalise_faces(face_edge_loops, &vertices)?;
+		let faces: Vec<MapCsgBrushFace> =
+			self.finalise_faces(face_edge_loops, vertices.points())?;
 
 		todo!();
 	}
@@ -223,18 +224,14 @@ impl<'l> CsgBrushBuilder<'l>
 	fn finalise_faces(
 		&self,
 		face_edge_loops: Vec<Vec<usize>>,
-		vertices: &PointCollection,
+		vertices: &Vec<DVec3>,
 	) -> Result<Vec<MapCsgBrushFace>>
 	{
 		let mut out: Vec<MapCsgBrushFace> = Vec::with_capacity(face_edge_loops.len());
 
 		for (face_index, edges) in face_edge_loops.into_iter().enumerate()
 		{
-			let face: MapCsgBrushFace = self
-				.finalise_face(edges, vertices)
-				.with_context(|| format!("Failed to finalise brush face {face_index}"))?;
-
-			out.push(face);
+			out.push(self.finalise_face(face_index, edges, vertices));
 		}
 
 		return Ok(out);
@@ -242,11 +239,44 @@ impl<'l> CsgBrushBuilder<'l>
 
 	fn finalise_face(
 		&self,
+		face_index: usize,
 		edges: Vec<usize>,
-		vertices: &PointCollection,
-	) -> Result<MapCsgBrushFace>
+		vertices: &Vec<DVec3>,
+	) -> MapCsgBrushFace
 	{
-		todo!();
+		let orig_face: &MapSourceBrushFace = &self.source.faces[face_index];
+
+		let mut face_vertices = edges
+			.into_iter()
+			.map(|vindex| MapCsgBrushFaceVertex {
+				index_in_brush: vindex,
+				tex_coord: DVec2::new(
+					CsgBrushBuilder::texture_ordinate(
+						vertices[vindex],
+						orig_face.material_axes.0,
+						64, // TODO: Actually read texture to get this!
+						orig_face.material_scale.x,
+						orig_face.material_offset.x,
+					),
+					CsgBrushBuilder::texture_ordinate(
+						vertices[vindex],
+						orig_face.material_axes.1,
+						64, // TODO: Actually read texture to get this!
+						orig_face.material_scale.y,
+						orig_face.material_offset.y,
+					),
+				),
+			})
+			.collect();
+
+		CsgBrushBuilder::normalise_all_texture_coordinates(&mut face_vertices);
+
+		return MapCsgBrushFace {
+			global_face_index: 0, // Assigned later
+			plane: orig_face.plane,
+			vertices: face_vertices,
+			material: orig_face.material_name.clone(),
+		};
 	}
 
 	// Intersect the edge with all faces in the brush to find the minimal edge span.
@@ -376,5 +406,26 @@ impl<'l> CsgBrushBuilder<'l>
 		{
 			None
 		};
+	}
+
+	fn normalise_all_texture_coordinates(vertices: &mut Vec<MapCsgBrushFaceVertex>)
+	{
+		// TODO: The PDF doesn't make sense for this one...
+		// See the implementation here: https://github.com/stefanha/map-files/blob/master/poly.cpp#L341
+		todo!();
+	}
+
+	fn texture_ordinate(
+		pos: DVec3,
+		tex_axis_dir: DVec3,
+		image_dim: usize,
+		texture_scale: f64,
+		texture_offset: f64,
+	) -> f64
+	{
+		let image_dim_float: f64 = image_dim as f64;
+
+		return (pos.dot(tex_axis_dir) / (image_dim_float * texture_scale))
+			+ (texture_offset / image_dim_float);
 	}
 }
