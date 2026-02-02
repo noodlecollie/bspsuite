@@ -23,6 +23,7 @@ pub struct MapCsgBrush
 {
 	pub global_brush_index: usize,
 	pub vertices: Vec<DVec3>,
+	pub faces: Vec<MapCsgBrushFace>,
 }
 
 pub struct MapCsgEntity
@@ -41,6 +42,9 @@ impl MapCsgFile
 {
 	pub fn construct(source: MapSourceFile) -> Result<MapCsgFile>
 	{
+		// TODO: Once all brushes are generated, perform CSG union on all of them.
+		// This may need some BBox tree, otherwise we'll be doing O(n^2) operations.
+		// Check to see how existing compilers do it.
 		todo!();
 	}
 }

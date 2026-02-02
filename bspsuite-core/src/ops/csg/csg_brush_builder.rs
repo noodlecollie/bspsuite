@@ -7,7 +7,7 @@ use crate::math::geometry::{
 	vector_to_unit_or_null,
 };
 use crate::math::{CompileTuningParameters, DLine3, DPlane3};
-use crate::model::{MapCsgBrush, MapSourceBrush, MapSourceBrushFace};
+use crate::model::{MapCsgBrush, MapCsgBrushFace, MapSourceBrush, MapSourceBrushFace};
 use anyhow::{Context, Result, bail};
 use glam::DVec3;
 
@@ -57,9 +57,11 @@ impl<'l> CsgBrushBuilder<'l>
 		let face_edge_loops: Vec<Vec<usize>> =
 			self.convert_edge_collections_to_edge_loops(edges_by_face, &vertices)?;
 
-		todo!(
-			"Compute texture co-ordinates, and then construct brush object from computed geometry"
-		);
+		// TODO: Calc + normalise tex co-ords per face.
+
+		let faces: Vec<MapCsgBrushFace> = self.finalise_faces(face_edge_loops, &vertices)?;
+
+		todo!();
 	}
 
 	fn compute_edges_from_all_faces(
@@ -216,6 +218,35 @@ impl<'l> CsgBrushBuilder<'l>
 		}
 
 		return Ok(out);
+	}
+
+	fn finalise_faces(
+		&self,
+		face_edge_loops: Vec<Vec<usize>>,
+		vertices: &PointCollection,
+	) -> Result<Vec<MapCsgBrushFace>>
+	{
+		let mut out: Vec<MapCsgBrushFace> = Vec::with_capacity(face_edge_loops.len());
+
+		for (face_index, edges) in face_edge_loops.into_iter().enumerate()
+		{
+			let face: MapCsgBrushFace = self
+				.finalise_face(edges, vertices)
+				.with_context(|| format!("Failed to finalise brush face {face_index}"))?;
+
+			out.push(face);
+		}
+
+		return Ok(out);
+	}
+
+	fn finalise_face(
+		&self,
+		edges: Vec<usize>,
+		vertices: &PointCollection,
+	) -> Result<MapCsgBrushFace>
+	{
+		todo!();
 	}
 
 	// Intersect the edge with all faces in the brush to find the minimal edge span.
