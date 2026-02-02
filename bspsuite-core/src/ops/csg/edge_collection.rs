@@ -276,19 +276,184 @@ mod tests
 	}
 
 	#[test]
+	fn invalid_edge()
+	{
+		let mut collection: EdgeCollection = EdgeCollection::new();
+
+		assert!(collection.add((0, 0)).is_err());
+	}
+
+	#[test]
 	fn one_edge()
+	{
+		let mut collection: EdgeCollection = EdgeCollection::new();
+
+		assert!(collection.add((0, 1)).is_ok());
+		assert_eq!(collection.num_chains(), 1);
+		assert!(!collection.has_single_edge_loop());
+	}
+
+	#[test]
+	fn two_edges()
 	{
 		{
 			let mut collection: EdgeCollection = EdgeCollection::new();
-			collection.add((0, 1));
 
+			assert!(collection.add((0, 1)).is_ok());
+			assert!(collection.add((1, 2)).is_ok());
 			assert_eq!(collection.num_chains(), 1);
 			assert!(!collection.has_single_edge_loop());
 		}
 
 		{
 			let mut collection: EdgeCollection = EdgeCollection::new();
-			assert!(collection.add((0, 0)).is_err());
+
+			assert!(collection.add((0, 1)).is_ok());
+			assert!(collection.add((2, 1)).is_ok());
+			assert_eq!(collection.num_chains(), 1);
+			assert!(!collection.has_single_edge_loop());
+		}
+
+		{
+			let mut collection: EdgeCollection = EdgeCollection::new();
+
+			assert!(collection.add((0, 1)).is_ok());
+			assert!(collection.add((1, 0)).is_ok());
+			assert_eq!(collection.num_chains(), 1);
+			assert!(collection.has_single_edge_loop());
+		}
+	}
+
+	#[test]
+	fn three_edges()
+	{
+		{
+			let mut collection: EdgeCollection = EdgeCollection::new();
+
+			assert!(collection.add((0, 1)).is_ok());
+			assert!(collection.add((1, 2)).is_ok());
+			assert!(collection.add((2, 0)).is_ok());
+			assert_eq!(collection.num_chains(), 1);
+			assert!(collection.has_single_edge_loop());
+		}
+
+		{
+			let mut collection: EdgeCollection = EdgeCollection::new();
+
+			assert!(collection.add((0, 1)).is_ok());
+			assert!(collection.add((1, 2)).is_ok());
+			assert!(collection.add((2, 3)).is_ok());
+			assert_eq!(collection.num_chains(), 1);
+			assert!(!collection.has_single_edge_loop());
+		}
+
+		{
+			let mut collection: EdgeCollection = EdgeCollection::new();
+
+			assert!(collection.add((0, 1)).is_ok());
+			assert!(collection.add((2, 3)).is_ok());
+			assert!(collection.add((3, 4)).is_ok());
+			assert_eq!(collection.num_chains(), 2);
+			assert!(!collection.has_single_edge_loop());
+		}
+	}
+
+	#[test]
+	fn four_edges()
+	{
+		let mut collection: EdgeCollection = EdgeCollection::new();
+
+		assert!(collection.add((0, 1)).is_ok());
+		assert!(collection.add((2, 3)).is_ok());
+		assert_eq!(collection.num_chains(), 2);
+		assert!(!collection.has_single_edge_loop());
+
+		assert!(collection.add((3, 0)).is_ok());
+		assert_eq!(collection.num_chains(), 1);
+		assert!(!collection.has_single_edge_loop());
+
+		assert!(collection.add((2, 1)).is_ok());
+		assert_eq!(collection.num_chains(), 1);
+		assert!(collection.has_single_edge_loop());
+	}
+
+	#[test]
+	fn many_edges_out_of_order()
+	{
+		let edge_list: Vec<(usize, usize)> =
+			vec![(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 0)];
+
+		let shuffled_edge_list: Vec<(usize, usize)> = vec![
+			edge_list[0],
+			edge_list[4],
+			edge_list[6],
+			edge_list[2],
+			edge_list[1],
+			edge_list[5],
+			edge_list[3],
+		];
+
+		let mut collection: EdgeCollection = EdgeCollection::new();
+
+		for index in 0..shuffled_edge_list.len()
+		{
+			assert!(collection.add(shuffled_edge_list[index]).is_ok());
+
+			match index
+			{
+				// (0, 1)
+				0 => assert_eq!(
+					collection.num_chains(),
+					1,
+					"Expected 1 chain on iteration 0"
+				),
+				// (0, 1), (4, 5)
+				1 => assert_eq!(
+					collection.num_chains(),
+					2,
+					"Expected 2 chains on iteration 1"
+				),
+				// (6, 0, 1), (4, 5)
+				2 => assert_eq!(
+					collection.num_chains(),
+					2,
+					"Expected 2 chains on iteration 2"
+				),
+				// (6, 0, 1), (2, 3), (4, 5)
+				3 => assert_eq!(
+					collection.num_chains(),
+					3,
+					"Expected 3 chains on iteration 3"
+				),
+				// (6, 0, 1, 2, 3), (4, 5)
+				4 => assert_eq!(
+					collection.num_chains(),
+					2,
+					"Expected 2 chains on iteration 4"
+				),
+				// (4, 5, 6, 0, 1, 2, 3)
+				5 => assert_eq!(
+					collection.num_chains(),
+					1,
+					"Expected 1 chain on iteration 5"
+				),
+				// (4, 5, 6, 0, 1, 2, 3, 4)
+				6 => assert_eq!(
+					collection.num_chains(),
+					1,
+					"Expected 1 chain on iteration 6"
+				),
+				_ => unreachable!(),
+			}
+
+			if index < 6
+			{
+				assert!(!collection.has_single_edge_loop());
+			}
+			else
+			{
+				assert!(collection.has_single_edge_loop());
+			}
 		}
 	}
 }
