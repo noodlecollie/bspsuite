@@ -15,9 +15,6 @@ pub(super) struct CsgBrushBuilder<'l>
 {
 	source: &'l MapSourceBrush,
 	params: &'l CompileTuningParameters,
-
-	vertices: PointCollection,
-	face_edge_loops: Vec<Vec<usize>>,
 }
 
 impl<'l> CsgBrushBuilder<'l>
@@ -44,14 +41,31 @@ impl<'l> CsgBrushBuilder<'l>
 		let builder = Self {
 			source: source,
 			params: params,
-			vertices: PointCollection::new(params.equal_point_radius_epsilon),
-			face_edge_loops: source.faces.iter().map(|_| Vec::new()).collect(),
 		};
 
 		return builder.build_internal();
 	}
 
-	fn build_internal(mut self) -> Result<MapCsgBrush>
+	fn build_internal(self) -> Result<MapCsgBrush>
+	{
+		let mut vertices: PointCollection =
+			PointCollection::new(self.params.equal_point_radius_epsilon);
+
+		let edges_by_face: Vec<EdgeCollection> =
+			self.compute_edges_from_all_faces(&mut vertices)?;
+
+		let face_edge_loops: Vec<Vec<usize>> =
+			self.convert_edge_collections_to_edge_loops(edges_by_face, &vertices)?;
+
+		todo!(
+			"Compute texture co-ordinates, and then construct brush object from computed geometry"
+		);
+	}
+
+	fn compute_edges_from_all_faces(
+		&self,
+		vertices: &mut PointCollection,
+	) -> Result<Vec<EdgeCollection>>
 	{
 		let mut edges_by_face: Vec<EdgeCollection> = self
 			.source
@@ -68,6 +82,7 @@ impl<'l> CsgBrushBuilder<'l>
 			{
 				self.compute_edges_from_faces(
 					&mut edges_by_face,
+					vertices,
 					(face_index, face),
 					(
 						other_face_index,
@@ -82,18 +97,13 @@ impl<'l> CsgBrushBuilder<'l>
 			}
 		}
 
-		// TODO: Probably want to transform this entire struct into another struct,
-		// instead of doing it piecemeal with the members.
-		self.face_edge_loops = self.convert_edge_collections_to_edge_loops(edges_by_face)?;
-
-		todo!(
-			"Compute texture co-ordinates, and then construct brush object from computed geometry"
-		);
+		return Ok(edges_by_face);
 	}
 
 	fn compute_edges_from_faces(
-		&mut self,
+		&self,
 		edges_by_face: &mut Vec<EdgeCollection>,
+		vertices: &mut PointCollection,
 		face_1: (usize, &MapSourceBrushFace),
 		face_2: (usize, &MapSourceBrushFace),
 	) -> Result<()>
@@ -114,19 +124,15 @@ impl<'l> CsgBrushBuilder<'l>
 
 		// Snap these to integer grid points if close enough, and add to vertex
 		// collection.
-		let v0 = self
-			.vertices
-			.add(snap_point_to_nearest_integer_grid_point_if_close_enough(
-				bound_0,
-				self.params.equal_point_radius_epsilon,
-			));
+		let v0 = vertices.add(snap_point_to_nearest_integer_grid_point_if_close_enough(
+			bound_0,
+			self.params.equal_point_radius_epsilon,
+		));
 
-		let v1 = self
-			.vertices
-			.add(snap_point_to_nearest_integer_grid_point_if_close_enough(
-				bound_1,
-				self.params.equal_point_radius_epsilon,
-			));
+		let v1 = vertices.add(snap_point_to_nearest_integer_grid_point_if_close_enough(
+			bound_1,
+			self.params.equal_point_radius_epsilon,
+		));
 
 		if v0.0 == v1.0
 		{
@@ -154,6 +160,7 @@ impl<'l> CsgBrushBuilder<'l>
 	fn convert_edge_collections_to_edge_loops(
 		&self,
 		edge_collections: Vec<EdgeCollection>,
+		vertices: &PointCollection,
 	) -> Result<Vec<Vec<usize>>>
 	{
 		let mut out: Vec<Vec<usize>> = Vec::new();
@@ -169,7 +176,7 @@ impl<'l> CsgBrushBuilder<'l>
 				format!("Invalid geometry computed for brush face {face_index}")
 			})?;
 
-			let normal: Option<DVec3> = self.compute_normal(&edge_loop);
+			let normal: Option<DVec3> = self.compute_normal(&edge_loop, vertices);
 
 			if normal.is_none()
 			{
@@ -199,7 +206,7 @@ impl<'l> CsgBrushBuilder<'l>
 
 				// Sanity:
 				debug_assert!(vectors_are_equal(
-					self.compute_normal(&edge_loop).unwrap(),
+					self.compute_normal(&edge_loop, vertices).unwrap(),
 					self.source.faces[face_index].plane.normal(),
 					self.params.equal_point_radius_epsilon
 				));
@@ -308,9 +315,9 @@ impl<'l> CsgBrushBuilder<'l>
 		));
 	}
 
-	fn compute_normal(&self, edges: &Vec<usize>) -> Option<DVec3>
+	fn compute_normal(&self, edges: &Vec<usize>, vertices: &PointCollection) -> Option<DVec3>
 	{
-		let vertices: &Vec<DVec3> = self.vertices.points();
+		let vertices: &Vec<DVec3> = vertices.points();
 
 		if vertices.len() < 3 || edges.len() < 3
 		{
