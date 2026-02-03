@@ -408,11 +408,88 @@ impl<'l> CsgBrushBuilder<'l>
 		};
 	}
 
+	// Because a face's vertices will likely be very far from the origin, their
+	// texture co-ordinates will also be unnecessarily large. We want to measure the
+	// shortest distance from the texture axis origin to any of the points on the
+	// face, round it down to an integer, and substract this distance from the
+	// texture co-ordinates of the points. This will minimise the distance between
+	// the texture co-ordinates and the origin, and the point with the shortest
+	// distance will be in the range (-1 1) (depending on what sign its
+	// co-ordinate had). If any point has a co-ordinate between -1 and 1, there's no
+	// point doing anything because the shortest co-ordinate distance would then end
+	// up being 0.
 	fn normalise_all_texture_coordinates(vertices: &mut Vec<MapCsgBrushFaceVertex>)
 	{
-		// TODO: The PDF doesn't make sense for this one...
-		// See the implementation here: https://github.com/stefanha/map-files/blob/master/poly.cpp#L341
-		todo!();
+		#[derive(Copy, Clone)]
+		struct MinOrdinate
+		{
+			index: usize,
+			abs_value: f64,
+		}
+
+		if vertices.len() < 1
+		{
+			return;
+		}
+
+		let init: MinOrdinate = MinOrdinate {
+			index: usize::MAX,
+			abs_value: f64::MAX,
+		};
+
+		let min_coords: (MinOrdinate, MinOrdinate) =
+			vertices
+				.iter()
+				.enumerate()
+				.fold((init, init), |acc, (index, vert)| {
+					let abs: DVec2 = vert.tex_coord.abs();
+
+					return (
+						if abs.x < acc.0.abs_value
+						{
+							MinOrdinate {
+								index: index,
+								abs_value: abs.x,
+							}
+						}
+						else
+						{
+							acc.0
+						},
+						if abs.y < acc.1.abs_value
+						{
+							MinOrdinate {
+								index: index,
+								abs_value: abs.y,
+							}
+						}
+						else
+						{
+							acc.1
+						},
+					);
+				});
+
+		assert!(min_coords.0.index != usize::MAX && min_coords.1.index != usize::MAX);
+
+		if min_coords.0.abs_value < 1.0 && min_coords.1.abs_value < 1.0
+		{
+			// No need to normalise.
+			return;
+		}
+
+		// We now treat the values as non-abs, because it may be that we need to bring
+		// negative co-ordinates back closer to zero.
+		let offset: DVec2 = DVec2::new(
+			vertices[min_coords.0.index].tex_coord.x,
+			vertices[min_coords.1.index].tex_coord.y,
+		)
+		.trunc();
+
+		for vert in vertices.iter_mut()
+		{
+			vert.tex_coord -= offset;
+		}
 	}
 
 	fn texture_ordinate(
