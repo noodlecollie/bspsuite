@@ -8,7 +8,7 @@ use crate::math::geometry::{
 };
 use crate::math::{CompileTuningParameters, DLine3, DPlane3};
 use crate::model::{
-	MapCsgBrush, MapCsgBrushFace, MapCsgBrushFaceVertex, MapSourceBrush, MapSourceBrushFace,
+	MapGeomBrush, MapGeomBrushFace, MapGeomBrushFaceVertex, MapSourceBrush, MapSourceBrushFace,
 };
 use anyhow::{Context, Result, bail};
 use glam::{DVec2, DVec3};
@@ -38,7 +38,7 @@ impl<'l> CsgBrushBuilder<'l>
 	pub fn build(
 		source: &'l MapSourceBrush,
 		params: &'l CompileTuningParameters,
-	) -> Result<MapCsgBrush>
+	) -> Result<MapGeomBrush>
 	{
 		let builder = Self {
 			source_brush: source,
@@ -48,7 +48,7 @@ impl<'l> CsgBrushBuilder<'l>
 		return builder.build_internal();
 	}
 
-	fn build_internal(self) -> Result<MapCsgBrush>
+	fn build_internal(self) -> Result<MapGeomBrush>
 	{
 		let mut vertices: PointCollection =
 			PointCollection::new(self.params.equal_point_radius_epsilon);
@@ -59,10 +59,10 @@ impl<'l> CsgBrushBuilder<'l>
 		let face_edge_loops: Vec<Vec<usize>> =
 			self.convert_edge_collections_to_edge_loops(edges_by_face, &vertices)?;
 
-		let faces: Vec<MapCsgBrushFace> =
+		let faces: Vec<MapGeomBrushFace> =
 			self.finalise_faces(face_edge_loops, vertices.points())?;
 
-		return Ok(MapCsgBrush {
+		return Ok(MapGeomBrush {
 			global_brush_index: self.source_brush.global_brush_index,
 			vertices: vertices.into(),
 			faces: faces,
@@ -229,9 +229,9 @@ impl<'l> CsgBrushBuilder<'l>
 		&self,
 		face_edge_loops: Vec<Vec<usize>>,
 		vertices: &Vec<DVec3>,
-	) -> Result<Vec<MapCsgBrushFace>>
+	) -> Result<Vec<MapGeomBrushFace>>
 	{
-		let mut out: Vec<MapCsgBrushFace> = Vec::with_capacity(face_edge_loops.len());
+		let mut out: Vec<MapGeomBrushFace> = Vec::with_capacity(face_edge_loops.len());
 
 		for (face_index, edges) in face_edge_loops.into_iter().enumerate()
 		{
@@ -246,13 +246,13 @@ impl<'l> CsgBrushBuilder<'l>
 		face_index: usize,
 		edges: Vec<usize>,
 		vertices: &Vec<DVec3>,
-	) -> MapCsgBrushFace
+	) -> MapGeomBrushFace
 	{
 		let orig_face: &MapSourceBrushFace = &self.source_brush.faces[face_index];
 
 		let mut face_vertices = edges
 			.into_iter()
-			.map(|vindex| MapCsgBrushFaceVertex {
+			.map(|vindex| MapGeomBrushFaceVertex {
 				index_in_brush: vindex,
 				tex_coord: DVec2::new(
 					CsgBrushBuilder::texture_ordinate(
@@ -275,7 +275,7 @@ impl<'l> CsgBrushBuilder<'l>
 
 		CsgBrushBuilder::normalise_all_texture_coordinates(&mut face_vertices);
 
-		return MapCsgBrushFace {
+		return MapGeomBrushFace {
 			global_face_index: self.source_brush.faces[face_index].global_face_index,
 			plane: orig_face.plane,
 			vertices: face_vertices,
@@ -422,7 +422,7 @@ impl<'l> CsgBrushBuilder<'l>
 	// co-ordinate had). If any point has a co-ordinate between -1 and 1, there's no
 	// point doing anything because the shortest co-ordinate distance would then end
 	// up being 0.
-	fn normalise_all_texture_coordinates(vertices: &mut Vec<MapCsgBrushFaceVertex>)
+	fn normalise_all_texture_coordinates(vertices: &mut Vec<MapGeomBrushFaceVertex>)
 	{
 		#[derive(Copy, Clone)]
 		struct MinOrdinate

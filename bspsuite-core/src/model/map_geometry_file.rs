@@ -6,49 +6,49 @@ use crate::ops::csg::construct_brush;
 use anyhow::Result;
 use glam::{DVec2, DVec3};
 
-pub struct MapCsgBrushFaceVertex
+pub struct MapGeomBrushFaceVertex
 {
 	pub index_in_brush: usize,
 	pub tex_coord: DVec2,
 }
 
-pub struct MapCsgBrushFace
+pub struct MapGeomBrushFace
 {
 	pub global_face_index: usize,
 	pub plane: DPlane3,
-	pub vertices: Vec<MapCsgBrushFaceVertex>,
+	pub vertices: Vec<MapGeomBrushFaceVertex>,
 	pub material: String, // TODO: Rc to an object?
 }
 
-pub struct MapCsgBrush
+pub struct MapGeomBrush
 {
 	pub global_brush_index: usize,
 	pub vertices: Vec<DVec3>,
-	pub faces: Vec<MapCsgBrushFace>,
+	pub faces: Vec<MapGeomBrushFace>,
 }
 
-pub struct MapCsgEntity
+pub struct MapGeomEntity
 {
 	pub global_entity_index: usize,
-	pub brushes: Vec<MapCsgBrush>,
+	pub brushes: Vec<MapGeomBrush>,
 	pub keyvalues: HashMap<String, String>,
 }
 
-pub struct MapCsgFile
+pub struct MapGeomFile
 {
-	pub entities: Vec<MapCsgEntity>,
+	pub entities: Vec<MapGeomEntity>,
 }
 
-impl MapCsgFile
+impl MapGeomFile
 {
 	pub fn construct(source: MapSourceFile, params: &CompileTuningParameters)
-	-> Result<MapCsgFile>
+	-> Result<MapGeomFile>
 	{
-		let mut csg_entities: Vec<MapCsgEntity> = Vec::with_capacity(source.entities.len());
+		let mut geom_entities: Vec<MapGeomEntity> = Vec::with_capacity(source.entities.len());
 
 		for source_ent in source.entities.into_iter()
 		{
-			let mut ent: MapCsgEntity = MapCsgEntity {
+			let mut ent: MapGeomEntity = MapGeomEntity {
 				global_entity_index: source_ent.global_entity_index,
 				brushes: Vec::with_capacity(source_ent.brushes.len()),
 				keyvalues: source_ent.keyvalues,
@@ -56,15 +56,15 @@ impl MapCsgFile
 
 			for source_brush in source_ent.brushes.into_iter()
 			{
-				let brush: MapCsgBrush = construct_brush(source_brush, params)?;
+				let brush: MapGeomBrush = construct_brush(source_brush, params)?;
 				ent.brushes.push(brush);
 			}
 
-			csg_entities.push(ent);
+			geom_entities.push(ent);
 		}
 
-		return Ok(MapCsgFile {
-			entities: csg_entities,
+		return Ok(MapGeomFile {
+			entities: geom_entities,
 		});
 	}
 }
