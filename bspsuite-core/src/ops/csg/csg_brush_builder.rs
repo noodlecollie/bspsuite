@@ -15,7 +15,7 @@ use glam::{DVec2, DVec3};
 
 pub(super) struct CsgBrushBuilder<'l>
 {
-	source: &'l MapSourceBrush,
+	source_brush: &'l MapSourceBrush,
 	params: &'l CompileTuningParameters,
 }
 
@@ -41,7 +41,7 @@ impl<'l> CsgBrushBuilder<'l>
 	) -> Result<MapCsgBrush>
 	{
 		let builder = Self {
-			source: source,
+			source_brush: source,
 			params: params,
 		};
 
@@ -62,7 +62,11 @@ impl<'l> CsgBrushBuilder<'l>
 		let faces: Vec<MapCsgBrushFace> =
 			self.finalise_faces(face_edge_loops, vertices.points())?;
 
-		todo!();
+		return Ok(MapCsgBrush {
+			global_brush_index: self.source_brush.global_brush_index,
+			vertices: vertices.into(),
+			faces: faces,
+		});
 	}
 
 	fn compute_edges_from_all_faces(
@@ -71,17 +75,17 @@ impl<'l> CsgBrushBuilder<'l>
 	) -> Result<Vec<EdgeCollection>>
 	{
 		let mut edges_by_face: Vec<EdgeCollection> = self
-			.source
+			.source_brush
 			.faces
 			.iter()
 			.map(|_| EdgeCollection::new())
 			.collect();
 
-		for (face_index, face) in self.source.faces.iter().enumerate()
+		for (face_index, face) in self.source_brush.faces.iter().enumerate()
 		{
 			// Compare against all faces after the current one,
 			// since comparisons with faces before it will already have happened.
-			for other_face_index in (face_index + 1)..self.source.faces.len()
+			for other_face_index in (face_index + 1)..self.source_brush.faces.len()
 			{
 				self.compute_edges_from_faces(
 					&mut edges_by_face,
@@ -89,7 +93,7 @@ impl<'l> CsgBrushBuilder<'l>
 					(face_index, face),
 					(
 						other_face_index,
-						&self.source.faces[other_face_index]
+						&self.source_brush.faces[other_face_index]
 					),
 				)
 				.with_context(|| {
@@ -190,7 +194,7 @@ impl<'l> CsgBrushBuilder<'l>
 
 			let normal_dir: f64 = normal
 				.unwrap()
-				.dot(self.source.faces[face_index].plane.normal());
+				.dot(self.source_brush.faces[face_index].plane.normal());
 
 			// Sanity:
 			if !values_are_equal(normal_dir.abs(), 1.0, self.params.zero_epsilon)
@@ -198,7 +202,7 @@ impl<'l> CsgBrushBuilder<'l>
 				bail!(
 					"Brush face {face_index} normal {} computed from edges did not align with plane normal {}. This should never happen!",
 					normal.unwrap(),
-					self.source.faces[face_index].plane.normal()
+					self.source_brush.faces[face_index].plane.normal()
 				);
 			}
 
@@ -210,7 +214,7 @@ impl<'l> CsgBrushBuilder<'l>
 				// Sanity:
 				debug_assert!(vectors_are_equal(
 					self.compute_normal(&edge_loop, vertices).unwrap(),
-					self.source.faces[face_index].plane.normal(),
+					self.source_brush.faces[face_index].plane.normal(),
 					self.params.equal_point_radius_epsilon
 				));
 			}
@@ -244,7 +248,7 @@ impl<'l> CsgBrushBuilder<'l>
 		vertices: &Vec<DVec3>,
 	) -> MapCsgBrushFace
 	{
-		let orig_face: &MapSourceBrushFace = &self.source.faces[face_index];
+		let orig_face: &MapSourceBrushFace = &self.source_brush.faces[face_index];
 
 		let mut face_vertices = edges
 			.into_iter()
@@ -272,7 +276,7 @@ impl<'l> CsgBrushBuilder<'l>
 		CsgBrushBuilder::normalise_all_texture_coordinates(&mut face_vertices);
 
 		return MapCsgBrushFace {
-			global_face_index: 0, // Assigned later
+			global_face_index: self.source_brush.faces[face_index].global_face_index,
 			plane: orig_face.plane,
 			vertices: face_vertices,
 			material: orig_face.material_name.clone(),
@@ -294,7 +298,7 @@ impl<'l> CsgBrushBuilder<'l>
 
 		let mut intersections: (Option<Intersection>, Option<Intersection>) = (None, None);
 
-		for (face_index, face) in self.source.faces.iter().enumerate()
+		for (face_index, face) in self.source_brush.faces.iter().enumerate()
 		{
 			if face_index == face_indices.0 || face_index == face_indices.1
 			{

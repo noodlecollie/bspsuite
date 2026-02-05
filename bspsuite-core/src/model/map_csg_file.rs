@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
-use crate::math::DPlane3;
+use crate::math::{CompileTuningParameters, DPlane3};
 use crate::model::MapSourceFile;
+use crate::ops::csg::construct_brush;
 use anyhow::Result;
 use glam::{DVec2, DVec3};
 
@@ -40,35 +41,30 @@ pub struct MapCsgFile
 
 impl MapCsgFile
 {
-	pub fn construct(source: MapSourceFile) -> Result<MapCsgFile>
+	pub fn construct(source: MapSourceFile, params: &CompileTuningParameters)
+	-> Result<MapCsgFile>
 	{
-		// TODO: Once all brushes are generated, perform CSG union on all of them.
-		// This may need some BBox tree, otherwise we'll be doing O(n^2) operations.
-		// Check to see how existing compilers do it.
-		todo!();
-	}
-}
+		let mut csg_entities: Vec<MapCsgEntity> = Vec::with_capacity(source.entities.len());
 
-impl MapCsgBrushFace
-{
-	pub fn new(global_index: usize, plane: DPlane3, material: String) -> Self
-	{
-		return Self {
-			global_face_index: global_index,
-			plane: plane,
-			vertices: Vec::new(),
-			material: material,
-		};
-	}
-}
+		for source_ent in source.entities.into_iter()
+		{
+			let mut ent: MapCsgEntity = MapCsgEntity {
+				global_entity_index: source_ent.global_entity_index,
+				brushes: Vec::with_capacity(source_ent.brushes.len()),
+				keyvalues: source_ent.keyvalues,
+			};
 
-impl MapCsgBrushFaceVertex
-{
-	pub fn new(index_in_brush: usize) -> Self
-	{
-		return Self {
-			index_in_brush: index_in_brush,
-			tex_coord: DVec2::new(0.0, 0.0),
-		};
+			for source_brush in source_ent.brushes.into_iter()
+			{
+				let brush: MapCsgBrush = construct_brush(source_brush, params)?;
+				ent.brushes.push(brush);
+			}
+
+			csg_entities.push(ent);
+		}
+
+		return Ok(MapCsgFile {
+			entities: csg_entities,
+		});
 	}
 }
