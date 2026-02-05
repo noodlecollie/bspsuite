@@ -13,13 +13,13 @@ use crate::model::{
 use anyhow::{Context, Result, bail};
 use glam::{DVec2, DVec3};
 
-pub(super) struct CsgBrushBuilder<'l>
+pub(super) struct BrushBuilder<'l>
 {
 	source_brush: &'l MapSourceBrush,
 	params: &'l CompileTuningParameters,
 }
 
-impl<'l> CsgBrushBuilder<'l>
+impl<'l> BrushBuilder<'l>
 {
 	// In combination with the Stefan Hajnoczi paper (see the notes directory in
 	// this repo), and with
@@ -255,14 +255,14 @@ impl<'l> CsgBrushBuilder<'l>
 			.map(|vindex| MapGeomBrushFaceVertex {
 				index_in_brush: vindex,
 				tex_coord: DVec2::new(
-					CsgBrushBuilder::texture_ordinate(
+					BrushBuilder::texture_ordinate(
 						vertices[vindex],
 						orig_face.material_axes.0,
 						64, // TODO: Actually read texture to get this!
 						orig_face.material_scale.x,
 						orig_face.material_offset.x,
 					),
-					CsgBrushBuilder::texture_ordinate(
+					BrushBuilder::texture_ordinate(
 						vertices[vindex],
 						orig_face.material_axes.1,
 						64, // TODO: Actually read texture to get this!
@@ -273,7 +273,7 @@ impl<'l> CsgBrushBuilder<'l>
 			})
 			.collect();
 
-		CsgBrushBuilder::normalise_all_texture_coordinates(&mut face_vertices);
+		BrushBuilder::normalise_all_texture_coordinates(&mut face_vertices);
 
 		return MapGeomBrushFace {
 			global_face_index: self.source_brush.faces[face_index].global_face_index,

@@ -8,7 +8,6 @@ mod extensions;
 mod io;
 mod math;
 mod model;
-mod ops;
 mod toolchain;
 
 pub mod commands;

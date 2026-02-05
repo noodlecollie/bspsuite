@@ -1,9 +1,13 @@
+mod brush_builder;
+mod edge_collection;
+mod point_collection;
+
 use std::collections::HashMap;
 
 use crate::math::{CompileTuningParameters, DPlane3};
 use crate::model::MapSourceFile;
-use crate::ops::csg::construct_brush;
 use anyhow::Result;
+use brush_builder::BrushBuilder;
 use glam::{DVec2, DVec3};
 
 pub struct MapGeomBrushFaceVertex
@@ -56,7 +60,7 @@ impl MapGeomFile
 
 			for source_brush in source_ent.brushes.into_iter()
 			{
-				let brush: MapGeomBrush = construct_brush(source_brush, params)?;
+				let brush: MapGeomBrush = BrushBuilder::build(&source_brush, params)?;
 				ent.brushes.push(brush);
 			}
 
