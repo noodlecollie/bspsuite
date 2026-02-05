@@ -1,0 +1,21 @@
+[package]
+name = "bspsuite-visualiser"
+description = "BSPSuite data visualiser"
+
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "viz"
+path = "src/viz.rs"
+
+[dependencies]
+bspsuite-ffi = { path = "../bspsuite-ffi" }
+bspsuite-core = { path = "../bspsuite-core" }
+log.workspace = true
+anyhow.workspace = true
+fern = { version = "0.7.1", features = ["colored"] }
+paris = { version = "1.5.15", features = ["no_logger"] }
+wgpu = "27.0.1"

@@ -1,13 +1,15 @@
 [workspace]
 resolver = "3"
 
+# TODO: Make visualiser a feature, because it takes some time to compile its dependencies.
 members = [
 	"bspsuite-buildtasks",
 	"bspsuite-core",
 	"bspsuite-compiler",
 	"bspsuite-ext-goldsrc",
 	"bspsuite-extinterface",
-	"bspsuite-ffi"
+	"bspsuite-ffi",
+	"bspsuite-visualiser"
 ]
 
 [workspace.package]
