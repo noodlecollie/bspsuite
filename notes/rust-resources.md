@@ -4,3 +4,4 @@
 [Cargo conventions](https://doc.rust-lang.org/cargo/guide/project-layout.html)
 [Cargo environment variables](https://doc.rust-lang.org/cargo/reference/environment-variables.html)
 [Plugin system example](https://adventures.michaelfbryan.com/posts/plugins-in-rust)
+[Linear algebra library](https://github.com/polymonster/maths-rs) (we need to reimplement some of these ourselves to add tolerances)

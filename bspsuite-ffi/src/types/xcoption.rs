@@ -19,7 +19,6 @@ impl<T> XCOption<T>
 {
 	/// Returns whether the `XCOption` contains a value.
 	#[inline]
-	#[must_use]
 	pub fn is_some(&self) -> bool
 	{
 		return match self
@@ -31,7 +30,6 @@ impl<T> XCOption<T>
 
 	/// Returns whether the `XCOption` is devoid of a value.
 	#[inline]
-	#[must_use]
 	pub fn is_none(&self) -> bool
 	{
 		return !self.is_some();
@@ -40,7 +38,7 @@ impl<T> XCOption<T>
 	/// Adapts the `XCOption<T>` to convert the internal value of `T` to a
 	/// reference `&T`, and returns an `XCOption<&T>`.
 	#[inline]
-	#[must_use]
+	#[must_use = "Returned object was not used"]
 	pub fn as_ref(&self) -> XCOption<&T>
 	{
 		return match self
@@ -52,7 +50,7 @@ impl<T> XCOption<T>
 
 	/// Returns a Rust `Option<&T>` containing a reference the wrapped value.
 	#[inline]
-	#[must_use]
+	#[must_use = "Returned option was not used"]
 	pub fn as_ref_option(&self) -> Option<&T>
 	{
 		return match self
@@ -68,7 +66,7 @@ impl<T> XCOption<T>
 	/// For example, this function allows an `XCOption<XCStr>` to be easily
 	/// converted to an `Option<&str>`.
 	#[inline]
-	#[must_use]
+	#[must_use = "Returned option was not used"]
 	pub fn unmarshal_as_ref_option<'l, U>(&'l self) -> Option<&'l U>
 	where
 		T: RefMarshaller<'l, U>,
@@ -84,7 +82,7 @@ impl<T> XCOption<T>
 	/// Converts the `XCOption<T>` into a Rust `Option<T>` containing the
 	/// wrapped value.
 	#[inline]
-	#[must_use]
+	#[must_use = "Returned option was not used"]
 	pub fn into_option(self) -> Option<T>
 	{
 		return match self

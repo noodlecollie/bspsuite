@@ -1,7 +1,7 @@
 //! This module contains simple FFI-safe types used to describe geometry.
 //! These are only intended for being passed across the dynamic library
 //! boundary. You will probably want to convert these to proper objects (eg.
-//! Glam vectors) before you use them.
+//! vectors from a library like glam or maths_rs) before you use them.
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -32,7 +32,7 @@ pub struct DVec4
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct DPlane
+pub struct DPlane3
 {
 	pub normal: DVec3,
 	pub distance: f64,
@@ -43,7 +43,7 @@ impl DVec2
 	pub const NULL: Self = Self::new(0.0, 0.0);
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed vector was not used"]
 	pub const fn new(x: f64, y: f64) -> Self
 	{
 		return Self { x: x, y: y };
@@ -63,7 +63,7 @@ impl DVec3
 	pub const NULL: Self = Self::new(0.0, 0.0, 0.0);
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed vector was not used"]
 	pub const fn new(x: f64, y: f64, z: f64) -> Self
 	{
 		return Self { x: x, y: y, z: z };
@@ -83,7 +83,7 @@ impl DVec4
 	pub const NULL: Self = Self::new(0.0, 0.0, 0.0, 0.0);
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed vector was not used"]
 	pub const fn new(x: f64, y: f64, z: f64, w: f64) -> Self
 	{
 		return Self {
@@ -103,12 +103,12 @@ impl PartialEq for DVec4
 	}
 }
 
-impl DPlane
+impl DPlane3
 {
 	pub const NULL: Self = Self::new(DVec3::NULL, 0.0);
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed plane was not used"]
 	pub const fn new(normal: DVec3, distance: f64) -> Self
 	{
 		return Self {
@@ -118,14 +118,14 @@ impl DPlane
 	}
 
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed plane was not used"]
 	pub const fn new_xyzd(x: f64, y: f64, z: f64, distance: f64) -> Self
 	{
-		return DPlane::new(DVec3::new(x, y, z), distance);
+		return DPlane3::new(DVec3::new(x, y, z), distance);
 	}
 }
 
-impl PartialEq for DPlane
+impl PartialEq for DPlane3
 {
 	fn eq(&self, other: &Self) -> bool
 	{

@@ -22,7 +22,7 @@ impl<'l> XCStr<'l>
 {
 	/// Constructs a new `XCStr` from a `&str`.
 	#[inline]
-	#[must_use]
+	#[must_use = "Constructed object was not used"]
 	pub const fn new(value: &'l str) -> Self
 	{
 		let slice = value.as_bytes();
@@ -38,7 +38,7 @@ impl<'l> XCStr<'l>
 	///
 	/// The `&str` may not live longer than the `XCStr` is was created from.
 	#[inline]
-	#[must_use]
+	#[must_use = "Returned reference was not used"]
 	pub fn as_str(&self) -> &'l str
 	{
 		// SAFETY: Assumes the original &str is still alive.

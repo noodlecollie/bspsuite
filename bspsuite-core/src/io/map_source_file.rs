@@ -34,9 +34,8 @@ mod version_1
 	use std::collections::HashMap;
 	use std::io::Write;
 
-	use crate::model::{
-		DPlane3, MapSourceBrush, MapSourceBrushFace, MapSourceEntity, MapSourceFile,
-	};
+	use crate::math::DPlane3;
+	use crate::model::{MapSourceBrush, MapSourceBrushFace, MapSourceEntity, MapSourceFile};
 	use anyhow::{Context, Result, anyhow};
 	use glam::{DVec2, DVec3};
 	use serde_json::ser::to_writer_pretty;
@@ -74,8 +73,8 @@ mod version_1
 
 		let mut obj: JsonObject = JsonObject::new();
 		obj.insert(
-			"entity_index".to_string(),
-			usize_to_number(entity.entity_index),
+			"global_entity_index".to_string(),
+			usize_to_number(entity.global_entity_index),
 		);
 		obj.insert("properties".to_string(), properties.into());
 		obj.insert("brushes".to_string(), brushes.into());
@@ -89,8 +88,8 @@ mod version_1
 
 		let mut obj: JsonObject = JsonObject::new();
 		obj.insert(
-			"brush_index".to_string(),
-			usize_to_number(brush.brush_index),
+			"global_brush_index".to_string(),
+			usize_to_number(brush.global_brush_index),
 		);
 		obj.insert("faces".to_string(), faces.into());
 
@@ -99,15 +98,19 @@ mod version_1
 
 	fn process_face(face: &MapSourceBrushFace) -> Result<JsonObject>
 	{
-		let mat_axis_u: JsonArray = process_dvec3(&face.material_axes.0)?;
-		let mat_axis_v: JsonArray = process_dvec3(&face.material_axes.1)?;
-		let mat_offset: JsonArray = process_dvec2(&face.material_offset)?;
-		let mat_scale: JsonArray = process_dvec2(&face.material_scale)?;
+		let mat_axis_u: JsonArray = process_vec3(&face.material_axes.0)?;
+		let mat_axis_v: JsonArray = process_vec3(&face.material_axes.1)?;
+		let mat_offset: JsonArray = process_vec2(&face.material_offset)?;
+		let mat_scale: JsonArray = process_vec2(&face.material_scale)?;
 		let plane: JsonArray = process_dplane3(face.plane)?;
 		let material_axes = [Value::Array(mat_axis_u), Value::Array(mat_axis_v)];
 
 		let mut obj: JsonObject = JsonObject::new();
 
+		obj.insert(
+			"global_face_index".to_string(),
+			usize_to_number(face.global_face_index),
+		);
 		obj.insert("plane".to_string(), plane.into());
 		obj.insert(
 			"material_name".to_string(),
@@ -122,22 +125,17 @@ mod version_1
 
 	fn process_dplane3(plane: DPlane3) -> Result<JsonArray>
 	{
-		let values: [f64; 4] = [
-			plane.normal.x,
-			plane.normal.y,
-			plane.normal.z,
-			plane.distance,
-		];
-
+		let normal: DVec3 = plane.normal();
+		let values: [f64; 4] = [normal.x, normal.y, normal.z, plane.distance()];
 		return dvec_slice_to_array(values);
 	}
 
-	fn process_dvec3(vec: &DVec3) -> Result<JsonArray>
+	fn process_vec3(vec: &DVec3) -> Result<JsonArray>
 	{
 		return dvec_slice_to_array(vec.to_array());
 	}
 
-	fn process_dvec2(vec: &DVec2) -> Result<JsonArray>
+	fn process_vec2(vec: &DVec2) -> Result<JsonArray>
 	{
 		return dvec_slice_to_array(vec.to_array());
 	}

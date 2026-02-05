@@ -1,8 +1,7 @@
 use bspextifc::builders::map_source_builder::IMapSourceBuilder;
 use bspextifc::map_format_api::MapSourceBuilderApi;
-use bspextifc::types::{DPlane, DVec2, DVec3, LineCounter, ParseError, ParseResult};
+use bspextifc::types::{DPlane3, DVec2, DVec3, LineCounter, ParseError, ParseResult};
 use bspffi::types::XCStr;
-use glam;
 use logos::Logos;
 
 // Documentation on the Goldsrc map format:
@@ -646,11 +645,12 @@ fn parse_face_material_number(lexer: &mut logos::Lexer<'_, BrushContext>)
 }
 
 // Based on https://github.com/stefanha/map-files/blob/master/math.h#L177
-// For some reason (glam handedness?), the cross product order must be
+// For some reason (handedness?), the cross product order must be
 // inverted from the original reference code to produce planes with the
 // orientation that we expect. This was found by trial and error.
-fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane
+fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane3
 {
+	use glam;
 	type GVec3 = glam::DVec3;
 
 	let a: GVec3 = GVec3::new(points.0.x, points.0.y, points.0.z);
@@ -667,7 +667,7 @@ fn plane_from_points(points: (DVec3, DVec3, DVec3)) -> DPlane
 
 	let distance: f64 = normal.dot(a);
 
-	return DPlane::new(DVec3::new(normal.x, normal.y, normal.z), distance);
+	return DPlane3::new(DVec3::new(normal.x, normal.y, normal.z), distance);
 }
 
 fn update_line_count<'l, Ctx>(lexer: &mut logos::Lexer<'l, Ctx>) -> logos::Skip

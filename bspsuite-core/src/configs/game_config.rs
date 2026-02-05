@@ -1,3 +1,4 @@
+use crate::configs::CompileTuningParametersConfig;
 use anyhow::{Context, Error, ensure};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -10,6 +11,7 @@ pub struct GameConfig
 	pub game_id: String,
 	pub game_name: String,
 	pub map_formats: Vec<String>,
+	pub default_compile_tuning_parameters: CompileTuningParametersConfig,
 }
 
 impl GameConfig

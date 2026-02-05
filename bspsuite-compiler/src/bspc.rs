@@ -89,6 +89,12 @@ fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> 
 				.as_ref()
 				.map(|val| XCStr::from(val.as_str())),
 		),
+		parameters_file: XCOption::from(args.parameters_file.as_ref().map(|val| {
+			XCStr::from(
+				val.to_str()
+					.expect("Could not convert parameters file path to a valid string"),
+			)
+		})),
 		dump_source_file: args.dump_source_file,
 	};
 

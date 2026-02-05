@@ -57,6 +57,11 @@ pub struct CompileCommandArgs
 	#[arg(short('f'), long)]
 	pub map_format: Option<String>,
 
+	/// Optional TOML file containing compile tuning parameters that will
+	/// override the defaults set in the game config file.
+	#[arg(long)]
+	pub parameters_file: Option<PathBuf>,
+
 	/// If set, an internal representation of the parsed map source file is
 	/// dumped to the input directory.
 	#[arg(long)]
