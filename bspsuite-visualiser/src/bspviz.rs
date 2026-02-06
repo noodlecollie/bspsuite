@@ -181,26 +181,15 @@ impl ApplicationHandler for App
 
 fn main()
 {
-	// wgpu uses `log` for all of our logging, so we initialize a logger with the
-	// `env_logger` crate.
-	//
-	// To change the log level, set the `RUST_LOG` environment variable. See the
-	// `env_logger` documentation for more information.
 	init_logger();
 
 	let event_loop = EventLoop::new().unwrap();
-
-	// When the current loop iteration finishes, immediately begin a new
-	// iteration regardless of whether or not new events are available to
-	// process. Preferred for applications that want to render as fast as
-	// possible, like games.
-	event_loop.set_control_flow(ControlFlow::Poll);
 
 	// When the current loop iteration finishes, suspend the thread until
 	// another event arrives. Helps keeping CPU utilization low if nothing
 	// is happening, which is preferred if the application might be idling in
 	// the background.
-	// event_loop.set_control_flow(ControlFlow::Wait);
+	event_loop.set_control_flow(ControlFlow::Wait);
 
 	let mut app = App::default();
 	event_loop.run_app(&mut app).unwrap();
@@ -215,16 +204,7 @@ fn init_logger()
 		pub static ref ERROR_PREFIX: String = colorize_string("<b><red>");
 	}
 
-	let log_filter: LevelFilter = if cfg!(debug_assertions)
-	{
-		LevelFilter::Debug
-	}
-	else
-	{
-		LevelFilter::Info
-	};
-
-	let base_config = fern::Dispatch::new().level(log_filter);
+	let base_config = fern::Dispatch::new().level(LevelFilter::Info);
 
 	let stderr_logger = fern::Dispatch::new()
 		.filter(|md| md.level() == Level::Error || md.level() == Level::Warn)
@@ -248,7 +228,18 @@ fn init_logger()
 
 	let stdout_logger = fern::Dispatch::new()
 		.filter(|md| {
-			md.level() == Level::Info || md.level() == Level::Debug || md.level() == Level::Trace
+			// There's quite a lot of wgpu spam that comes through as info logs, so treat
+			// these as debug.
+			if md.level() == Level::Info
+				&& md.target().starts_with("wgpu_hal")
+				&& log::max_level() < Level::Debug
+			{
+				return false;
+			}
+
+			return md.level() == Level::Info
+				|| md.level() == Level::Debug
+				|| md.level() == Level::Trace;
 		})
 		.format(|out, message, record| {
 			match record.level()
