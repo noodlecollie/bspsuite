@@ -18,7 +18,5 @@ log.workspace = true
 anyhow.workspace = true
 fern = { version = "0.7.1", features = ["colored"] }
 paris = { version = "1.5.15", features = ["no_logger"] }
-wgpu = "27.0.1"
-winit = { version = "0.30.12", features = ["android-native-activity"] }
-pollster = "0.4.0"
 lazy_static = "1.5.0"
+raylib = "5.5.1"
