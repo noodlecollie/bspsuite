@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 use anyhow::{Result, anyhow};
 use bspffi::types::{XCOption, XCStr};

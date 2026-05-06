@@ -1,14 +1,10 @@
-use std::path::PathBuf;
-
-use super::types::{BaseArgs, InputPathMetadata, ResultCode};
+use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_residual_errors;
 use crate::compile_context::CompileContext;
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
-use crate::configs::GameConfig;
 use crate::extensions::{ExtensionList, extension_routines};
 use crate::io::map_source_file;
 use crate::model::MapSourceFile;
-use crate::toolchain::Toolchain;
 use anyhow::{Context, Result, anyhow};
 use bspextifc::builders::map_source_builder::{Entity, MapSourceBuilder};
 use bspffi::types::{XCOption, XCStr};
