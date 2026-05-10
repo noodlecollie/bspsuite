@@ -10,7 +10,11 @@ fn main()
 	init_logger();
 	init_raylib_logs();
 
-	let (mut handle, thread) = raylib::init().size(640, 480).title("Hello, World").build();
+	let (mut handle, thread) = raylib::init()
+		.size(640, 480)
+		.resizable()
+		.title("Hello, World")
+		.build();
 
 	while !handle.window_should_close()
 	{
@@ -90,15 +94,20 @@ fn init_raylib_logs()
 {
 	use raylib::consts::TraceLogLevel;
 
-	rl::set_trace_log_callback(|log_level, msg|  {
-		match log_level {
+	rl::set_trace_log_callback(|log_level, msg| {
+		match log_level
+		{
 			TraceLogLevel::LOG_FATAL => panic!("Fatal RayLib error: {msg}"),
 			TraceLogLevel::LOG_ERROR => log::error!(target: "raylib", "[RL] {msg}"),
 			TraceLogLevel::LOG_WARNING => log::warn!(target: "raylib", "[RL] {msg}"),
 			// Treat Raylib info logs as debug, since most of the time they're not relevant to us.
-			TraceLogLevel::LOG_INFO | TraceLogLevel::LOG_DEBUG => log::debug!(target: "raylib", "[RL] {msg}"),
+			TraceLogLevel::LOG_INFO | TraceLogLevel::LOG_DEBUG =>
+			{
+				log::debug!(target: "raylib", "[RL] {msg}")
+			}
 			TraceLogLevel::LOG_TRACE => log::trace!(target: "raylib", "[RL] {msg}"),
 			_ => panic!("Unexpected log level {:?}", log_level),
 		}
-	}).expect("Could not set Raylib log callback");
+	})
+	.expect("Could not set Raylib log callback");
 }
