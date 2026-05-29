@@ -2,8 +2,11 @@ use lazy_static::lazy_static;
 use log::{Level, LevelFilter};
 use paris::formatter::colorize_string;
 
+use raylib::camera::Camera3D;
+use raylib::color::Color;
+use raylib::math::{Vector2, Vector3};
 use raylib::prelude as rl;
-use rl::RaylibDraw;
+use rl::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 
 fn main()
 {
@@ -16,12 +19,44 @@ fn main()
 		.title("Hello, World")
 		.build();
 
+	let mut camera: Camera3D = Camera3D::perspective(
+		Vector3::new(4.0, 2.0, 4.0),
+		Vector3::new(0.0, 1.8, 0.0),
+		Vector3::new(0.0, 1.0, 0.0),
+		60.0,
+	);
+
+	handle.set_target_fps(60);
+
 	while !handle.window_should_close()
 	{
-		let mut d: rl::RaylibDrawHandle = handle.begin_drawing(&thread);
+		handle.update_camera(&mut camera, rl::CameraMode::CAMERA_FIRST_PERSON);
 
-		d.clear_background(rl::Color::WHITE);
-		d.draw_text("Hello, world!", 12, 12, 20, rl::Color::BLACK);
+		let mut d = handle.begin_drawing(&thread);
+		d.clear_background(Color::DARKGREEN);
+
+		d.draw_mode3D(camera, |mut d2, _| {
+			d2.draw_plane(
+				Vector3::new(0.0, 0.0, 0.0),
+				Vector2::new(32.0, 32.0),
+				Color::LIGHTGRAY,
+			);
+			d2.draw_cube(Vector3::new(-16.0, 2.5, 0.0), 1.0, 5.0, 32.0, Color::BLUE);
+			d2.draw_cube(Vector3::new(16.0, 2.5, 0.0), 1.0, 5.0, 32.0, Color::LIME);
+			d2.draw_cube(Vector3::new(0.0, 2.5, 16.0), 32.0, 5.0, 1.0, Color::GOLD);
+		});
+
+		d.draw_rectangle(10, 10, 220, 70, Color::SKYBLUE);
+		d.draw_rectangle_lines(10, 10, 220, 70, Color::BLUE);
+		d.draw_text(
+			"First person camera default controls:",
+			20,
+			20,
+			10,
+			Color::BLACK,
+		);
+		d.draw_text("- Move with keys: W, A, S, D", 40, 40, 10, Color::DARKGRAY);
+		d.draw_text("- Mouse move to look around", 40, 60, 10, Color::DARKGRAY);
 	}
 }
 
@@ -34,7 +69,7 @@ fn init_logger()
 		pub static ref ERROR_PREFIX: String = colorize_string("<b><red>");
 	}
 
-	let base_config = fern::Dispatch::new().level(LevelFilter::Info);
+	let base_config = fern::Dispatch::new().level(LevelFilter::Debug);
 
 	let stderr_logger = fern::Dispatch::new()
 		.filter(|md| md.level() == Level::Error || md.level() == Level::Warn)
