@@ -40,6 +40,8 @@ fn myfunc(opt: Option<&str>) -> Result<(), anyhow::Error>
 }
 ```
 
+Note that for `Option<T>`, the `anyhow` crate also adds a `with_context()` function that automatically converts the `Option<T>` into a `Result<T, anyhow::Error>`. This means that instead of calling `opt.ok_or_else(|| anyhow!("..."))`, you can also call `opt.with_context(|| format!(""))`. This can be more concise if your error string is a simple literal.
+
 ## How do I unwrap a `Result` if it's valid, and return an error if it's not?
 
 Use `let variable: Value = my_result?`. If you need to transform the provided error into a different type before returning it, use `.or_else()`.

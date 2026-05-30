@@ -49,7 +49,7 @@ impl MapSourceFile
 		return out;
 	}
 
-	fn assign_global_indices(&mut self)
+	pub fn assign_global_indices(&mut self)
 	{
 		let mut current_brush: usize = 0;
 		let mut current_face: usize = 0;
