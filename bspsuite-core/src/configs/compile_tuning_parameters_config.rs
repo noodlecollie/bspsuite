@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct CompileTuningParametersConfig
 {
 	/// Value for deciding whether a point lies on a geometric primitive. If the

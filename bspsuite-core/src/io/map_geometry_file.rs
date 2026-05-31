@@ -1,3 +1,36 @@
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
+
+use anyhow::{Context, Result};
+use log::info;
+
+use crate::model::MapGeomFile;
+
+pub fn serialize<Writer>(writer: Writer, map: &MapGeomFile) -> Result<()>
+where
+	Writer: Write,
+{
+	use version_1 as current_version;
+
+	return current_version::serialize(writer, map).with_context(|| {
+		format!(
+			"Failed to serialise version {} map geometry file",
+			current_version::VERSION
+		)
+	});
+}
+
+pub fn write(path: &Path, map: &MapGeomFile) -> Result<()>
+{
+	info!("Dumping parsed map source to {}", path.display());
+
+	let out_file: File = File::create(path)
+		.with_context(|| format!("Failed to open file {} for writing", path.display()))?;
+
+	return serialize(out_file, map);
+}
+
 mod version_1
 {
 	use std::io::Write;

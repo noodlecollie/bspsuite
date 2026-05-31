@@ -3,8 +3,8 @@ use super::utils::wrap_residual_errors;
 use crate::compile_context::CompileContext;
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::extensions::{ExtensionList, extension_routines};
-use crate::io::map_source_file;
-use crate::model::MapSourceFile;
+use crate::io::{map_geometry_file, map_source_file};
+use crate::model::{MapGeomFile, MapSourceFile};
 use anyhow::{Context, Result, anyhow};
 use bspextifc::builders::map_source_builder::{Entity, MapSourceBuilder};
 use bspffi::types::{XCOption, XCStr};
@@ -105,6 +105,22 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 			.join(format!("{}.source.json", ctx.input_path_metadata.file_name))
 			.as_path(),
 		&map_source,
+	)
+	.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
+
+	let map_geometry: MapGeomFile =
+		MapGeomFile::construct(map_source, &ctx.compile_tuning_parameters)
+			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;
+
+	map_geometry_file::write(
+		ctx.input_path_metadata
+			.directory_path
+			.join(format!(
+				"{}.geometry.json",
+				ctx.input_path_metadata.file_name
+			))
+			.as_path(),
+		&map_geometry,
 	)
 	.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
 

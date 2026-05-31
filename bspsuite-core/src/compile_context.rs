@@ -47,8 +47,11 @@ impl CompileContext
 			None
 		};
 
-		let mut parameters_config: CompileTuningParametersConfig =
-			game_config.default_compile_tuning_parameters.clone();
+		let mut parameters_config: CompileTuningParametersConfig = game_config
+			.default_compile_tuning_parameters
+			.as_ref()
+			.map(|params| params.clone())
+			.unwrap_or_default();
 
 		if let Some(override_parameters) = parameters_file
 		{

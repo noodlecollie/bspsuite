@@ -77,7 +77,7 @@ impl fmt::Display for CompilerError
 
 		if f.alternate()
 		{
-			write!(f, ": {}", self.wrapped_err)?;
+			write!(f, ": {:?}", self.wrapped_err)?;
 		}
 
 		return Ok(());
