@@ -39,17 +39,15 @@ where
 	F: Fn(&InType) -> Result<OutType>,
 	OutType: Into<Value>,
 {
-	let mut out: JsonArray = JsonArray::with_capacity(list.len());
-
-	for (index, item) in list.iter().enumerate()
-	{
-		let new_item: OutType =
-			callback(item).with_context(|| format!("Failed to serialise item {index}"))?;
-
-		out.push(new_item.into());
-	}
-
-	return Ok(out);
+	return Ok(list
+		.iter()
+		.enumerate()
+		.map(|(index, item)| -> Result<Value> {
+			callback(item)
+				.and_then(|item| Ok(item.into()))
+				.with_context(|| format!("Item {index}"))
+		})
+		.collect::<Result<Vec<Value>>>()?);
 }
 
 pub fn to_json_object<T>(map: &HashMap<String, T>) -> JsonObject
