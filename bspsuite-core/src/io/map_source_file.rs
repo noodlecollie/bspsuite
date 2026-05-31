@@ -2,7 +2,7 @@ use crate::model::MapSourceFile;
 use anyhow::{Context, Result};
 use log::info;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 
 pub fn serialize<Writer>(writer: Writer, map: &MapSourceFile) -> Result<()>
@@ -19,6 +19,21 @@ where
 	});
 }
 
+pub fn deserialize<Reader>(reader: Reader) -> Result<MapSourceFile>
+where
+	Reader: Read,
+{
+	// If we support more than one version, we'll need to change this.
+	use version_1 as current_version;
+
+	return current_version::deserialize(reader).with_context(|| {
+		format!(
+			"Failed to deserialise version {} map source file",
+			current_version::VERSION
+		)
+	});
+}
+
 pub fn write(path: &Path, map: &MapSourceFile) -> Result<()>
 {
 	info!("Dumping parsed map source to {}", path.display());
@@ -27,6 +42,16 @@ pub fn write(path: &Path, map: &MapSourceFile) -> Result<()>
 		.with_context(|| format!("Failed to open file {} for writing", path.display()))?;
 
 	return serialize(out_file, map);
+}
+
+pub fn read(path: &Path) -> Result<MapSourceFile>
+{
+	info!("Reading map source file from {}", path.display());
+
+	let in_file: File = File::open(path)
+		.with_context(|| format!("Failed to open file {} for reading", path.display()))?;
+
+	return deserialize(in_file);
 }
 
 mod version_1
