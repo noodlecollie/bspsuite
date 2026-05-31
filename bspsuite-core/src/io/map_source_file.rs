@@ -101,10 +101,6 @@ mod version_1
 		let properties: JsonObject = to_json_object(&entity.keyvalues);
 
 		let mut obj: JsonObject = JsonObject::new();
-		obj.insert(
-			"global_entity_index".to_string(),
-			usize_to_number(entity.global_entity_index),
-		);
 		obj.insert("properties".to_string(), properties.into());
 		obj.insert("brushes".to_string(), brushes.into());
 
@@ -149,10 +145,6 @@ mod version_1
 		let faces: JsonArray = to_json_array(&brush.faces, |face| serialize_face(face))?;
 
 		let mut obj: JsonObject = JsonObject::new();
-		obj.insert(
-			"global_brush_index".to_string(),
-			usize_to_number(brush.global_brush_index),
-		);
 		obj.insert("faces".to_string(), faces.into());
 
 		return Ok(obj);
@@ -189,10 +181,6 @@ mod version_1
 
 		let mut obj: JsonObject = JsonObject::new();
 
-		obj.insert(
-			"global_face_index".to_string(),
-			Value::Number(face.global_face_index.into()),
-		);
 		obj.insert("plane".to_string(), plane.into());
 		obj.insert(
 			"material_name".to_string(),
