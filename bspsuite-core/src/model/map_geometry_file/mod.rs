@@ -71,4 +71,29 @@ impl MapGeomFile
 			entities: geom_entities,
 		});
 	}
+
+	pub fn assign_global_indices(&mut self)
+	{
+		let mut current_brush: usize = 0;
+		let mut current_face: usize = 0;
+
+		for (entindex, entity) in self.entities.iter_mut().enumerate()
+		{
+			entity.global_entity_index = entindex;
+
+			for brush in entity.brushes.iter_mut()
+			{
+				brush.global_brush_index = current_brush;
+				assert!(current_brush < usize::MAX, "Overflowed max brush index");
+				current_brush += 1;
+
+				for face in brush.faces.iter_mut()
+				{
+					face.global_face_index = current_face;
+					assert!(current_face < usize::MAX, "Overflowed max face index");
+					current_face += 1;
+				}
+			}
+		}
+	}
 }
