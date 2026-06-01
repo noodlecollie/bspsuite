@@ -1,3 +1,9 @@
+// We allow dead code specifically in this crate,
+// because it's a library under active development,
+// and so the linter warnings for unused functions get quite noisy.
+// This can be removed once we reach v1.0.0.
+#![allow(dead_code)]
+
 use const_cstr::{ConstCStr, const_cstr};
 use constcat::concat;
 
