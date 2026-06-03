@@ -73,11 +73,6 @@ fn run_build_command() -> Result<(), Error>
 	let exe_ext: &str = executable_extension_for_platform();
 
 	copy_named_file(&src_dir, &dist_dir, format!("bspc{exe_ext}").as_str())?;
-	copy_named_file(
-		&src_dir,
-		&dist_dir,
-		format!("{lib_prefix}bspcore{lib_ext}").as_str(),
-	)?;
 
 	let glob_str: String = format!("{lib_prefix}*ext{lib_ext}");
 	copy_glob(&src_dir, &dist_dir.join("extensions"), glob_str.as_str())?;

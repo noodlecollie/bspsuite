@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_residual_errors;
 use crate::compile_context::CompileContext;
@@ -7,17 +9,15 @@ use crate::io::{map_geometry_file, map_source_file};
 use crate::model::{MapGeomFile, MapSourceFile};
 use anyhow::{Context, Result, anyhow};
 use bspextifc::builders::map_source_builder::{Entity, MapSourceBuilder};
-use bspffi::types::{XCOption, XCStr};
 use log::{debug, info};
 
-#[repr(C)]
-pub struct CompileArgs<'l>
+pub struct CompileArgs
 {
-	pub base: BaseArgs<'l>,
-	pub input_file: XCStr<'l>,
-	pub game: XCStr<'l>,
-	pub map_format_override: XCOption<XCStr<'l>>,
-	pub parameters_file: XCOption<XCStr<'l>>,
+	pub base: BaseArgs,
+	pub input_file: PathBuf,
+	pub game: String,
+	pub map_format_override: Option<String>,
+	pub parameters_file: Option<PathBuf>,
 	pub dump_source_file: bool,
 }
 
