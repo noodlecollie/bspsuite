@@ -104,36 +104,8 @@ mod version_1
 
 		let mut map_file = MapGeomFile { entities };
 		map_file.assign_global_indices();
-		validate_vertex_indices(&map_file)?;
 
 		return Ok(map_file);
-	}
-
-	fn validate_vertex_indices(map: &MapGeomFile) -> Result<()>
-	{
-		for (ent_index, ent) in map.entities.iter().enumerate()
-		{
-			for (brush_index, brush) in ent.brushes.iter().enumerate()
-			{
-				for (face_index, face) in brush.faces.iter().enumerate()
-				{
-					for (vert_index, vert) in face.vertices.iter().enumerate()
-					{
-						if vert.index_in_brush > brush.vertices.len()
-						{
-							bail!(
-								"Entity {ent_index}, brush {brush_index}, face {face_index}, vertex {vert_index}: \
-								out of range index {} (brush contains {} vertices)",
-								vert.index_in_brush,
-								brush.vertices.len()
-							);
-						}
-					}
-				}
-			}
-		}
-
-		return Ok(());
 	}
 
 	fn deserialize_entities(document: &JsonObject) -> Result<Vec<MapGeomEntity>>
@@ -230,11 +202,13 @@ mod version_1
 			})
 			.collect::<Result<Vec<DVec3>>>()?;
 
+		let num_vertices: usize = vertices.len();
+
 		let faces: Vec<MapGeomBrushFace> = json_utils::get_array(brush, "faces")?
 			.iter()
 			.enumerate()
 			.map(|(index, value)| -> Result<MapGeomBrushFace> {
-				deserialize_face(value).with_context(|| format!("Face {index}"))
+				deserialize_face(value, num_vertices).with_context(|| format!("Face {index}"))
 			})
 			.collect::<Result<Vec<MapGeomBrushFace>>>()?;
 
@@ -261,7 +235,7 @@ mod version_1
 		return Ok(obj);
 	}
 
-	fn deserialize_face(value: &Value) -> Result<MapGeomBrushFace>
+	fn deserialize_face(value: &Value, num_vertices: usize) -> Result<MapGeomBrushFace>
 	{
 		let face: &JsonObject = value
 			.as_object()
@@ -274,7 +248,8 @@ mod version_1
 			.iter()
 			.enumerate()
 			.map(|(index, value)| -> Result<MapGeomBrushFaceVertex> {
-				deserialize_vertex(value).with_context(|| format!("Face vertex {index}"))
+				deserialize_vertex(value, num_vertices)
+					.with_context(|| format!("Face vertex {index}"))
 			})
 			.collect::<Result<Vec<MapGeomBrushFaceVertex>>>()?;
 
@@ -300,7 +275,7 @@ mod version_1
 		return Ok(obj);
 	}
 
-	fn deserialize_vertex(value: &Value) -> Result<MapGeomBrushFaceVertex>
+	fn deserialize_vertex(value: &Value, num_vertices: usize) -> Result<MapGeomBrushFaceVertex>
 	{
 		let vertex: &JsonObject = value
 			.as_object()
@@ -308,6 +283,15 @@ mod version_1
 
 		let tex_coord: DVec2 = json_utils::get_dvec(vertex, "tex_coord")?;
 		let index_in_brush: usize = json_utils::get_usize(vertex, "index_in_brush")?;
+
+		if index_in_brush > num_vertices
+		{
+			bail!(
+				"Out of range index {} in brush (brush contains {} vertices)",
+				index_in_brush,
+				num_vertices
+			);
+		}
 
 		return Ok(MapGeomBrushFaceVertex {
 			index_in_brush,
