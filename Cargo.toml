@@ -23,3 +23,4 @@ anyhow = "1.0.100"
 strum = "0.27.2"
 log = "0.4.28"
 glam = { version = "0.30.10", features = ["approx"] }
+clap = { version = "4.5.51", features = ["derive"] }

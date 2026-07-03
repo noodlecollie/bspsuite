@@ -1,3 +1,8 @@
+use std::path::{Path, PathBuf};
+
+use anyhow::Result;
+use bspcore::{MapGeomBrush, MapGeomFile, map_geometry_file};
+use clap::Parser;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter};
 use paris::formatter::colorize_string;
@@ -6,12 +11,30 @@ use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::math::{Vector2, Vector3};
 use raylib::prelude as rl;
-use rl::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
+use rl::{Model, RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
+
+#[derive(clap::Parser)]
+#[command(version, about, long_about = None, display_name = env!("CARGO_BIN_NAME"))]
+pub struct Cli
+{
+	/// File to visualise.
+	#[arg(short, long)]
+	pub file: PathBuf,
+}
 
 fn main()
 {
+	let args: Cli = Cli::parse();
+
 	init_logger();
 	init_raylib_logs();
+
+	if !args.file.exists()
+	{
+		panic!("File {} was not found", args.file.display());
+	}
+
+	// TODO: Actually parse the input file
 
 	let (mut handle, thread) = raylib::init()
 		.size(640, 480)

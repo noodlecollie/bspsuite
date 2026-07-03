@@ -16,6 +16,7 @@ bspsuite-ffi = { path = "../bspsuite-ffi" }
 bspsuite-core = { path = "../bspsuite-core" }
 log.workspace = true
 anyhow.workspace = true
+clap.workspace = true
 fern = { version = "0.7.1", features = ["colored"] }
 paris = { version = "1.5.15", features = ["no_logger"] }
 lazy_static = "1.5.0"

@@ -15,9 +15,9 @@ path = "src/bspc.rs"
 bspsuite-ffi = { path = "../bspsuite-ffi" }
 bspsuite-core = { path = "../bspsuite-core" }
 bspsuite-extinterface = { path = "../bspsuite-extinterface" }
-clap = { version = "4.5.51", features = ["derive"] }
-fern = { version = "0.7.1", features = ["colored"] }
+clap.workspace = true
 log.workspace = true
+fern = { version = "0.7.1", features = ["colored"] }
 paris = { version = "1.5.15", features = ["no_logger"] }
 strum = { workspace = true, features = ["derive"] }
 lazy_static = "1.5.0"

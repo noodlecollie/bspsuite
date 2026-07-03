@@ -1,8 +1,6 @@
 mod cli;
 
-use std::ffi::{CStr, c_char};
-
-use bspcore::commands as Cmds;
+use bspcore::{BUILD_IDENTIFIER, commands as Cmds};
 
 use clap::Parser;
 use lazy_static::lazy_static;
@@ -146,8 +144,6 @@ fn init_logger(parsed_args: &cli::Cli)
 
 fn print_banner()
 {
-	let build_id_ptr: *const c_char = Cmds::bspcore_get_build_identifier_string();
-	let build_id: &'static CStr = unsafe { CStr::from_ptr(build_id_ptr) };
 	let bin_name: String = colorize_string(format!("<b>{}</b>", env!("CARGO_BIN_NAME")));
 
 	info!(
@@ -156,6 +152,6 @@ fn print_banner()
 		{bin_name} version {} ({})\n\
 		================================================================================",
 		env!("CARGO_PKG_VERSION"),
-		build_id.to_str().unwrap()
+		BUILD_IDENTIFIER.to_str()
 	);
 }

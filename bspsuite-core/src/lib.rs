@@ -17,6 +17,8 @@ mod model;
 mod toolchain;
 
 pub mod commands;
+pub use io::{map_geometry_file, map_source_file};
+pub use model::*;
 
 pub static BUILD_IDENTIFIER: ConstCStr =
 	const_cstr!(concat!(env!("BUILD_DATE"), " ", env!("VCS_HASH")));
