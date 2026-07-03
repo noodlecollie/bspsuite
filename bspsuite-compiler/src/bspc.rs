@@ -1,9 +1,6 @@
 mod cli;
 
-use std::ffi::{CStr, c_char};
-
-use bspcore::commands as Cmds;
-use bspffi::types::{XCOption, XCStr};
+use bspcore::{BUILD_IDENTIFIER, commands as Cmds};
 
 use clap::Parser;
 use lazy_static::lazy_static;
@@ -42,11 +39,7 @@ fn run_info_command(args: &cli::ExtinfoCommandArgs) -> Cmds::ResultCode
 {
 	let args: Cmds::ExtinfoArgs = Cmds::ExtinfoArgs {
 		base: Cmds::BaseArgs::default(),
-		extension_name: args
-			.extension
-			.as_ref()
-			.map(|val| XCStr::from(val.as_ref()))
-			.into(),
+		extension_name: args.extension.clone(),
 	};
 
 	return Cmds::bspcore_run_extinfo(&args);
@@ -54,47 +47,14 @@ fn run_info_command(args: &cli::ExtinfoCommandArgs) -> Cmds::ResultCode
 
 fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> Cmds::ResultCode
 {
-	let input_path_str: Option<&str> = args.input_file.to_str();
-
-	if input_path_str.is_none()
-	{
-		error!("Could not convert input path to string");
-		return Cmds::ResultCode::InternalError;
-	}
-
-	let toolchain_path_str: Option<Option<&str>> =
-		base_args.toolchain_root.as_ref().map(|path| path.to_str());
-
-	if let Some(conv_result) = toolchain_path_str
-		&& conv_result.is_none()
-	{
-		error!("Could not convert toolchain root path to string");
-		return Cmds::ResultCode::InternalError;
-	}
-
-	let toolchain_path_str: Option<&str> = match toolchain_path_str
-	{
-		Some(conv_result) => Some(conv_result.unwrap()),
-		None => None,
-	};
-
 	let args: Cmds::CompileArgs = Cmds::CompileArgs {
 		base: Cmds::BaseArgs {
-			toolchain_root: XCOption::from(toolchain_path_str.map(|val| XCStr::from(val))),
+			toolchain_root: base_args.toolchain_root.clone(),
 		},
-		input_file: XCStr::from(input_path_str.unwrap()),
-		game: XCStr::from(args.game.as_str()),
-		map_format_override: XCOption::from(
-			args.map_format
-				.as_ref()
-				.map(|val| XCStr::from(val.as_str())),
-		),
-		parameters_file: XCOption::from(args.parameters_file.as_ref().map(|val| {
-			XCStr::from(
-				val.to_str()
-					.expect("Could not convert parameters file path to a valid string"),
-			)
-		})),
+		input_file: args.input_file.clone(),
+		game: args.game.clone(),
+		map_format_override: args.map_format.clone(),
+		parameters_file: args.parameters_file.clone(),
 		dump_source_file: args.dump_source_file,
 	};
 
@@ -184,8 +144,6 @@ fn init_logger(parsed_args: &cli::Cli)
 
 fn print_banner()
 {
-	let build_id_ptr: *const c_char = Cmds::bspcore_get_build_identifier_string();
-	let build_id: &'static CStr = unsafe { CStr::from_ptr(build_id_ptr) };
 	let bin_name: String = colorize_string(format!("<b>{}</b>", env!("CARGO_BIN_NAME")));
 
 	info!(
@@ -194,6 +152,6 @@ fn print_banner()
 		{bin_name} version {} ({})\n\
 		================================================================================",
 		env!("CARGO_PKG_VERSION"),
-		build_id.to_str().unwrap()
+		BUILD_IDENTIFIER.to_str()
 	);
 }

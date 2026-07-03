@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 use anyhow::{Result, anyhow};
 use bspffi::types::{XCOption, XCStr};
@@ -25,8 +24,7 @@ pub enum ResultCode
 	IoError = 4,
 }
 
-#[repr(C)]
-pub struct BaseArgs<'l>
+pub struct BaseArgs
 {
 	/// Directory under which the games and directories folders may
 	/// be found. If this property is left invalid, the directory of
@@ -35,27 +33,15 @@ pub struct BaseArgs<'l>
 	/// is being used as part of another application, it may not be
 	/// adequate. In this case, the application should supply the
 	/// relevant path here.
-	pub toolchain_root: XCOption<XCStr<'l>>,
+	pub toolchain_root: Option<PathBuf>,
 }
 
-impl<'l> BaseArgs<'l>
-{
-	pub fn toolchain_root_path(&self) -> Option<PathBuf>
-	{
-		return match &self.toolchain_root
-		{
-			XCOption::Some(path) => Some(PathBuf::from(path.as_str())),
-			XCOption::None => None,
-		};
-	}
-}
-
-impl<'l> Default for BaseArgs<'l>
+impl Default for BaseArgs
 {
 	fn default() -> Self
 	{
 		return Self {
-			toolchain_root: XCOption::None,
+			toolchain_root: None,
 		};
 	}
 }

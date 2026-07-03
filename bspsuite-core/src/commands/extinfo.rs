@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
-use bspffi::types::{XCOption, XCStr};
 use log::{error, info};
 
 use super::types::{BaseArgs, ResultCode};
@@ -10,18 +9,17 @@ use super::utils::wrap_panics;
 use crate::extensions::{ApiEndpoints, Extension, ExtensionList, ExtensionRef};
 use crate::toolchain::Toolchain;
 
-#[repr(C)]
-pub struct ExtinfoArgs<'l>
+pub struct ExtinfoArgs
 {
-	pub base: BaseArgs<'l>,
-	pub extension_name: XCOption<XCStr<'l>>,
+	pub base: BaseArgs,
+	pub extension_name: Option<String>,
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 {
 	return wrap_panics(|| {
-		let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root_path());
+		let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root);
 		let extensions: ExtensionList = toolchain.find_extensions();
 
 		if args.extension_name.is_none()
@@ -30,12 +28,7 @@ pub extern "C" fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 			return ResultCode::Ok;
 		}
 
-		let ext_name: String = args
-			.extension_name
-			.unmarshal_as_ref_option()
-			.unwrap()
-			.to_owned();
-
+		let ext_name: &str = args.extension_name.as_ref().unwrap();
 		let found_ext: Option<&ExtensionRef> = extensions.find_by_name(&ext_name);
 
 		if found_ext.is_none()

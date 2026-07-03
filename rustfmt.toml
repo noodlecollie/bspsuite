@@ -7,6 +7,7 @@
 # - To add a nightly build of rustfmt, run (as per https://stackoverflow.com/a/73457375/2054335):
 #     rustup toolchain install nightly
 #     rustup default stable # To make sure we still compile with stable
+#   Then add `+nightly` to the `fmt` invocation:
 #     cargo +nightly fmt
 # - To enable nightly options in VS code, add this to your settings:
 #     "rust-analyzer.rustfmt.extraArgs": [

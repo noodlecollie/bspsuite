@@ -11,7 +11,7 @@ pub struct GameConfig
 	pub game_id: String,
 	pub game_name: String,
 	pub map_formats: Vec<String>,
-	pub default_compile_tuning_parameters: CompileTuningParametersConfig,
+	pub default_compile_tuning_parameters: Option<CompileTuningParametersConfig>,
 }
 
 impl GameConfig

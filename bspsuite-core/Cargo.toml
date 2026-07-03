@@ -9,7 +9,7 @@ edition.workspace = true
 
 [lib]
 name = "bspcore"
-crate-type = ["rlib", "dylib"]
+crate-type = ["lib"]
 
 [dependencies]
 bspsuite-ffi = { path = "../bspsuite-ffi" }

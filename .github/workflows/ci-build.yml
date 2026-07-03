@@ -23,7 +23,31 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # Required for building raylib
+      - name: Install dependencies on Ubuntu
+        if: runner.os == 'Linux'
+        run: |
+          if [ "$RUNNER_OS" == "ubuntu-22.04" ]; then
+          	LIBCLANG="libclang1-20"
+          else
+          	LIBCLANG="libclang1-15"
+          fi
+
+          sudo apt update
+          sudo apt install \
+            build-essential \
+            mesa-utils \
+            mesa-common-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            "$LIBCLANG" \
+            librust-clang-sys-dev
+
       - name: Build
         run: cargo build --profile ${{ matrix.BUILD_TARGET }} --verbose
+
       - name: Run tests
         run: cargo test --profile ${{ matrix.BUILD_TARGET }} --verbose

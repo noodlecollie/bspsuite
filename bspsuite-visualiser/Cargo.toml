@@ -1,6 +1,6 @@
 [package]
-name = "bspsuite-compiler"
-description = "BSPSuite compiler executable"
+name = "bspsuite-visualiser"
+description = "BSPSuite data visualiser"
 
 version.workspace = true
 authors.workspace = true
@@ -8,16 +8,16 @@ documentation.workspace = true
 edition.workspace = true
 
 [[bin]]
-name = "bspc"
-path = "src/bspc.rs"
+name = "bspviz"
+path = "src/bspviz.rs"
 
 [dependencies]
 bspsuite-ffi = { path = "../bspsuite-ffi" }
 bspsuite-core = { path = "../bspsuite-core" }
-bspsuite-extinterface = { path = "../bspsuite-extinterface" }
-clap.workspace = true
 log.workspace = true
+anyhow.workspace = true
+clap.workspace = true
 fern = { version = "0.7.1", features = ["colored"] }
 paris = { version = "1.5.15", features = ["no_logger"] }
-strum = { workspace = true, features = ["derive"] }
 lazy_static = "1.5.0"
+raylib = "5.5.1"

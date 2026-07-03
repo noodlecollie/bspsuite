@@ -60,6 +60,9 @@ fn run_build_command() -> Result<(), Error>
 
 	build_extensions()?;
 
+	// Utilities (TODO: Make these optional)
+	build_crate("bspsuite-visualiser")?;
+
 	let src_dir: PathBuf = binaries_dir();
 	let dist_dir: PathBuf = src_dir.join("dist");
 
@@ -70,16 +73,14 @@ fn run_build_command() -> Result<(), Error>
 	let exe_ext: &str = executable_extension_for_platform();
 
 	copy_named_file(&src_dir, &dist_dir, format!("bspc{exe_ext}").as_str())?;
-	copy_named_file(
-		&src_dir,
-		&dist_dir,
-		format!("{lib_prefix}bspcore{lib_ext}").as_str(),
-	)?;
 
 	let glob_str: String = format!("{lib_prefix}*ext{lib_ext}");
 	copy_glob(&src_dir, &dist_dir.join("extensions"), glob_str.as_str())?;
 
 	copy_extension_game_configs(&dist_dir)?;
+
+	// Optional utilities
+	copy_named_file_optional(&src_dir, &dist_dir, format!("bspviz{exe_ext}").as_str())?;
 
 	Ok(())
 }
@@ -216,6 +217,18 @@ fn copy_relative_file(
 	}
 
 	return copy_file(&src_root.join(src_rel), &dest_full_path);
+}
+
+fn copy_named_file_optional(src: &PathBuf, dest: &PathBuf, name: &str) -> Result<(), Error>
+{
+	let source_path: PathBuf = src.join(name);
+
+	if source_path.is_file()
+	{
+		return copy_file(&src.join(name), &dest.join(name));
+	}
+
+	return Ok(());
 }
 
 fn copy_named_file(src: &PathBuf, dest: &PathBuf, name: &str) -> Result<(), Error>
