@@ -1,4 +1,4 @@
-use crate::math::comparison::points_are_equal_radial_sq;
+use crate::math::points_are_equal_radial_sq;
 use glam::DVec3;
 
 pub(super) struct PointCollection

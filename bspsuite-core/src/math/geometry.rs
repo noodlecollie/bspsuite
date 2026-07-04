@@ -2,7 +2,7 @@ use crate::math::comparison::{length_is_zero, value_is_zero, values_are_equal, v
 use crate::math::{DLine3, DPlane3};
 use glam::DVec3;
 
-pub enum LinePlaneIntersection
+pub(crate) enum LinePlaneIntersection
 {
 	None,
 	Point(DVec3),
@@ -57,7 +57,7 @@ impl LinePlaneIntersection
 	}
 }
 
-pub enum PointVsPlane
+pub(crate) enum PointVsPlane
 {
 	Behind,
 	On,
@@ -96,7 +96,7 @@ impl PointVsPlane
 
 #[inline]
 #[must_use = "Classification was not used"]
-pub fn classify_point_against_plane(
+pub(crate) fn classify_point_against_plane(
 	point: DVec3,
 	plane: &DPlane3,
 	contact_epsilon: f64,
@@ -120,7 +120,7 @@ pub fn classify_point_against_plane(
 
 // Given a vector, returns (normalised, true) if the vector's length was not
 // zero, or (zero, false) if it was zero.
-pub fn vector_to_unit_or_null(vec: DVec3, zero_epsilon: f64) -> (DVec3, bool)
+pub(crate) fn vector_to_unit_or_null(vec: DVec3, zero_epsilon: f64) -> (DVec3, bool)
 {
 	let length_sq: f64 = vec.length_squared();
 	let eps_sq: f64 = zero_epsilon * zero_epsilon;
@@ -139,7 +139,7 @@ pub fn vector_to_unit_or_null(vec: DVec3, zero_epsilon: f64) -> (DVec3, bool)
 	}
 }
 
-pub fn snap_point_to_nearest_integer_grid_point_if_close_enough(
+pub(crate) fn snap_point_to_nearest_integer_grid_point_if_close_enough(
 	point: DVec3,
 	equal_point_radius_epsilon: f64,
 ) -> DVec3
@@ -156,7 +156,7 @@ pub fn snap_point_to_nearest_integer_grid_point_if_close_enough(
 	};
 }
 
-pub fn snap_normal_to_axis_if_close_enough(normal: DVec3, component_epsilon: f64) -> DVec3
+pub(crate) fn snap_normal_to_axis_if_close_enough(normal: DVec3, component_epsilon: f64) -> DVec3
 {
 	for axis in 0..3
 	{
@@ -179,7 +179,7 @@ pub fn snap_normal_to_axis_if_close_enough(normal: DVec3, component_epsilon: f64
 // Built on https://en.wikipedia.org/wiki/Plane%E2%80%93plane_intersection#Formulation
 // The direction of the intersection line is right-handed with respect to the
 // plane normals.
-pub fn intersect_planes(a: &DPlane3, b: &DPlane3, zero_epsilon: f64) -> Option<DLine3>
+pub(crate) fn intersect_planes(a: &DPlane3, b: &DPlane3, zero_epsilon: f64) -> Option<DLine3>
 {
 	assert!(!a.is_null() && !b.is_null(), "Expected non-null planes");
 
@@ -211,7 +211,7 @@ pub fn intersect_planes(a: &DPlane3, b: &DPlane3, zero_epsilon: f64) -> Option<D
 	));
 }
 
-pub fn intersect_line_and_plane(
+pub(crate) fn intersect_line_and_plane(
 	line: &DLine3,
 	plane: &DPlane3,
 	zero_epsilon: f64,
@@ -243,13 +243,13 @@ pub fn intersect_line_and_plane(
 	return LinePlaneIntersection::Point(line.parametric_point(line_parameter));
 }
 
-pub fn point_distance_from_plane(point: DVec3, plane: &DPlane3) -> f64
+pub(crate) fn point_distance_from_plane(point: DVec3, plane: &DPlane3) -> f64
 {
 	let projected_point: DVec3 = project_point_onto_plane(point, plane);
 	return (point - projected_point).length();
 }
 
-pub fn project_point_onto_plane(point: DVec3, plane: &DPlane3) -> DVec3
+pub(crate) fn project_point_onto_plane(point: DVec3, plane: &DPlane3) -> DVec3
 {
 	assert!(!plane.is_null(), "Expected non-null plane");
 
@@ -260,18 +260,18 @@ pub fn project_point_onto_plane(point: DVec3, plane: &DPlane3) -> DVec3
 	return point - (multiples_of_normal * normal);
 }
 
-pub fn point_lies_on_plane(point: DVec3, plane: &DPlane3, contact_epsilon: f64) -> bool
+pub(crate) fn point_lies_on_plane(point: DVec3, plane: &DPlane3, contact_epsilon: f64) -> bool
 {
 	return point_distance_from_plane(point, plane).abs() < contact_epsilon;
 }
 
-pub fn point_distance_from_line(point: DVec3, line: &DLine3) -> f64
+pub(crate) fn point_distance_from_line(point: DVec3, line: &DLine3) -> f64
 {
 	let projected_point: DVec3 = project_point_onto_line(point, line);
 	return (point - projected_point).length();
 }
 
-pub fn project_point_onto_line(point: DVec3, line: &DLine3) -> DVec3
+pub(crate) fn project_point_onto_line(point: DVec3, line: &DLine3) -> DVec3
 {
 	assert!(!line.is_null(), "Expected non-null line");
 
@@ -281,7 +281,7 @@ pub fn project_point_onto_line(point: DVec3, line: &DLine3) -> DVec3
 	return line.origin() + (multiples_of_direction * line.direction());
 }
 
-pub fn point_lies_on_line(point: DVec3, line: &DLine3, contact_epsilon: f64) -> bool
+pub(crate) fn point_lies_on_line(point: DVec3, line: &DLine3, contact_epsilon: f64) -> bool
 {
 	return point_distance_from_line(point, line).abs() < contact_epsilon;
 }

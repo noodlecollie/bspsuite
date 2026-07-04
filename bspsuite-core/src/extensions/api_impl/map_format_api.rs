@@ -3,9 +3,8 @@ use std::collections::HashMap;
 
 use bspextifc::builders::map_source_builder::MapSourceBuilder;
 use bspextifc::map_format_api;
-use bspextifc::map_format_api::internal::{
-	ApiFfiTable, BuilderFfiTable, create_map_format_api, create_map_source_builder_api,
-};
+use bspextifc::map_format_api::internal::{ApiFfiTable, BuilderFfiTable};
+use bspextifc::map_format_api::internal::{create_map_format_api, create_map_source_builder_api};
 use bspffi::types::{XCSlice, XCStr};
 use itertools::Itertools;
 use log::{debug, warn};

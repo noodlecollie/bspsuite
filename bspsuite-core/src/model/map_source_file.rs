@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::math::geometry::{snap_normal_to_axis_if_close_enough, vector_to_unit_or_null};
 use crate::math::{CompileTuningParameters, DPlane3};
+use crate::math::{snap_normal_to_axis_if_close_enough, vector_to_unit_or_null};
 use bspextifc::builders::map_source_builder::{Brush, BrushFace, Entity};
 use bspextifc::types::{DPlane3 as ExtPlane, DVec2 as ExtVec2, DVec3 as ExtVec3};
 use glam::{DVec2, DVec3};

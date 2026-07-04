@@ -46,4 +46,4 @@ reorder_modules = true
 trailing_semicolon = true
 wrap_comments = true
 fn_single_line = false
-imports_granularity = "Module"
+imports_granularity = "Preserve"

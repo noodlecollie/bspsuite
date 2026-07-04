@@ -1,12 +1,11 @@
 use super::edge_collection::EdgeCollection;
 use super::point_collection::PointCollection;
-use crate::math::comparison::{values_are_equal, vectors_are_equal};
-use crate::math::geometry::{
-	LinePlaneIntersection, classify_point_against_plane, intersect_line_and_plane,
-	intersect_planes, snap_point_to_nearest_integer_grid_point_if_close_enough,
-	vector_to_unit_or_null,
+use crate::math::{CompileTuningParameters, DLine3, DPlane3, LinePlaneIntersection};
+use crate::math::{
+	classify_point_against_plane, intersect_line_and_plane, intersect_planes,
+	snap_point_to_nearest_integer_grid_point_if_close_enough, values_are_equal,
+	vector_to_unit_or_null, vectors_are_equal,
 };
-use crate::math::{CompileTuningParameters, DLine3, DPlane3};
 use crate::model::{
 	MapGeomBrush, MapGeomBrushFace, MapGeomBrushFaceVertex, MapSourceBrush, MapSourceBrushFace,
 };
