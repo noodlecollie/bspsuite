@@ -4,6 +4,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use log::info;
+use serde_json;
 
 use crate::model::MapGeomFile;
 
@@ -13,14 +14,13 @@ pub fn serialize<Writer>(writer: Writer, map: &MapGeomFile) -> Result<()>
 where
 	Writer: Write,
 {
-	use version_1 as current_version;
+	use version_1::MapGeomFileSer as Wrapper;
+	use version_1::VERSION;
 
-	return current_version::serialize(writer, map).with_context(|| {
-		format!(
-			"Failed to serialise version {} map geometry file",
-			current_version::VERSION
-		)
-	});
+	let wrapper: Wrapper<VERSION> = Wrapper::new(map);
+
+	return serde_json::to_writer(writer, &wrapper)
+		.with_context(|| format!("Failed to serialise version {VERSION} map geometry file"));
 }
 
 pub fn deserialize<Reader>(reader: Reader) -> Result<MapGeomFile>
@@ -28,14 +28,18 @@ where
 	Reader: Read,
 {
 	// If we support more than one version, we'll need to change this.
-	use version_1 as current_version;
+	// We could try versions from the latest one and working backwards.
+	use version_1::MapGeomFileDe as Wrapper;
+	use version_1::VERSION;
 
-	return current_version::deserialize(reader).with_context(|| {
+	let wrapper: Wrapper<VERSION> = serde_json::from_reader(reader).with_context(|| {
 		format!(
 			"Failed to deserialise version {} map geometry file",
-			current_version::VERSION
+			VERSION
 		)
-	});
+	})?;
+
+	return Ok(wrapper.map);
 }
 
 pub fn write(path: &Path, map: &MapGeomFile) -> Result<()>

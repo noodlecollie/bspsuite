@@ -17,10 +17,10 @@ bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 anyhow.workspace = true
 log.workspace = true
 glam.workspace = true
+serde.workspace = true
 strum = { workspace = true, features = ["derive"] }
 fern = { version = "0.7.1", features = ["colored"] }
 paris = { version = "1.5.15", features = ["no_logger"] }
-serde = { version = "1.0.228", features = ["derive"] }
 libloading = "0.9.0"
 target-lexicon = "0.13.3"
 constcat = "0.6.1"

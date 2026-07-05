@@ -9,13 +9,16 @@ use crate::model::MapSourceFile;
 use anyhow::Result;
 use brush_builder::BrushBuilder;
 use glam::{DVec2, DVec3};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct MapGeomBrushFaceVertex
 {
 	pub index_in_brush: usize,
 	pub tex_coord: DVec2,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct MapGeomBrushFace
 {
 	pub global_face_index: usize,
@@ -24,6 +27,7 @@ pub struct MapGeomBrushFace
 	pub material: String, // TODO: Rc to an object?
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct MapGeomBrush
 {
 	pub global_brush_index: usize,
@@ -31,6 +35,7 @@ pub struct MapGeomBrush
 	pub faces: Vec<MapGeomBrushFace>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct MapGeomEntity
 {
 	pub global_entity_index: usize,
@@ -38,6 +43,7 @@ pub struct MapGeomEntity
 	pub keyvalues: HashMap<String, String>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct MapGeomFile
 {
 	pub entities: Vec<MapGeomEntity>,

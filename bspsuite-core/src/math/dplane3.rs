@@ -2,11 +2,12 @@ use crate::math::DEFAULT_ZERO_EPSILON;
 use crate::math::comparison::{length_is_equal, length_is_zero};
 use crate::math::geometry::vector_to_unit_or_null;
 use glam::DVec3;
+use serde::{Deserialize, Serialize};
 
 // Plane in the form ax + by + cz + d = 0
 // Normal = (a, b, c)
 // Distance = d
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DPlane3
 {
 	_normal: DVec3,
