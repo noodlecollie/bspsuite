@@ -10,6 +10,7 @@ pub use map_source_file::read as read_map_source_file;
 pub use map_source_file::serialize as serialize_map_source_file;
 pub use map_source_file::write as write_map_source_file;
 
+mod helpers;
 mod json_utils;
 mod map_geometry_file;
 mod map_source_file;

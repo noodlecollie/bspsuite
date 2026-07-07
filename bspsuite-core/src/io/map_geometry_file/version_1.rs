@@ -1,71 +1,174 @@
-use std::result::Result;
+use std::collections::HashMap;
 
-use serde::Deserialize;
-use serde::de::Error as DeError;
-use serde::de::Visitor;
-use serde::{Deserializer, Serialize};
-
-use crate::model::MapGeomFile;
+use crate::io::helpers::DeserializeVersionHelper;
+use crate::model::{MapGeomBrush, MapGeomBrushFaceVertex, MapGeomEntity, MapGeomFile};
+use crate::{math::DPlane3, model::MapGeomBrushFace};
+use glam::{DVec2, DVec3};
+use serde::{Deserialize, Serialize};
 
 pub(super) const VERSION: u64 = 1;
 
-#[derive(Serialize, Debug)]
-pub(super) struct MapGeomFileSer<'l, const VER: u64>
+#[derive(Serialize, Deserialize, Debug)]
+pub(super) struct V1File
 {
+	#[serde(deserialize_with = "DeserializeVersionHelper::<VERSION>::deserialize_version")]
 	version: u64,
-	map: &'l MapGeomFile,
+
+	pub entities: Vec<V1Entity>,
 }
 
-impl<'l, const VER: u64> MapGeomFileSer<'l, VER>
+#[derive(Serialize, Deserialize, Debug)]
+pub(super) struct V1Entity
 {
-	pub fn new(map: &'l MapGeomFile) -> Self
+	pub brushes: Vec<V1Brush>,
+	pub keyvalues: HashMap<String, String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(super) struct V1Brush
+{
+	pub vertices: Vec<DVec3>,
+	pub faces: Vec<V1BrushFace>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(super) struct V1BrushFace
+{
+	pub plane: DPlane3,
+	pub vertices: Vec<V1BrushFaceVertex>,
+	pub material: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(super) struct V1BrushFaceVertex
+{
+	pub tex_coord: DVec2,
+}
+
+////////////////////////////////////////////////////////
+// MapGeomFile -> V1File
+////////////////////////////////////////////////////////
+
+impl From<&MapGeomFile> for V1File
+{
+	fn from(value: &MapGeomFile) -> Self
 	{
-		return Self { version: VER, map };
+		return Self {
+			version: VERSION,
+			entities: value.entities.iter().map(|ent| ent.into()).collect(),
+		};
 	}
 }
 
-#[derive(Deserialize, Debug)]
-pub(super) struct MapGeomFileDe<const VER: u64>
+impl From<&MapGeomEntity> for V1Entity
 {
-	#[serde(deserialize_with = "MapGeomFileDe::<VER>::deserialize_version")]
-	version: u64,
-
-	pub map: MapGeomFile,
+	fn from(value: &MapGeomEntity) -> Self
+	{
+		return Self {
+			brushes: value.brushes.iter().map(|brush| brush.into()).collect(),
+			keyvalues: value.keyvalues.clone(),
+		};
+	}
 }
 
-impl<const VER: u64> MapGeomFileDe<VER>
+impl From<&MapGeomBrush> for V1Brush
 {
-	fn deserialize_version<'de, D>(deserializer: D) -> Result<u64, D::Error>
-	where
-		D: Deserializer<'de>,
+	fn from(value: &MapGeomBrush) -> Self
 	{
-		struct VersionVisitor<const EXPECTED_VERSION: u64>;
+		return Self {
+			vertices: value.vertices.clone(),
+			faces: value.faces.iter().map(|face| face.into()).collect(),
+		};
+	}
+}
 
-		impl<'de, const EXPECTED_VERSION: u64> Visitor<'de> for VersionVisitor<EXPECTED_VERSION>
-		{
-			type Value = u64;
+impl From<&MapGeomBrushFace> for V1BrushFace
+{
+	fn from(value: &MapGeomBrushFace) -> Self
+	{
+		return Self {
+			plane: value.plane.clone(),
+			vertices: value.vertices.iter().map(|vert| vert.into()).collect(),
+			material: value.material.clone(),
+		};
+	}
+}
 
-			fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result
-			{
-				write!(formatter, "an unsigned version number")
-			}
+impl From<&MapGeomBrushFaceVertex> for V1BrushFaceVertex
+{
+	fn from(value: &MapGeomBrushFaceVertex) -> Self
+	{
+		return Self {
+			tex_coord: value.tex_coord,
+		};
+	}
+}
 
-			fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
-			where
-				E: serde::de::Error,
-			{
-				if v != EXPECTED_VERSION
-				{
-					return Err(DeError::custom(format!(
-						"Expected version {EXPECTED_VERSION} but got version {v}"
-					)));
-				}
+////////////////////////////////////////////////////////
+// V1File -> MapGeomFile
+////////////////////////////////////////////////////////
 
-				return Ok(v);
-			}
-		}
+impl From<V1File> for MapGeomFile
+{
+	fn from(value: V1File) -> Self
+	{
+		let mut file: Self = Self {
+			entities: value.entities.into_iter().map(|ent| ent.into()).collect(),
+		};
 
-		let visitor: VersionVisitor<VER> = VersionVisitor;
-		return deserializer.deserialize_u64(visitor);
+		file.assign_global_indices();
+		return file;
+	}
+}
+
+impl From<V1Entity> for MapGeomEntity
+{
+	fn from(value: V1Entity) -> Self
+	{
+		return Self {
+			global_entity_index: 0, // Assigned later
+			brushes: value
+				.brushes
+				.into_iter()
+				.map(|brush| brush.into())
+				.collect(),
+			keyvalues: value.keyvalues,
+		};
+	}
+}
+
+impl From<V1Brush> for MapGeomBrush
+{
+	fn from(value: V1Brush) -> Self
+	{
+		return Self {
+			global_brush_index: 0, // Assigned later
+			vertices: value.vertices.into_iter().map(|vert| vert.into()).collect(),
+			faces: value.faces.into_iter().map(|face| face.into()).collect(),
+		};
+	}
+}
+
+impl From<V1BrushFace> for MapGeomBrushFace
+{
+	fn from(value: V1BrushFace) -> Self
+	{
+		return Self {
+			global_face_index: 0, // Assigned later
+			plane: value.plane,
+			vertices: value.vertices.into_iter().map(|vert| vert.into()).collect(),
+			material: value.material.clone(),
+		};
+	}
+}
+
+impl From<V1BrushFaceVertex> for MapGeomBrushFaceVertex
+{
+	fn from(value: V1BrushFaceVertex) -> Self
+	{
+		return Self {
+			index_in_brush: 0, // Assigned later
+			tex_coord: value.tex_coord,
+		};
 	}
 }

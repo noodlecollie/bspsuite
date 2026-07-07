@@ -14,13 +14,14 @@ pub fn serialize<Writer>(writer: Writer, map: &MapGeomFile) -> Result<()>
 where
 	Writer: Write,
 {
-	use version_1::MapGeomFileSer as Wrapper;
-	use version_1::VERSION;
+	use version_1::V1File;
 
-	let wrapper: Wrapper<VERSION> = Wrapper::new(map);
-
-	return serde_json::to_writer(writer, &wrapper)
-		.with_context(|| format!("Failed to serialise version {VERSION} map geometry file"));
+	return serde_json::to_writer(writer, &V1File::from(map)).with_context(|| {
+		format!(
+			"Failed to serialise version {} map geometry file",
+			version_1::VERSION
+		)
+	});
 }
 
 pub fn deserialize<Reader>(reader: Reader) -> Result<MapGeomFile>
@@ -29,17 +30,16 @@ where
 {
 	// If we support more than one version, we'll need to change this.
 	// We could try versions from the latest one and working backwards.
-	use version_1::MapGeomFileDe as Wrapper;
-	use version_1::VERSION;
+	use version_1::V1File;
 
-	let wrapper: Wrapper<VERSION> = serde_json::from_reader(reader).with_context(|| {
+	let wrapper: V1File = serde_json::from_reader(reader).with_context(|| {
 		format!(
 			"Failed to deserialise version {} map geometry file",
-			VERSION
+			version_1::VERSION
 		)
 	})?;
 
-	return Ok(wrapper.map);
+	return Ok(wrapper.into());
 }
 
 pub fn write(path: &Path, map: &MapGeomFile) -> Result<()>
