@@ -53,11 +53,6 @@ pub struct CompileTuningParametersConfig
 
 impl CompileTuningParametersConfig
 {
-	pub fn load(path: &Path) -> Result<Self>
-	{
-		todo!();
-	}
-
 	pub fn merge(existing_cfg: Self, override_cfg: Self) -> Self
 	{
 		return Self {

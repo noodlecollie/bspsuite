@@ -4,21 +4,24 @@
 // This can be removed once we reach v1.0.0.
 #![allow(dead_code)]
 
-use const_cstr::{ConstCStr, const_cstr};
 use constcat::concat;
+pub static BUILD_IDENTIFIER: &str = concat!(env!("BUILD_DATE"), " ", env!("VCS_HASH"));
+
+// We have one level of public modules, which act as categories under
+// the root bspsuite module. Don't nest other public modules within these - we'd
+// like to keep a maximum of two namespace levels before the actual item being
+// used, eg. bspsuite::model::MapGeomFile.
+pub mod commands;
+pub mod configs;
+pub mod extensions;
+pub mod io;
+pub mod math;
+pub mod model;
+
+pub use compile_context::CompileContext;
+pub use compiler_error::{CompilerError, CompilerErrorCode};
+pub use toolchain::Toolchain;
 
 mod compile_context;
 mod compiler_error;
-mod configs;
-mod extensions;
-mod io;
-mod math;
-mod model;
 mod toolchain;
-
-pub mod commands;
-pub use io::{map_geometry_file, map_source_file};
-pub use model::*;
-
-pub static BUILD_IDENTIFIER: ConstCStr =
-	const_cstr!(concat!(env!("BUILD_DATE"), " ", env!("VCS_HASH")));

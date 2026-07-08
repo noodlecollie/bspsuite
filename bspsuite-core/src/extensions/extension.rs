@@ -1,12 +1,12 @@
 use crate::extensions::api_impl::dummy_api::DummyApiEndpoint;
 use crate::extensions::api_impl::{dummy_api_impl, log_api_impl, map_format_api_impl};
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result};
+use anyhow::{bail, ensure};
 use bspextifc::probe_api::ProbeResult;
 use bspextifc::probe_api::internal::{ApiProvider, CallbacksContainer, ExportedApis};
-use bspextifc::{
-	EXTENSION_INFO_VERSION, ExtensionInfo, ExtensionInfoVersionType, SYMBOL_EXTENSION_INFO,
-	SYMBOL_EXTENSION_INFO_VERSION, dummy_api, log_api, map_format_api, probe_api,
-};
+use bspextifc::{EXTENSION_INFO_VERSION, SYMBOL_EXTENSION_INFO, SYMBOL_EXTENSION_INFO_VERSION};
+use bspextifc::{ExtensionInfo, ExtensionInfoVersionType};
+use bspextifc::{dummy_api, log_api, map_format_api, probe_api};
 use libloading::{Library, Symbol};
 use log::{debug, trace};
 use std::cell::{BorrowError, BorrowMutError, Ref, RefCell, RefMut};

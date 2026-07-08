@@ -152,6 +152,6 @@ fn print_banner()
 		{bin_name} version {} ({})\n\
 		================================================================================",
 		env!("CARGO_PKG_VERSION"),
-		BUILD_IDENTIFIER.to_str()
+		BUILD_IDENTIFIER
 	);
 }

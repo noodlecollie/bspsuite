@@ -1,17 +1,14 @@
-use std::path::{Path, PathBuf};
-
-use anyhow::Result;
-use bspcore::{MapGeomBrush, MapGeomFile, map_geometry_file};
 use clap::Parser;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter};
 use paris::formatter::colorize_string;
+use std::path::PathBuf;
 
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::math::{Vector2, Vector3};
 use raylib::prelude as rl;
-use rl::{Model, RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
+use rl::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None, display_name = env!("CARGO_BIN_NAME"))]
