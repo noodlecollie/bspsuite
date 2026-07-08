@@ -5,7 +5,7 @@ use super::utils::wrap_residual_errors;
 use crate::compile_context::CompileContext;
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::extensions::{ExtensionList, extension_routines};
-use crate::io::{write_map_geometry_file, write_map_source_file};
+use crate::io::{MapSourceFileIO, VersionedIOFormat, write_map_geometry_file};
 use crate::model::{MapGeomFile, MapSourceFile};
 use anyhow::{Context, Result, anyhow};
 use bspextifc::builders::map_source_builder::{Entity, MapSourceBuilder};
@@ -99,7 +99,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 		map_source.entities.len()
 	);
 
-	write_map_source_file(
+	MapSourceFileIO::write(
 		ctx.input_path_metadata
 			.directory_path
 			.join(format!("{}.source.json", ctx.input_path_metadata.file_name))

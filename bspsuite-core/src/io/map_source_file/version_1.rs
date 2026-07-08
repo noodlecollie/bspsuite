@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub(super) const VERSION: u64 = 1;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(super) struct V1File
+pub struct V1File
 {
 	#[serde(deserialize_with = "DeserializeVersionHelper::<VERSION>::deserialize_version")]
 	version: u64,
@@ -18,20 +18,20 @@ pub(super) struct V1File
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(super) struct V1Entity
+pub struct V1Entity
 {
 	pub brushes: Vec<V1Brush>,
 	pub keyvalues: HashMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(super) struct V1Brush
+pub struct V1Brush
 {
 	pub faces: Vec<V1Face>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(super) struct V1Face
+pub struct V1Face
 {
 	pub plane: DPlane3,
 	pub material_name: String,
