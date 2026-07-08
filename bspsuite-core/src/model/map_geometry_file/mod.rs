@@ -9,7 +9,6 @@ use crate::model::MapSourceFile;
 use anyhow::Result;
 use brush_builder::BrushBuilder;
 use glam::{DVec2, DVec3};
-use serde::{Deserialize, Serialize};
 
 pub struct MapGeomBrushFaceVertex
 {

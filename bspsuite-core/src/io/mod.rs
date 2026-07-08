@@ -1,5 +1,3 @@
-// TODO: serde implementation using a newtype wrapper for each item?
-// Alternatively, versioned reader and writer objects which implement serde?
 pub use map_geometry_file::deserialize as deserialize_map_geometry_file;
 pub use map_geometry_file::read as read_map_geometry_file;
 pub use map_geometry_file::serialize as serialize_map_geometry_file;
