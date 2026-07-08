@@ -53,12 +53,6 @@ pub struct CompileTuningParametersConfig
 
 impl CompileTuningParametersConfig
 {
-	// TODO: Versioned serialisation!
-	pub fn load(path: &Path) -> Result<Self>
-	{
-		todo!();
-	}
-
 	pub fn merge(existing_cfg: Self, override_cfg: Self) -> Self
 	{
 		return Self {

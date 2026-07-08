@@ -1,6 +1,7 @@
 use crate::commands::{CompileArgs, InputPathMetadata};
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::configs::{CompileTuningParametersConfig, GameConfig};
+use crate::io::{CompileTuningParametersConfigFileIO, VersionedIOFormat};
 use crate::math::CompileTuningParameters;
 use crate::toolchain::Toolchain;
 use anyhow::Result;
@@ -29,8 +30,7 @@ impl CompileContext
 			args.parameters_file.as_ref()
 		{
 			Some(
-				// TODO: Make load() return compiler error?
-				CompileTuningParametersConfig::load(path_buf.as_path()).map_err(|err| {
+				CompileTuningParametersConfigFileIO::read(path_buf.as_path()).map_err(|err| {
 					CompilerError::from_anyhow(CompilerErrorCode::ConfigError, err)
 				})?,
 			)
