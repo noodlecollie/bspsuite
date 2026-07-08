@@ -5,7 +5,7 @@ use super::utils::wrap_residual_errors;
 use crate::compile_context::CompileContext;
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::extensions::{ExtensionList, extension_routines};
-use crate::io::{MapSourceFileIO, VersionedIOFormat, write_map_geometry_file};
+use crate::io::{MapGeomFileIO, MapSourceFileIO, VersionedIOFormat};
 use crate::model::{MapGeomFile, MapSourceFile};
 use anyhow::{Context, Result, anyhow};
 use bspextifc::builders::map_source_builder::{Entity, MapSourceBuilder};
@@ -112,7 +112,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 		MapGeomFile::construct(map_source, &ctx.compile_tuning_parameters)
 			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;
 
-	write_map_geometry_file(
+	MapGeomFileIO::write(
 		ctx.input_path_metadata
 			.directory_path
 			.join(format!(
