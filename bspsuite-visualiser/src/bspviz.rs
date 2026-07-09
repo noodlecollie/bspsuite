@@ -7,13 +7,12 @@ use bspcore::io::{MapGeomFileIO, VersionedIOFormat};
 use bspcore::model::{MapGeomBrush, MapGeomFile};
 use clap::Parser;
 use lazy_static::lazy_static;
-use log::{Level, LevelFilter, info};
+use log::{Level, LevelFilter};
 use paris::formatter::colorize_string;
 use rand::random_range;
 
 use raylib::camera::Camera3D;
-use raylib::color::Color;
-use raylib::math::{Vector2, Vector3};
+use raylib::math::Vector3;
 use raylib::models::WeakMaterial;
 use raylib::{RaylibHandle, RaylibThread, prelude as rl};
 use rl::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
@@ -87,7 +86,7 @@ fn main()
 		handle.set_mouse_position(rl::Vector2 { x: 400.0, y: 300.0 });
 
 		let mut d = handle.begin_drawing(&thread);
-		d.clear_background(Color::DARKGREEN);
+		d.clear_background(rl::Color::DARKGREEN);
 
 		d.draw_mode3D(camera, |mut d2| {
 			for mesh in meshes.iter()
@@ -96,17 +95,29 @@ fn main()
 			}
 		});
 
-		d.draw_rectangle(10, 10, 220, 70, Color::SKYBLUE);
-		d.draw_rectangle_lines(10, 10, 220, 70, Color::BLUE);
+		d.draw_rectangle(10, 10, 220, 70, rl::Color::SKYBLUE);
+		d.draw_rectangle_lines(10, 10, 220, 70, rl::Color::BLUE);
 		d.draw_text(
 			"First person camera default controls:",
 			20,
 			20,
 			10,
-			Color::BLACK,
+			rl::Color::BLACK,
 		);
-		d.draw_text("- Move with keys: W, A, S, D", 40, 40, 10, Color::DARKGRAY);
-		d.draw_text("- Mouse move to look around", 40, 60, 10, Color::DARKGRAY);
+		d.draw_text(
+			"- Move with keys: W, A, S, D",
+			40,
+			40,
+			10,
+			rl::Color::DARKGRAY,
+		);
+		d.draw_text(
+			"- Mouse move to look around",
+			40,
+			60,
+			10,
+			rl::Color::DARKGRAY,
+		);
 	}
 }
 
@@ -200,7 +211,11 @@ fn init_raylib_logs()
 fn brush_to_mesh(thread: &RaylibThread, brush: &MapGeomBrush) -> Result<rl::Mesh>
 {
 	let mut vertex_generator: MeshVertexGenerator = MeshVertexGenerator::from_brush(brush)?;
-	vertex_generator.set_colour(Color::color_from_hsv(random_range(0.0..360.0), 0.5, 1.0));
+	vertex_generator.set_colour(rl::Color::color_from_hsv(
+		random_range(0.0..360.0),
+		0.5,
+		1.0,
+	));
 
 	let components: MeshComponents = vertex_generator.into_components();
 

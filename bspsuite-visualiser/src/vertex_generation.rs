@@ -1,9 +1,6 @@
-use std::collections::HashMap;
-
 use crate::conv::{dvec2_to_vector2, dvec3_to_vector3};
-use anyhow::{Result, anyhow, bail};
-use bspcore::model::{MapGeomBrush, MapGeomBrushFace, MapGeomBrushFaceVertex};
-use log::info;
+use anyhow::{Result, bail};
+use bspcore::model::{MapGeomBrush, MapGeomBrushFace};
 use raylib::prelude as rl;
 
 pub struct MeshVertexGenerator
@@ -96,6 +93,7 @@ impl MeshVertexGenerator
 		}
 
 		let normal: rl::Vector3 = dvec3_to_vector3(face.plane.normal());
+		let base_vert_index: u16 = self.vertices.len() as u16;
 
 		for vert in face.vertices.iter()
 		{
@@ -131,14 +129,14 @@ impl MeshVertexGenerator
 			self.vertices.push(int_vert);
 		}
 
-		let num_triangles: usize = self.vertices.len() - 2;
+		let num_triangles: usize = face.vertices.len() - 2;
 		self.indices.reserve(num_triangles * 3);
 
 		for index in 0..num_triangles
 		{
-			self.indices.push(0);
-			self.indices.push(index as u16 + 1);
-			self.indices.push(index as u16 + 2);
+			self.indices.push(base_vert_index);
+			self.indices.push(base_vert_index + (index as u16) + 1);
+			self.indices.push(base_vert_index + (index as u16) + 2);
 		}
 
 		return Ok(());

@@ -10,15 +10,18 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DPlane3
 {
-	_normal: DVec3,
-	_distance: f64,
+	#[serde(rename = "normal")]
+	norm: DVec3,
+
+	#[serde(rename = "distance")]
+	dist: f64,
 }
 
 impl DPlane3
 {
 	pub const NULL: Self = Self {
-		_normal: DVec3::new(0.0, 0.0, 0.0),
-		_distance: 0.0,
+		norm: DVec3::new(0.0, 0.0, 0.0),
+		dist: 0.0,
 	};
 
 	#[inline]
@@ -30,8 +33,8 @@ impl DPlane3
 		return if not_null
 		{
 			Self {
-				_normal: normal,
-				_distance: distance,
+				norm: normal,
+				dist: distance,
 			}
 		}
 		else
@@ -52,8 +55,8 @@ impl DPlane3
 		);
 
 		return Self {
-			_normal: normal,
-			_distance: distance,
+			norm: normal,
+			dist: distance,
 		};
 	}
 
@@ -66,19 +69,19 @@ impl DPlane3
 	#[inline]
 	pub fn normal(&self) -> DVec3
 	{
-		return self._normal;
+		return self.norm;
 	}
 
 	#[inline]
 	pub fn distance(&self) -> f64
 	{
-		return self._distance;
+		return self.dist;
 	}
 
 	#[inline]
 	pub fn origin(&self) -> DVec3
 	{
-		return self._normal * self._distance;
+		return self.norm * self.dist;
 	}
 }
 
@@ -91,8 +94,8 @@ mod tests
 	fn construct_null_plane()
 	{
 		let null1: DPlane3 = DPlane3 {
-			_normal: DVec3::new(0.0, 0.0, 0.0),
-			_distance: 0.0,
+			norm: DVec3::new(0.0, 0.0, 0.0),
+			dist: 0.0,
 		};
 
 		assert!(null1.is_null());
