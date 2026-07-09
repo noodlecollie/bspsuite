@@ -148,3 +148,44 @@ impl From<V1Face> for MapSourceBrushFace
 		};
 	}
 }
+
+#[cfg(test)]
+mod tests
+{
+	use super::*;
+	use crate::math::{DEFAULT_ZERO_EPSILON, DPlane3};
+	use serde_json;
+
+	#[test]
+	fn serialize_and_deserialize_simple_object()
+	{
+		let mut kv: HashMap<String, String> = HashMap::new();
+		kv.insert("classname".to_owned(), "worldspawn".to_owned());
+		kv.insert("description".to_owned(), "This is a test entity".to_owned());
+
+		let map_source_file: MapSourceFile = MapSourceFile {
+			entities: vec![MapSourceEntity {
+				global_entity_index: 0,
+				keyvalues: kv,
+				brushes: vec![MapSourceBrush {
+					global_brush_index: 0,
+					faces: vec![MapSourceBrushFace {
+						global_face_index: 0,
+						plane: DPlane3::new(DVec3::Z, 5.0, DEFAULT_ZERO_EPSILON),
+						material_name: "face_material".to_owned(),
+						material_axes: (DVec3::X, DVec3::Y),
+						material_offset: DVec2::new(10.0, 20.0),
+						material_scale: DVec2::new(0.25, 0.75),
+					}],
+				}],
+			}],
+		};
+
+		let v1_file_out: V1File = V1File::from(&map_source_file);
+		let json_string: String = serde_json::to_string(&v1_file_out).unwrap();
+		let v1_file_in: V1File = serde_json::from_str::<V1File>(&json_string).unwrap();
+		let recovered_source_file: MapSourceFile = v1_file_in.into();
+
+		assert!(map_source_file == recovered_source_file);
+	}
+}
