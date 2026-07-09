@@ -6,6 +6,7 @@ use bspextifc::builders::map_source_builder::{Brush, BrushFace, Entity};
 use bspextifc::types::{DPlane3 as ExtPlane, DVec2 as ExtVec2, DVec3 as ExtVec3};
 use glam::{DVec2, DVec3};
 
+#[derive(PartialEq)]
 pub struct MapSourceBrushFace
 {
 	pub global_face_index: usize,
@@ -16,12 +17,14 @@ pub struct MapSourceBrushFace
 	pub material_scale: DVec2,
 }
 
+#[derive(PartialEq)]
 pub struct MapSourceBrush
 {
 	pub global_brush_index: usize,
 	pub faces: Vec<MapSourceBrushFace>,
 }
 
+#[derive(PartialEq)]
 pub struct MapSourceEntity
 {
 	pub global_entity_index: usize,
@@ -29,6 +32,7 @@ pub struct MapSourceEntity
 	pub keyvalues: HashMap<String, String>,
 }
 
+#[derive(PartialEq)]
 pub struct MapSourceFile
 {
 	pub entities: Vec<MapSourceEntity>,
