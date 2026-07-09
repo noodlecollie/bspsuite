@@ -42,6 +42,7 @@ pub struct V1BrushFace
 #[derive(Serialize, Deserialize, Debug)]
 pub struct V1BrushFaceVertex
 {
+	pub index_in_brush: usize,
 	pub tex_coord: DVec2,
 }
 
@@ -99,6 +100,7 @@ impl From<&MapGeomBrushFaceVertex> for V1BrushFaceVertex
 	fn from(value: &MapGeomBrushFaceVertex) -> Self
 	{
 		return Self {
+			index_in_brush: value.index_in_brush,
 			tex_coord: value.tex_coord,
 		};
 	}
@@ -167,7 +169,7 @@ impl From<V1BrushFaceVertex> for MapGeomBrushFaceVertex
 	fn from(value: V1BrushFaceVertex) -> Self
 	{
 		return Self {
-			index_in_brush: 0, // Assigned later
+			index_in_brush: value.index_in_brush,
 			tex_coord: value.tex_coord,
 		};
 	}

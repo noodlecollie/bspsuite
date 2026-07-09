@@ -169,9 +169,9 @@ impl Extension
 		};
 
 		debug!(
-			"Loaded extension: {} ({})",
+			"Loaded extension: {} from {}",
 			extension.get_name(),
-			path.to_str().unwrap()
+			path.display()
 		);
 
 		return Ok(extension);

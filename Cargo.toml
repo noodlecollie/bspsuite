@@ -22,6 +22,7 @@ edition = "2024"
 anyhow = "1.0.100"
 strum = "0.27.2"
 log = "0.4.28"
+rand = "0.10.2"
 glam = { version = "0.30.10", features = ["approx", "serde"] }
 clap = { version = "4.5.51", features = ["derive"] }
 serde = { version = "1.0.228", features = ["derive"] }

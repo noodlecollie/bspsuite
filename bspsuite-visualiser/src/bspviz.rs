@@ -1,14 +1,25 @@
+use std::ops::Add;
+use std::path::PathBuf;
+
+use crate::vertex_generation::{MeshComponents, MeshVertexGenerator};
+use anyhow::{Context, Result};
+use bspcore::io::{MapGeomFileIO, VersionedIOFormat};
+use bspcore::model::{MapGeomBrush, MapGeomFile};
 use clap::Parser;
 use lazy_static::lazy_static;
-use log::{Level, LevelFilter};
+use log::{Level, LevelFilter, info};
 use paris::formatter::colorize_string;
-use std::path::PathBuf;
+use rand::random_range;
 
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::math::{Vector2, Vector3};
-use raylib::prelude as rl;
+use raylib::models::WeakMaterial;
+use raylib::{RaylibHandle, RaylibThread, prelude as rl};
 use rl::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
+
+mod conv;
+mod vertex_generation;
 
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None, display_name = env!("CARGO_BIN_NAME"))]
@@ -31,39 +42,58 @@ fn main()
 		panic!("File {} was not found", args.file.display());
 	}
 
-	// TODO: Actually parse the input file
+	let map_geometry: MapGeomFile = MapGeomFileIO::read(args.file.as_path())
+		.expect(format!("Failed to load {}", args.file.display()).as_str());
 
 	let (mut handle, thread) = raylib::init()
-		.size(640, 480)
+		.size(800, 600)
 		.resizable()
 		.title("Hello, World")
 		.build();
 
+	let mut meshes: Vec<rl::Mesh> = Vec::new();
+
+	for entity in map_geometry.entities.iter()
+	{
+		let ent_meshes: Vec<rl::Mesh> = entity
+			.brushes
+			.iter()
+			.map(|brush| brush_to_mesh(&thread, brush))
+			.collect::<Result<Vec<rl::Mesh>>>()
+			.with_context(|| "Failed to generate meshes for brushes")
+			.unwrap();
+
+		meshes.extend(ent_meshes);
+	}
+
+	let mat: WeakMaterial = handle.load_material_default(&thread);
+
 	let mut camera: Camera3D = Camera3D::perspective(
-		Vector3::new(4.0, 2.0, 4.0),
-		Vector3::new(0.0, 1.8, 0.0),
+		Vector3::new(0.0, 0.0, 0.0),
 		Vector3::new(0.0, 1.0, 0.0),
+		Vector3::new(0.0, 0.0, 1.0),
 		60.0,
 	);
 
 	handle.set_target_fps(60);
+	handle.disable_cursor();
 
 	while !handle.window_should_close()
 	{
-		handle.update_camera(&mut camera, rl::CameraMode::CAMERA_FIRST_PERSON);
+		let camera_rot: rl::Vector3 = compute_camera_rot_delta(&handle, 0.25);
+		let camera_delta: rl::Vector3 = compute_camera_movement_delta(&handle, &camera, 50.0);
+
+		camera.update_camera_pro(camera_delta, camera_rot, 0.0);
+		handle.set_mouse_position(rl::Vector2 { x: 400.0, y: 300.0 });
 
 		let mut d = handle.begin_drawing(&thread);
 		d.clear_background(Color::DARKGREEN);
 
-		d.draw_mode3D(camera, |mut d2, _| {
-			d2.draw_plane(
-				Vector3::new(0.0, 0.0, 0.0),
-				Vector2::new(32.0, 32.0),
-				Color::LIGHTGRAY,
-			);
-			d2.draw_cube(Vector3::new(-16.0, 2.5, 0.0), 1.0, 5.0, 32.0, Color::BLUE);
-			d2.draw_cube(Vector3::new(16.0, 2.5, 0.0), 1.0, 5.0, 32.0, Color::LIME);
-			d2.draw_cube(Vector3::new(0.0, 2.5, 16.0), 32.0, 5.0, 1.0, Color::GOLD);
+		d.draw_mode3D(camera, |mut d2| {
+			for mesh in meshes.iter()
+			{
+				d2.draw_mesh(mesh, mat.clone(), rl::Matrix::identity());
+			}
 		});
 
 		d.draw_rectangle(10, 10, 220, 70, Color::SKYBLUE);
@@ -165,4 +195,79 @@ fn init_raylib_logs()
 		}
 	})
 	.expect("Could not set Raylib log callback");
+}
+
+fn brush_to_mesh(thread: &RaylibThread, brush: &MapGeomBrush) -> Result<rl::Mesh>
+{
+	let mut vertex_generator: MeshVertexGenerator = MeshVertexGenerator::from_brush(brush)?;
+	vertex_generator.set_colour(Color::color_from_hsv(random_range(0.0..360.0), 0.5, 1.0));
+
+	let components: MeshComponents = vertex_generator.into_components();
+
+	return rl::Mesh::gen_mesh(&components.positions, &components.tex_coords)
+		.normals(&components.normals)
+		.indices(&components.indices)
+		.colors(&components.colours)
+		.build(&thread)
+		.with_context(|| {
+			format!(
+				"Failed to generate mesh for brush {}",
+				brush.global_brush_index
+			)
+		});
+}
+
+fn compute_camera_movement_delta(
+	handle: &RaylibHandle,
+	camera: &rl::Camera3D,
+	scale: f32,
+) -> rl::Vector3
+{
+	let mut delta: rl::Vector2 = rl::Vector2::zero();
+
+	if handle.is_key_down(rl::KeyboardKey::KEY_W)
+	{
+		delta.x += 1.0;
+	}
+
+	if handle.is_key_down(rl::KeyboardKey::KEY_S)
+	{
+		delta.x -= 1.0;
+	}
+
+	if handle.is_key_down(rl::KeyboardKey::KEY_D)
+	{
+		delta.y += 1.0;
+	}
+
+	if handle.is_key_down(rl::KeyboardKey::KEY_A)
+	{
+		delta.y -= 1.0;
+	}
+
+	let right: rl::Vector3 = camera.forward().cross(camera.up());
+
+	let direction: rl::Vector3 = camera
+		.forward()
+		.scale(delta.x)
+		.add(right.scale(delta.y))
+		.normalize();
+
+	return rl::Vector3 {
+		x: camera.forward().dot(direction),
+		y: right.dot(direction),
+		z: camera.up().dot(direction),
+	}
+	.scale(scale * handle.get_frame_time());
+}
+
+fn compute_camera_rot_delta(handle: &RaylibHandle, scale: f32) -> rl::Vector3
+{
+	let mouse_delta: rl::Vector2 = handle.get_mouse_delta().scale(scale);
+
+	return rl::Vector3 {
+		x: mouse_delta.x,
+		y: mouse_delta.y,
+		z: 0.0,
+	};
 }

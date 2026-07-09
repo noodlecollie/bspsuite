@@ -17,7 +17,9 @@ bspsuite-core = { path = "../bspsuite-core" }
 log.workspace = true
 anyhow.workspace = true
 clap.workspace = true
+glam.workspace = true
+rand.workspace = true
 fern = { version = "0.7.1", features = ["colored"] }
 paris = { version = "1.5.15", features = ["no_logger"] }
 lazy_static = "1.5.0"
-raylib = "5.5.1"
+raylib = { version = "6.0.0", features = ["glam", "SUPPORT_IMAGE_GENERATION"] }
