@@ -174,3 +174,65 @@ impl From<V1BrushFaceVertex> for MapGeomBrushFaceVertex
 		};
 	}
 }
+
+#[cfg(test)]
+mod tests
+{
+	use super::*;
+	use crate::math::DEFAULT_ZERO_EPSILON;
+	use serde_json;
+
+	#[test]
+	fn serialize_and_deserialize_simple_object()
+	{
+		let mut kv: HashMap<String, String> = HashMap::new();
+		kv.insert("classname".to_owned(), "worldspawn".to_owned());
+		kv.insert("description".to_owned(), "This is a test entity".to_owned());
+
+		let map_geom_file: MapGeomFile = MapGeomFile {
+			entities: vec![MapGeomEntity {
+				global_entity_index: 0,
+				keyvalues: kv,
+				brushes: vec![MapGeomBrush {
+					global_brush_index: 0,
+					vertices: vec![
+						DVec3::new(0.0, 2.0, 3.0),
+						DVec3::new(0.0, 1.0, 3.0),
+						DVec3::new(1.0, 1.0, 3.0),
+						DVec3::new(1.0, 2.0, 3.0),
+					],
+					faces: vec![MapGeomBrushFace {
+						global_face_index: 0,
+						plane: DPlane3::new(DVec3::Z, 3.0, DEFAULT_ZERO_EPSILON),
+						vertices: vec![
+							MapGeomBrushFaceVertex {
+								index_in_brush: 0,
+								tex_coord: DVec2::new(0.0, 1.0),
+							},
+							MapGeomBrushFaceVertex {
+								index_in_brush: 1,
+								tex_coord: DVec2::new(0.0, 0.0),
+							},
+							MapGeomBrushFaceVertex {
+								index_in_brush: 2,
+								tex_coord: DVec2::new(1.0, 0.0),
+							},
+							MapGeomBrushFaceVertex {
+								index_in_brush: 3,
+								tex_coord: DVec2::new(1.0, 1.0),
+							},
+						],
+						material: "some_material".to_owned(),
+					}],
+				}],
+			}],
+		};
+
+		let v1_file_out: V1File = V1File::from(&map_geom_file);
+		let json_string: String = serde_json::to_string(&v1_file_out).unwrap();
+		let v1_file_in: V1File = serde_json::from_str::<V1File>(&json_string).unwrap();
+		let recovered_geom_file: MapGeomFile = v1_file_in.into();
+
+		assert!(map_geom_file == recovered_geom_file);
+	}
+}
