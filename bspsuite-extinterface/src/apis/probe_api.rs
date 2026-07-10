@@ -13,7 +13,7 @@ pub enum RequestError
 {
 	/// The provided version did not match the version of the available API.
 	/// The inner value of this enum item is the actual version available.
-	VersionDidNotMatch(usize),
+	VersionDidNotMatch(u64),
 }
 
 /// Enum representing the result of a probe call to an extension.
@@ -41,7 +41,7 @@ impl<'l> ProbeApi<'l>
 {
 	pub fn request_log_api(
 		&mut self,
-		requested_version: usize,
+		requested_version: u64,
 	) -> Result<log_api::LogApi, RequestError>
 	{
 		return internal::ExportedApis::request_get_api(
@@ -53,7 +53,7 @@ impl<'l> ProbeApi<'l>
 
 	pub fn register_dummy_api_callbacks(
 		&mut self,
-		requested_version: usize,
+		requested_version: u64,
 		callbacks: dummy_api::DummyApiCallbacks,
 	) -> Result<(), RequestError>
 	{
@@ -67,7 +67,7 @@ impl<'l> ProbeApi<'l>
 
 	pub fn register_map_format_api_callbacks(
 		&mut self,
-		requested_version: usize,
+		requested_version: u64,
 		callbacks: map_format_api::MapFormatApiCallbacks,
 	) -> Result<(), RequestError>
 	{
@@ -91,7 +91,7 @@ pub mod internal
 	pub enum ApiRequestError
 	{
 		// Requested -> Actual
-		MismatchedVersion((usize, usize)),
+		MismatchedVersion((u64, u64)),
 	}
 
 	#[doc(hidden)]
@@ -101,7 +101,7 @@ pub mod internal
 		T: Clone,
 	{
 		name: XCStr<'static>,
-		version: usize,
+		version: u64,
 		api: T,
 	}
 
@@ -110,7 +110,7 @@ pub mod internal
 	pub struct CallbacksContainer<T>
 	{
 		name: XCStr<'static>,
-		version: usize,
+		version: u64,
 		callbacks: XCOption<T>,
 	}
 
@@ -145,13 +145,13 @@ pub mod internal
 		}
 
 		#[doc(hidden)]
-		pub fn get_version(&self) -> usize
+		pub fn get_version(&self) -> u64
 		{
 			return self.version;
 		}
 
 		#[doc(hidden)]
-		pub fn request_get_api(&self, requested_version: usize) -> Result<T, ApiRequestError>
+		pub fn request_get_api(&self, requested_version: u64) -> Result<T, ApiRequestError>
 		{
 			if requested_version != self.version
 			{
@@ -185,7 +185,7 @@ pub mod internal
 		}
 
 		#[doc(hidden)]
-		pub fn get_version(&self) -> usize
+		pub fn get_version(&self) -> u64
 		{
 			return self.version;
 		}
@@ -193,7 +193,7 @@ pub mod internal
 		#[doc(hidden)]
 		pub fn request_set_callbacks(
 			&mut self,
-			requested_version: usize,
+			requested_version: u64,
 			callbacks: T,
 		) -> Result<(), ApiRequestError>
 		{
@@ -223,7 +223,7 @@ pub mod internal
 		pub fn request_get_api<T>(
 			extension_name: &str,
 			provider: &mut ApiProvider<T>,
-			requested_version: usize,
+			requested_version: u64,
 		) -> Result<T, RequestError>
 		where
 			T: Clone,
@@ -240,7 +240,7 @@ pub mod internal
 		pub fn request_set_callbacks<T>(
 			extension_name: &str,
 			container: &mut CallbacksContainer<T>,
-			requested_version: usize,
+			requested_version: u64,
 			callbacks: T,
 		) -> Result<(), RequestError>
 		{
@@ -256,7 +256,7 @@ pub mod internal
 		pub fn process_result<T>(
 			extension_name: &str,
 			api_name: &str,
-			version: usize,
+			version: u64,
 			result: Result<T, ApiRequestError>,
 		) -> Result<T, RequestError>
 		{
