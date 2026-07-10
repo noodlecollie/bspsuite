@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone, Default)]
+#[derive(Deserialize, Serialize, Clone, Default, PartialEq, Debug)]
 pub struct CompileTuningParametersConfig
 {
 	/// Value for deciding whether a point lies on a geometric primitive. If the

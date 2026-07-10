@@ -8,45 +8,6 @@ use log::info;
 use serde::de::{DeserializeOwned, Deserializer, Error as DeError, Unexpected, Visitor};
 use serde::{Deserialize, Serialize};
 
-pub(super) struct DeserializeVersionHelper<const VER: u64> {}
-
-impl<const VER: u64> DeserializeVersionHelper<VER>
-{
-	pub fn deserialize_version<'de, D>(deserializer: D) -> Result<u64, D::Error>
-	where
-		D: Deserializer<'de>,
-	{
-		struct VersionVisitor<const EXPECTED_VERSION: u64>;
-
-		impl<'de, const EXPECTED_VERSION: u64> Visitor<'de> for VersionVisitor<EXPECTED_VERSION>
-		{
-			type Value = u64;
-
-			fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result
-			{
-				write!(formatter, "an unsigned version number")
-			}
-
-			fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
-			where
-				E: serde::de::Error,
-			{
-				if v != EXPECTED_VERSION
-				{
-					return Err(DeError::custom(format!(
-						"Expected version {EXPECTED_VERSION} but got version {v}"
-					)));
-				}
-
-				return Ok(v);
-			}
-		}
-
-		let visitor: VersionVisitor<VER> = VersionVisitor;
-		return deserializer.deserialize_u64(visitor);
-	}
-}
-
 pub trait VersionedIOFormat<const VER: u64>
 {
 	type InnerFormat;
@@ -274,10 +235,13 @@ mod tests
 		let deserialized_data = serde_json::from_str::<ParentStruct>(&raw_json);
 		let error = deserialized_data.expect_err("Expected deserialization to fail");
 		let error_string: String = error.to_string();
+		let prefix: &str =
+			"invalid value: string \"wrong name\", expected format name \"dummy_format\"";
 
-		assert!(error_string.starts_with(
-			"invalid type: string \"wrong name\", expected format name \"dummy_format\"",
-		));
+		assert!(
+			error_string.starts_with(prefix),
+			"Error string:\n  \"{error_string}\"\nshould start with prefix\n  \"{prefix}\""
+		);
 	}
 
 	#[test]
@@ -289,10 +253,11 @@ mod tests
 		let deserialized_data = serde_json::from_str::<ParentStruct>(&raw_json);
 		let error = deserialized_data.expect_err("Expected deserialization to fail");
 		let error_string: String = error.to_string();
+		let prefix: &str = "invalid value: integer `99`, expected format version `1234`";
 
 		assert!(
-			error_string
-				.starts_with("invalid value: integer `99`, expected format version `1234`",)
+			error_string.starts_with(prefix),
+			"Error string:\n  \"{error_string}\"\nshould start with prefix\n  \"{prefix}\""
 		);
 	}
 }
