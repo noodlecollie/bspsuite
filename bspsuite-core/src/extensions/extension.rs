@@ -4,7 +4,9 @@ use anyhow::{Context, Result};
 use anyhow::{bail, ensure};
 use bspextifc::probe_api::ProbeResult;
 use bspextifc::probe_api::internal::{ApiProvider, CallbacksContainer, ExportedApis};
-use bspextifc::{EXTENSION_INFO_VERSION, SYMBOL_EXTENSION_INFO, SYMBOL_EXTENSION_INFO_VERSION};
+use bspextifc::{
+	EXTENSION_INFO_VERSION, FFI_VERSION, SYMBOL_EXTENSION_INFO, SYMBOL_EXTENSION_INFO_VERSION,
+};
 use bspextifc::{ExtensionInfo, ExtensionInfoVersionType};
 use bspextifc::{dummy_api, log_api, map_format_api, probe_api};
 use libloading::{Library, Symbol};
@@ -145,15 +147,21 @@ impl Extension
 
 		let extension_info: &ExtensionInfo = *extension_info_symbol;
 		let probe_api_version: usize = extension_info.probe_api_version;
+		let ffi_api_version: u64 = extension_info.ffi_version;
 
 		trace!(
-			"Extension {} reported probe API version {probe_api_version}",
+			"Extension {} reported FFI version {ffi_api_version}, probe API version {probe_api_version}",
 			path.to_str().unwrap()
 		);
 
 		ensure!(
+			ffi_api_version == FFI_VERSION,
+			"Required FFI version {FFI_VERSION}, but extension provided FFI version {ffi_api_version}.",
+		);
+
+		ensure!(
 			probe_api_version == probe_api::API_VERSION,
-			"Required interface version {}, but extension provided interface version {probe_api_version}.",
+			"Required probe API version {}, but extension provided probe API version {probe_api_version}.",
 			probe_api::API_VERSION
 		);
 
