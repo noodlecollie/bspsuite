@@ -1,6 +1,6 @@
 mod cli;
 
-use bspcore::{BUILD_IDENTIFIER, commands as Cmds};
+use bspcore::{BUILD_IDENTIFIER, commands as cmds};
 
 use clap::Parser;
 use lazy_static::lazy_static;
@@ -17,7 +17,7 @@ fn main()
 	print_banner();
 
 	let subcommand: &cli::Subcommand = &parsed_args.command;
-	let result_code: Cmds::ResultCode = match subcommand
+	let result_code: cmds::ResultCode = match subcommand
 	{
 		cli::Subcommand::Extinfo(args) => run_info_command(&args),
 		cli::Subcommand::Compile(args) => run_compile_command(&parsed_args, &args),
@@ -25,7 +25,7 @@ fn main()
 
 	match result_code
 	{
-		Cmds::ResultCode::Ok => (),
+		cmds::ResultCode::Ok => (),
 		_ =>
 		{
 			error!("{subcommand} command failed.");
@@ -35,20 +35,20 @@ fn main()
 	std::process::exit(result_code as i32);
 }
 
-fn run_info_command(args: &cli::ExtinfoCommandArgs) -> Cmds::ResultCode
+fn run_info_command(args: &cli::ExtinfoCommandArgs) -> cmds::ResultCode
 {
-	let args: Cmds::ExtinfoArgs = Cmds::ExtinfoArgs {
-		base: Cmds::BaseArgs::default(),
+	let args: cmds::ExtinfoArgs = cmds::ExtinfoArgs {
+		base: cmds::BaseArgs::default(),
 		extension_name: args.extension.clone(),
 	};
 
-	return Cmds::bspcore_run_extinfo(&args);
+	return cmds::bspcore_run_extinfo(&args);
 }
 
-fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> Cmds::ResultCode
+fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> cmds::ResultCode
 {
-	let args: Cmds::CompileArgs = Cmds::CompileArgs {
-		base: Cmds::BaseArgs {
+	let args: cmds::CompileArgs = cmds::CompileArgs {
+		base: cmds::BaseArgs {
 			toolchain_root: base_args.toolchain_root.clone(),
 		},
 		input_file: args.input_file.clone(),
@@ -58,7 +58,7 @@ fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> 
 		dump_source_file: args.dump_source_file,
 	};
 
-	return Cmds::bspcore_run_compile(&args);
+	return cmds::bspcore_run_compile(&args);
 }
 
 fn init_logger(parsed_args: &cli::Cli)

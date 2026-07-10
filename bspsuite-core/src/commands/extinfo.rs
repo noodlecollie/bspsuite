@@ -15,8 +15,7 @@ pub struct ExtinfoArgs
 	pub extension_name: Option<String>,
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
+pub fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 {
 	return wrap_panics(|| {
 		let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root);
