@@ -12,6 +12,11 @@ impl VersionedIOFormat<VERSION> for MapGeomFileIOFormatV1
 	type FileFormat = version_1::V1File;
 	type InnerFormat = MapGeomFile;
 
+	fn format_name() -> &'static str
+	{
+		return "mapgeometry";
+	}
+
 	fn type_desc() -> &'static str
 	{
 		return "map geometry file";

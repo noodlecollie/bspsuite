@@ -12,6 +12,11 @@ impl VersionedIOFormat<VERSION> for CompileTuningParametersConfigIOFormatV1
 	type FileFormat = version_1::V1File;
 	type InnerFormat = CompileTuningParametersConfig;
 
+	fn format_name() -> &'static str
+	{
+		return "compiletuningparams";
+	}
+
 	fn type_desc() -> &'static str
 	{
 		return "compile tuning params";

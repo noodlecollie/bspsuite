@@ -186,6 +186,6 @@ mod tests
 		let v1_file_in: V1File = serde_json::from_str::<V1File>(&json_string).unwrap();
 		let recovered_source_file: MapSourceFile = v1_file_in.into();
 
-		assert!(map_source_file == recovered_source_file);
+		assert_eq!(map_source_file, recovered_source_file);
 	}
 }

@@ -233,6 +233,6 @@ mod tests
 		let v1_file_in: V1File = serde_json::from_str::<V1File>(&json_string).unwrap();
 		let recovered_geom_file: MapGeomFile = v1_file_in.into();
 
-		assert!(map_geom_file == recovered_geom_file);
+		assert_eq!(map_geom_file, recovered_geom_file);
 	}
 }
