@@ -5,8 +5,8 @@ pub struct MapGeomFileIOFormatV1;
 
 impl VersionedIOFormat for MapGeomFileIOFormatV1
 {
-	type FileFormat = version_1::V1File;
 	type InnerFormat = MapGeomFile;
+	type SerializableFormat = version_1::V1File;
 }
 
 mod version_1;

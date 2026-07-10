@@ -66,7 +66,7 @@ where
 
 			fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
 			where
-				E: serde::de::Error,
+				E: DeError,
 			{
 				let expected_version: u64 = Parent::format_version();
 
@@ -76,6 +76,21 @@ where
 				}
 
 				return Ok(v);
+			}
+
+			// Some formats only support signed integers, so cater for this too.
+			fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+			where
+				E: DeError,
+			{
+				let expected_version: u64 = Parent::format_version();
+
+				if v < 0 || (v as u64) != expected_version
+				{
+					return Err(DeError::invalid_value(Unexpected::Signed(v), &self));
+				}
+
+				return Ok(v as u64);
 			}
 		}
 
@@ -132,19 +147,24 @@ where
 
 pub trait VersionedIOFormat
 {
-	type FileFormat;
+	type SerializableFormat;
 	type InnerFormat;
 
 	fn serialize<'l, Writer>(writer: Writer, inner: &'l Self::InnerFormat) -> Result<()>
 	where
 		Writer: Write,
-		Self::FileFormat: From<&'l Self::InnerFormat> + Serialize + IOFormat,
+		Self::SerializableFormat: From<&'l Self::InnerFormat> + Serialize + IOFormat,
 	{
-		return serde_json::to_writer(writer, &Self::FileFormat::from(inner)).with_context(|| {
+		let result: Result<()> = <Self as VersionedIOFormat>::serialize_impl(
+			writer,
+			&Self::SerializableFormat::from(inner),
+		);
+
+		return result.with_context(|| {
 			format!(
 				"Failed to serialise version {} {}",
-				Self::FileFormat::format_version(),
-				Self::FileFormat::type_desc()
+				Self::SerializableFormat::format_version(),
+				Self::SerializableFormat::type_desc()
 			)
 		});
 	}
@@ -152,26 +172,27 @@ pub trait VersionedIOFormat
 	fn deserialize<Reader>(reader: Reader) -> Result<Self::InnerFormat>
 	where
 		Reader: Read,
-		Self::FileFormat: Into<Self::InnerFormat> + DeserializeOwned + IOFormat,
+		Self::SerializableFormat: Into<Self::InnerFormat> + DeserializeOwned + IOFormat,
 	{
-		let wrapper: Self::FileFormat = serde_json::from_reader(reader).with_context(|| {
-			format!(
-				"Failed to deserialise version {} {}",
-				Self::FileFormat::format_version(),
-				Self::FileFormat::type_desc()
-			)
-		})?;
+		let wrapper: Self::SerializableFormat =
+			<Self as VersionedIOFormat>::deserialize_impl(reader).with_context(|| {
+				format!(
+					"Failed to deserialise version {} {}",
+					Self::SerializableFormat::format_version(),
+					Self::SerializableFormat::type_desc()
+				)
+			})?;
 
 		return Ok(wrapper.into());
 	}
 
 	fn write<'l>(path: &Path, inner: &'l Self::InnerFormat) -> Result<()>
 	where
-		Self::FileFormat: From<&'l Self::InnerFormat> + Serialize + IOFormat,
+		Self::SerializableFormat: From<&'l Self::InnerFormat> + Serialize + IOFormat,
 	{
 		info!(
 			"Dumping {} to {}",
-			Self::FileFormat::type_desc(),
+			Self::SerializableFormat::type_desc(),
 			path.display()
 		);
 
@@ -183,11 +204,11 @@ pub trait VersionedIOFormat
 
 	fn read(path: &Path) -> Result<Self::InnerFormat>
 	where
-		Self::FileFormat: Into<Self::InnerFormat> + DeserializeOwned + IOFormat,
+		Self::SerializableFormat: Into<Self::InnerFormat> + DeserializeOwned + IOFormat,
 	{
 		info!(
 			"Reading {} from {}",
-			Self::FileFormat::type_desc(),
+			Self::SerializableFormat::type_desc(),
 			path.display()
 		);
 
@@ -195,6 +216,28 @@ pub trait VersionedIOFormat
 			.with_context(|| format!("Failed to open file {} for reading", path.display()))?;
 
 		return Self::deserialize(in_file);
+	}
+
+	// Override the functions below to use a format other than JSON.
+	// These *would* use Self::SerializableFormat directly, but this produced some
+	// confusing and silly compiler error messages for some reason.
+
+	fn serialize_impl<Writer, OutFmt>(writer: Writer, data: &OutFmt) -> Result<()>
+	where
+		Writer: Write,
+		OutFmt: Serialize,
+	{
+		serde_json::to_writer::<Writer, OutFmt>(writer, data)?;
+		return Ok(());
+	}
+
+	fn deserialize_impl<Reader, InFmt>(reader: Reader) -> Result<InFmt>
+	where
+		Reader: Read,
+		InFmt: DeserializeOwned,
+	{
+		let value: InFmt = serde_json::from_reader::<Reader, InFmt>(reader)?;
+		return Ok(value);
 	}
 }
 
@@ -211,7 +254,33 @@ mod tests
 		value: String,
 	}
 
+	#[derive(Serialize, Deserialize, Debug, PartialEq)]
+	struct FlatParentStruct
+	{
+		#[serde(flatten)]
+		signature: IOFmtSignature<ParentStruct>,
+		value: String,
+	}
+
 	impl IOFormat for ParentStruct
+	{
+		fn format_name() -> &'static str
+		{
+			return "dummy_format";
+		}
+
+		fn format_version() -> u64
+		{
+			return 1234;
+		}
+
+		fn type_desc() -> &'static str
+		{
+			return "dummy file format";
+		}
+	}
+
+	impl IOFormat for FlatParentStruct
 	{
 		fn format_name() -> &'static str
 		{
@@ -277,6 +346,37 @@ mod tests
 		assert!(
 			error_string.starts_with(prefix),
 			"Error string:\n  \"{error_string}\"\nshould start with prefix\n  \"{prefix}\""
+		);
+	}
+
+	#[test]
+	fn deserialize_with_no_signature()
+	{
+		let raw_json: &str = r##"{"value":"hello"}"##;
+		let deserialized_data = serde_json::from_str::<ParentStruct>(&raw_json);
+		let error = deserialized_data.expect_err("Expected deserialization to fail");
+		let error_string: String = error.to_string();
+		let prefix: &str = "missing field `signature`";
+
+		assert!(
+			error_string.starts_with(prefix),
+			"Error string:\n  \"{error_string}\"\nshould start with prefix\n  \"{prefix}\""
+		);
+	}
+
+	#[test]
+	fn serialize_flat_signature()
+	{
+		let data: FlatParentStruct = FlatParentStruct {
+			signature: IOFmtSignature::new(),
+			value: "test value".to_owned(),
+		};
+
+		let json_string: String = serde_json::to_string(&data).unwrap();
+
+		assert_eq!(
+			json_string,
+			r##"{"format":"dummy_format","version":1234,"value":"test value"}"##
 		);
 	}
 }

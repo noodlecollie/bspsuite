@@ -1,17 +1,17 @@
 use std::io::{Read, Write};
 
 use super::helpers::VersionedIOFormat;
-use crate::configs::CompileTuningParametersConfig;
+use crate::configs::GameConfig;
 use anyhow::Result;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use toml;
 
-pub struct CompileTuningParametersConfigIOFormatV1;
+pub struct GameConfigIOFormatV1;
 
-impl VersionedIOFormat for CompileTuningParametersConfigIOFormatV1
+impl VersionedIOFormat for GameConfigIOFormatV1
 {
-	type InnerFormat = CompileTuningParametersConfig;
+	type InnerFormat = GameConfig;
 	type SerializableFormat = version_1::V1File;
 
 	fn serialize_impl<Writer, OutFmt>(mut writer: Writer, data: &OutFmt) -> Result<()>
