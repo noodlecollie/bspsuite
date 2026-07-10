@@ -379,4 +379,37 @@ mod tests
 			r##"{"format":"dummy_format","version":1234,"value":"test value"}"##
 		);
 	}
+
+	#[test]
+	fn deserialize_incorrect_flat_format_name()
+	{
+		let raw_json: &str = r##"{"format":"wrong name", "version":1234, "value":"hello"}"##;
+
+		let deserialized_data = serde_json::from_str::<FlatParentStruct>(&raw_json);
+		let error = deserialized_data.expect_err("Expected deserialization to fail");
+		let error_string: String = error.to_string();
+		let prefix: &str =
+			"invalid value: string \"wrong name\", expected format name \"dummy_format\"";
+
+		assert!(
+			error_string.starts_with(prefix),
+			"Error string:\n  \"{error_string}\"\nshould start with prefix\n  \"{prefix}\""
+		);
+	}
+
+	#[test]
+	fn deserialize_incorrect_flat_format_version()
+	{
+		let raw_json: &str = r##"{"format":"dummy_format", "version":99, "value":"hello"}"##;
+
+		let deserialized_data = serde_json::from_str::<FlatParentStruct>(&raw_json);
+		let error = deserialized_data.expect_err("Expected deserialization to fail");
+		let error_string: String = error.to_string();
+		let prefix: &str = "invalid value: integer `99`, expected format version `1234`";
+
+		assert!(
+			error_string.starts_with(prefix),
+			"Error string:\n  \"{error_string}\"\nshould start with prefix\n  \"{prefix}\""
+		);
+	}
 }

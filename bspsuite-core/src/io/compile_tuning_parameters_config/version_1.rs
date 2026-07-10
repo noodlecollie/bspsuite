@@ -7,6 +7,7 @@ pub(super) const VERSION: u64 = 1;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct V1File
 {
+	#[serde(flatten)]
 	signature: IOFmtSignature<V1File>,
 	pub contact_epsilon: Option<f64>,
 	pub equal_point_radius_epsilon: Option<f64>,
@@ -18,7 +19,7 @@ impl IOFormat for V1File
 {
 	fn format_name() -> &'static str
 	{
-		return "compiletuningparamsconfig";
+		return "tuningparams";
 	}
 
 	fn format_version() -> u64
