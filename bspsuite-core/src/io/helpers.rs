@@ -8,65 +8,11 @@ use log::info;
 use serde::de::{DeserializeOwned, Deserializer, Error as DeError, Unexpected, Visitor};
 use serde::{Deserialize, Serialize};
 
-pub trait VersionedIOFormat<const VER: u64>
-{
-	type InnerFormat;
-	type FileFormat;
-	const VERSION: u64 = VER;
-
-	fn format_name() -> &'static str;
-	fn type_desc() -> &'static str;
-
-	fn serialize<'l, Writer>(writer: Writer, inner: &'l Self::InnerFormat) -> Result<()>
-	where
-		Writer: Write,
-		Self::FileFormat: From<&'l Self::InnerFormat> + Serialize,
-	{
-		return serde_json::to_writer(writer, &Self::FileFormat::from(inner))
-			.with_context(|| format!("Failed to serialise version {VER} {}", Self::type_desc()));
-	}
-
-	fn deserialize<Reader>(reader: Reader) -> Result<Self::InnerFormat>
-	where
-		Reader: Read,
-		Self::FileFormat: Into<Self::InnerFormat> + DeserializeOwned,
-	{
-		let wrapper: Self::FileFormat = serde_json::from_reader(reader).with_context(|| {
-			format!("Failed to deserialise version {VER} {}", Self::type_desc())
-		})?;
-
-		return Ok(wrapper.into());
-	}
-
-	fn write<'l>(path: &Path, inner: &'l Self::InnerFormat) -> Result<()>
-	where
-		Self::FileFormat: From<&'l Self::InnerFormat> + Serialize,
-	{
-		info!("Dumping {} to {}", Self::type_desc(), path.display());
-
-		let out_file: File = File::create(path)
-			.with_context(|| format!("Failed to open file {} for writing", path.display()))?;
-
-		return Self::serialize(out_file, inner);
-	}
-
-	fn read(path: &Path) -> Result<Self::InnerFormat>
-	where
-		Self::FileFormat: Into<Self::InnerFormat> + DeserializeOwned,
-	{
-		info!("Reading {} from {}", Self::type_desc(), path.display());
-
-		let in_file: File = File::open(path)
-			.with_context(|| format!("Failed to open file {} for reading", path.display()))?;
-
-		return Self::deserialize(in_file);
-	}
-}
-
 pub trait IOFormat
 {
 	fn format_name() -> &'static str;
 	fn format_version() -> u64;
+	fn type_desc() -> &'static str;
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -184,6 +130,74 @@ where
 	}
 }
 
+pub trait VersionedIOFormat
+{
+	type FileFormat;
+	type InnerFormat;
+
+	fn serialize<'l, Writer>(writer: Writer, inner: &'l Self::InnerFormat) -> Result<()>
+	where
+		Writer: Write,
+		Self::FileFormat: From<&'l Self::InnerFormat> + Serialize + IOFormat,
+	{
+		return serde_json::to_writer(writer, &Self::FileFormat::from(inner)).with_context(|| {
+			format!(
+				"Failed to serialise version {} {}",
+				Self::FileFormat::format_version(),
+				Self::FileFormat::type_desc()
+			)
+		});
+	}
+
+	fn deserialize<Reader>(reader: Reader) -> Result<Self::InnerFormat>
+	where
+		Reader: Read,
+		Self::FileFormat: Into<Self::InnerFormat> + DeserializeOwned + IOFormat,
+	{
+		let wrapper: Self::FileFormat = serde_json::from_reader(reader).with_context(|| {
+			format!(
+				"Failed to deserialise version {} {}",
+				Self::FileFormat::format_version(),
+				Self::FileFormat::type_desc()
+			)
+		})?;
+
+		return Ok(wrapper.into());
+	}
+
+	fn write<'l>(path: &Path, inner: &'l Self::InnerFormat) -> Result<()>
+	where
+		Self::FileFormat: From<&'l Self::InnerFormat> + Serialize + IOFormat,
+	{
+		info!(
+			"Dumping {} to {}",
+			Self::FileFormat::type_desc(),
+			path.display()
+		);
+
+		let out_file: File = File::create(path)
+			.with_context(|| format!("Failed to open file {} for writing", path.display()))?;
+
+		return Self::serialize(out_file, inner);
+	}
+
+	fn read(path: &Path) -> Result<Self::InnerFormat>
+	where
+		Self::FileFormat: Into<Self::InnerFormat> + DeserializeOwned + IOFormat,
+	{
+		info!(
+			"Reading {} from {}",
+			Self::FileFormat::type_desc(),
+			path.display()
+		);
+
+		let in_file: File = File::open(path)
+			.with_context(|| format!("Failed to open file {} for reading", path.display()))?;
+
+		return Self::deserialize(in_file);
+	}
+}
+
 #[cfg(test)]
 mod tests
 {
@@ -207,6 +221,11 @@ mod tests
 		fn format_version() -> u64
 		{
 			return 1234;
+		}
+
+		fn type_desc() -> &'static str
+		{
+			return "dummy file format";
 		}
 	}
 

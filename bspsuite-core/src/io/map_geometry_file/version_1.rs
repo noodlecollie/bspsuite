@@ -55,6 +55,11 @@ impl IOFormat for V1File
 	{
 		return VERSION;
 	}
+
+	fn type_desc() -> &'static str
+	{
+		return "map geometry file";
+	}
 }
 
 ////////////////////////////////////////////////////////
