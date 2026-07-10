@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::io::helpers::DeserializeVersionHelper;
+use crate::io::helpers::{IOFmtSignature, IOFormat};
 use crate::math::DPlane3;
 use crate::model::{MapSourceBrush, MapSourceBrushFace, MapSourceEntity, MapSourceFile};
 use glam::{DVec2, DVec3};
@@ -11,9 +11,7 @@ pub(super) const VERSION: u64 = 1;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct V1File
 {
-	#[serde(deserialize_with = "DeserializeVersionHelper::<VERSION>::deserialize_version")]
-	version: u64,
-
+	signature: IOFmtSignature<V1File>,
 	pub entities: Vec<V1Entity>,
 }
 
@@ -40,6 +38,24 @@ pub struct V1Face
 	pub material_scale: DVec2,
 }
 
+impl IOFormat for V1File
+{
+	fn format_name() -> &'static str
+	{
+		return "mapsource";
+	}
+
+	fn format_version() -> u64
+	{
+		return VERSION;
+	}
+
+	fn type_desc() -> &'static str
+	{
+		return "map source file";
+	}
+}
+
 ////////////////////////////////////////////////////////
 // MapSourceFile -> V1File
 ////////////////////////////////////////////////////////
@@ -49,7 +65,7 @@ impl From<&MapSourceFile> for V1File
 	fn from(value: &MapSourceFile) -> Self
 	{
 		return Self {
-			version: VERSION,
+			signature: IOFmtSignature::new(),
 			entities: value.entities.iter().map(|ent| ent.into()).collect(),
 		};
 	}
@@ -186,6 +202,6 @@ mod tests
 		let v1_file_in: V1File = serde_json::from_str::<V1File>(&json_string).unwrap();
 		let recovered_source_file: MapSourceFile = v1_file_in.into();
 
-		assert!(map_source_file == recovered_source_file);
+		assert_eq!(map_source_file, recovered_source_file);
 	}
 }

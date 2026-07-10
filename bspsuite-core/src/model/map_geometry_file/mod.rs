@@ -10,14 +10,14 @@ use anyhow::Result;
 use brush_builder::BrushBuilder;
 use glam::{DVec2, DVec3};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct MapGeomBrushFaceVertex
 {
 	pub index_in_brush: usize,
 	pub tex_coord: DVec2,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct MapGeomBrushFace
 {
 	pub global_face_index: usize,
@@ -26,7 +26,7 @@ pub struct MapGeomBrushFace
 	pub material: String, // TODO: Rc to an object?
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct MapGeomBrush
 {
 	pub global_brush_index: usize,
@@ -34,7 +34,7 @@ pub struct MapGeomBrush
 	pub faces: Vec<MapGeomBrushFace>,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct MapGeomEntity
 {
 	pub global_entity_index: usize,
@@ -42,7 +42,7 @@ pub struct MapGeomEntity
 	pub keyvalues: HashMap<String, String>,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct MapGeomFile
 {
 	pub entities: Vec<MapGeomEntity>,
