@@ -1,4 +1,4 @@
-use super::api_info::ApiInfo;
+use crate::ApiInfo;
 use bspffi::types::{XCOption, XCStr};
 
 pub const API_INFO: ApiInfo = ApiInfo::new("LogApi", 1);

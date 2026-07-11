@@ -9,7 +9,7 @@ members = [
 	"bspsuite-ext-goldsrc",
 	"bspsuite-extinterface",
 	"bspsuite-ffi",
-	"bspsuite-visualiser"
+	"bspsuite-visualiser",
 ]
 
 [workspace.package]
@@ -24,8 +24,8 @@ strum = "0.27.2"
 log = "0.4.28"
 rand = "0.10.2"
 toml = "0.9.10"
-thin_trait_object = "1.1.2"
 regex = "1.13.0"
 glam = { version = "0.30.10", features = ["approx", "serde"] }
 clap = { version = "4.5.51", features = ["derive"] }
 serde = { version = "1.0.228", features = ["derive"] }
+thin_trait_object = { path = "thirdparty/thin_trait_object-main-1703d03c32fc10cea50fbe2ec30cd69a387f6845" }

@@ -7,8 +7,8 @@ use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::extensions::{ExtensionList, extension_routines};
 use crate::io::{MapGeomFileIO, MapSourceFileIO, VersionedIOFormat};
 use crate::model::{MapGeomFile, MapSourceFile};
-use anyhow::{Context, Result, anyhow};
-use bspextifc::builders::map_source_builder::{Entity, MapSourceBuilder};
+use anyhow::{Context, Result};
+use bspextifc::builders::map_source_builder::Entity;
 use log::{debug, info};
 
 pub struct CompileArgs
@@ -75,20 +75,14 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 
 	info!("Parsing {}", ctx.input_path_metadata.full_path.display());
 
-	let builder: MapSourceBuilder =
-		extension_routines::parse_map(&extensions, &input_file, &map_format)
-			.with_context(|| "Failed to initiate map parsing")
-			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;
-
-	let parsed_entities: Vec<Entity> = builder.collect().map_err(|err| {
-		CompilerError::from_anyhow(
-			CompilerErrorCode::IoError,
-			anyhow!(
-				"Failed to parse map {}. {err}",
-				ctx.input_path_metadata.full_path.display()
-			),
-		)
-	})?;
+	let parsed_entities: Vec<Entity> = extension_routines::parse_map(
+		ctx.input_path_metadata.full_path.as_path(),
+		&extensions,
+		&input_file,
+		&map_format,
+	)
+	.with_context(|| "Failed to initiate map parsing")
+	.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;
 
 	let map_source: MapSourceFile =
 		MapSourceFile::create(parsed_entities, &ctx.compile_tuning_parameters);

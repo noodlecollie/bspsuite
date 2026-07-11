@@ -938,9 +938,7 @@ checksum = "df7f62577c25e07834649fc3b39fafdc597c0a3527dc1c60129201ccfcbaa50c"
 
 [[package]]
 name = "thin_trait_object"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8488bcadd543cb17d3e229b3faa86a2c920889ba7dfe2e477a8f8e77a427210"
+version = "1.1.902"
 dependencies = [
  "once_cell",
  "proc-macro2",

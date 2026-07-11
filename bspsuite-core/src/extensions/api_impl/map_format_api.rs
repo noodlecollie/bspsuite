@@ -1,13 +1,120 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 
-use bspextifc::builders::map_source_builder::MapSourceBuilder;
+use bspextifc::builders::map_source_builder::{BuilderError, Entity};
 use bspextifc::map_format_api;
-use bspextifc::map_format_api::internal::{ApiFfiTable, BuilderFfiTable};
-use bspextifc::map_format_api::internal::{create_map_format_api, create_map_source_builder_api};
+use bspextifc::map_format_api::MapFormatApi;
+use bspextifc::{
+	builders::map_source_builder::MapSourceBuilder, map_format_api::BoxedMapFormatApi,
+};
 use bspffi::types::{XCSlice, XCStr};
 use itertools::Itertools;
 use log::{debug, warn};
+
+struct MapFormatApiImpl<'l>
+{
+	extension_name: String,
+	formats: &'l mut HashMap<String, MapFormatDefinition>,
+}
+
+impl<'l> MapFormatApiImpl<'l>
+{
+	pub fn new(extension_name: &str, formats: &'l mut HashMap<String, MapFormatDefinition>)
+	-> Self
+	{
+		return Self {
+			extension_name: extension_name.to_owned(),
+			formats,
+		};
+	}
+}
+
+impl<'l> MapFormatApi for MapFormatApiImpl<'l>
+{
+	fn register_map_format(
+		&mut self,
+		format_name: &XCStr,
+		file_extensions: &XCSlice<XCStr>,
+		parse_fn: map_format_api::MapParseFn,
+	)
+	{
+		let format_name: &str = format_name.as_str();
+		let file_extensions: &[XCStr] = file_extensions.as_slice();
+
+		if file_extensions.is_empty()
+		{
+			warn!(
+				"Extension {} specified no file extensions for map format {format_name}. \
+				This format will be ignored.",
+				self.extension_name
+			);
+
+			return;
+		}
+
+		// We want to do a few things here:
+		// - Trim leading and trailing whitespace
+		// - Trim leading dots, in case people specify ".map" instead of "map"
+		// - Remove any items that end up being empty after these operations
+		// - Remove duplicates
+		let extension_strings: Vec<String> = file_extensions
+			.iter()
+			.map(|item| item.as_str().trim().trim_start_matches(".").to_string())
+			.filter(|item| !item.is_empty())
+			.unique()
+			.collect();
+
+		if extension_strings.is_empty()
+		{
+			warn!(
+				"After removing invalid file extensions, extension {} was left with no valid file extensions \
+				for map format {format_name}. This format will be ignored.",
+				self.extension_name
+			);
+
+			return;
+		}
+
+		if extension_strings.len() < file_extensions.len()
+		{
+			warn!(
+				"Extension {} provided {} empty, duplicated, or otherwise invalid file extensions for map format \
+				{format_name}. These will be ignored.",
+				self.extension_name,
+				file_extensions.len() - extension_strings.len()
+			);
+		}
+
+		if let Some(_) = self.formats.insert(
+			String::from(format_name),
+			MapFormatDefinition {
+				file_extensions: extension_strings,
+				parse_fn: MapParseCallback { parse_fn: parse_fn },
+			},
+		)
+		{
+			warn!(
+				"Overriding existing registration for extension {} map format \"{format_name}\"",
+				self.extension_name
+			);
+		}
+
+		if log::max_level() >= log::LevelFilter::Debug
+		{
+			let all_extensions: String = self
+				.formats
+				.get(format_name)
+				.unwrap()
+				.file_extensions
+				.join(", ");
+
+			debug!(
+				"Extension {} registered support for map format {format_name}, with \
+				file extensions: {all_extensions}",
+				self.extension_name
+			);
+		}
+	}
+}
 
 pub struct MapParseCallback
 {
@@ -44,12 +151,16 @@ impl Endpoint
 
 	pub fn register_map_formats(&mut self, extension_name: &str)
 	{
-		let api_impl: RefCell<ApiImpl> = RefCell::new(ApiImpl::new(extension_name));
-		let ffi_table: ApiFfiTable = ffi_impl::create_api_ffi_table(&api_impl);
-		let mut api: map_format_api::MapFormatApi = create_map_format_api(ffi_table);
+		let mut formats: HashMap<String, MapFormatDefinition> = HashMap::new();
 
-		(self.inner.register_map_formats)(&mut api);
-		self.map_formats = api_impl.into_inner().finish();
+		{
+			let mut api_impl: BoxedMapFormatApi =
+				BoxedMapFormatApi::new(MapFormatApiImpl::new(extension_name, &mut formats));
+
+			(self.inner.register_map_formats)(&mut api_impl);
+		}
+
+		self.map_formats = formats;
 	}
 
 	pub fn supports_map_format(&self, format_name: &str) -> bool
@@ -205,240 +316,10 @@ impl ApiImpl
 
 impl MapFormatDefinition
 {
-	pub fn parse_map(&self, data: &str) -> MapSourceBuilder
+	pub fn parse_map(&self, data: &str) -> Result<Vec<Entity>, BuilderError>
 	{
-		let builder_impl: RefCell<MapSourceBuilder> = RefCell::new(MapSourceBuilder::new());
-		let ffi_table: BuilderFfiTable = ffi_impl::create_builder_ffi_table(&builder_impl);
-		let mut builder_api: map_format_api::MapSourceBuilderApi =
-			create_map_source_builder_api(ffi_table);
-
-		(self.parse_fn.parse_fn)(&XCStr::new(data), &mut builder_api);
-		return builder_impl.into_inner();
-	}
-}
-
-mod ffi_impl
-{
-	use super::*;
-	use crate::extensions::api_impl::{LinkOpaqueToImpl, link_opaque_to_impl};
-	use bspextifc::builders::map_source_builder::{
-		IMapSourceBuilder, MapSourceBuilder as BuilderImpl,
-	};
-	use bspextifc::map_format_api::internal::{
-		ApiCtx, ApiFfiTable, ApiOpaqueContext, BuilderCtx, BuilderErrorCode, BuilderFfiTable,
-		BuilderOpaqueContext,
-	};
-	use bspextifc::types::{DPlane3, DVec2, DVec3};
-	use bspffi::types::XCOption;
-	use bspffi::types::internal::ContextPtr;
-
-	link_opaque_to_impl!(ApiOpaqueContext, ApiImpl);
-	link_opaque_to_impl!(BuilderOpaqueContext, BuilderImpl);
-
-	pub(super) fn create_api_ffi_table<'l>(api_impl: &'l RefCell<ApiImpl>) -> ApiFfiTable<'l>
-	{
-		return ApiFfiTable {
-			context: ApiCtx::new_context(api_impl),
-			register_map_format_fn: register_map_format,
-		};
-	}
-
-	pub(super) fn create_builder_ffi_table<'l>(
-		api_impl: &'l RefCell<BuilderImpl>,
-	) -> BuilderFfiTable<'l>
-	{
-		return BuilderFfiTable {
-			context: BuilderCtx::new_context(api_impl),
-			set_failure: set_failure,
-			set_failure_with_location: set_failure_with_location,
-			begin_entity: begin_entity,
-			end_entity: end_entity,
-			add_entity_keyvalue: add_entity_keyvalue,
-			begin_brush: begin_brush,
-			end_brush: end_brush,
-			begin_brush_face: begin_brush_face,
-			end_brush_face: end_brush_face,
-			set_brush_face_plane: set_brush_face_plane,
-			set_brush_face_material: set_brush_face_material,
-			set_brush_face_material_axes: set_brush_face_material_axes,
-			set_brush_face_material_translation: set_brush_face_material_translation,
-			set_brush_face_material_scale: set_brush_face_material_scale,
-			current_entity_index: current_entity_index,
-			current_brush_index: current_brush_index,
-			current_brush_face_index: current_brush_face_index,
-			num_entities: num_entities,
-			num_current_brushes: num_current_brushes,
-			num_current_brush_faces: num_current_brush_faces,
-		};
-	}
-
-	unsafe extern "C" fn register_map_format(
-		context: &mut ApiCtx,
-		format_name: &XCStr,
-		file_extensions: &XCSlice<XCStr>,
-		parse_fn: map_format_api::MapParseFn,
-	)
-	{
-		context.to_impl().borrow_mut().register_map_format(
-			format_name.to_string().as_ref(),
-			file_extensions.as_slice(),
-			parse_fn,
-		);
-	}
-
-	unsafe extern "C" fn set_failure(context: &mut BuilderCtx, description: &XCStr)
-	{
-		context
-			.to_impl()
-			.borrow_mut()
-			.set_failure(description.to_string());
-	}
-
-	unsafe extern "C" fn set_failure_with_location(
-		context: &mut BuilderCtx,
-		line: usize,
-		column: usize,
-		description: &XCStr,
-	)
-	{
-		context.to_impl().borrow_mut().set_failure_with_location(
-			line,
-			column,
-			description.to_string(),
-		);
-	}
-
-	unsafe extern "C" fn begin_entity(context: &mut BuilderCtx) -> BuilderErrorCode
-	{
-		return context.to_impl().borrow_mut().begin_entity().into();
-	}
-
-	unsafe extern "C" fn end_entity(context: &mut BuilderCtx) -> BuilderErrorCode
-	{
-		return context.to_impl().borrow_mut().end_entity().into();
-	}
-
-	unsafe extern "C" fn add_entity_keyvalue(
-		context: &mut BuilderCtx,
-		key: &XCStr,
-		value: &XCStr,
-	) -> BuilderErrorCode
-	{
-		return context
-			.to_impl()
-			.borrow_mut()
-			.add_entity_keyvalue(key.to_string(), value.to_string())
-			.into();
-	}
-
-	unsafe extern "C" fn begin_brush(context: &mut BuilderCtx) -> BuilderErrorCode
-	{
-		return context.to_impl().borrow_mut().begin_brush().into();
-	}
-
-	unsafe extern "C" fn end_brush(context: &mut BuilderCtx) -> BuilderErrorCode
-	{
-		return context.to_impl().borrow_mut().end_brush().into();
-	}
-
-	unsafe extern "C" fn begin_brush_face(context: &mut BuilderCtx) -> BuilderErrorCode
-	{
-		return context.to_impl().borrow_mut().begin_brush_face().into();
-	}
-
-	unsafe extern "C" fn end_brush_face(context: &mut BuilderCtx) -> BuilderErrorCode
-	{
-		return context.to_impl().borrow_mut().end_brush_face().into();
-	}
-
-	unsafe extern "C" fn set_brush_face_plane(
-		context: &mut BuilderCtx,
-		plane: DPlane3,
-	) -> BuilderErrorCode
-	{
-		return context
-			.to_impl()
-			.borrow_mut()
-			.set_brush_face_plane(plane)
-			.into();
-	}
-
-	unsafe extern "C" fn set_brush_face_material(
-		context: &mut BuilderCtx,
-		material_name: &XCStr,
-	) -> BuilderErrorCode
-	{
-		return context
-			.to_impl()
-			.borrow_mut()
-			.set_brush_face_material(material_name.to_string())
-			.into();
-	}
-
-	unsafe extern "C" fn set_brush_face_material_axes(
-		context: &mut BuilderCtx,
-		u_unit_axis: DVec3,
-		v_unit_axis: DVec3,
-	) -> BuilderErrorCode
-	{
-		return context
-			.to_impl()
-			.borrow_mut()
-			.set_brush_face_material_axes(u_unit_axis, v_unit_axis)
-			.into();
-	}
-
-	unsafe extern "C" fn set_brush_face_material_translation(
-		context: &mut BuilderCtx,
-		translation: DVec2,
-	) -> BuilderErrorCode
-	{
-		return context
-			.to_impl()
-			.borrow_mut()
-			.set_brush_face_material_translation(translation)
-			.into();
-	}
-
-	unsafe extern "C" fn set_brush_face_material_scale(
-		context: &mut BuilderCtx,
-		scale: DVec2,
-	) -> BuilderErrorCode
-	{
-		return context
-			.to_impl()
-			.borrow_mut()
-			.set_brush_face_material_scale(scale)
-			.into();
-	}
-
-	unsafe extern "C" fn current_entity_index(context: &BuilderCtx) -> XCOption<usize>
-	{
-		return context.to_impl().borrow().current_entity_index().into();
-	}
-
-	unsafe extern "C" fn current_brush_index(context: &BuilderCtx) -> XCOption<usize>
-	{
-		return context.to_impl().borrow().current_brush_index().into();
-	}
-
-	unsafe extern "C" fn current_brush_face_index(context: &BuilderCtx) -> XCOption<usize>
-	{
-		return context.to_impl().borrow().current_brush_face_index().into();
-	}
-
-	unsafe extern "C" fn num_entities(context: &BuilderCtx) -> usize
-	{
-		return context.to_impl().borrow().num_entities();
-	}
-
-	unsafe extern "C" fn num_current_brushes(context: &BuilderCtx) -> usize
-	{
-		return context.to_impl().borrow().num_current_brushes();
-	}
-
-	unsafe extern "C" fn num_current_brush_faces(context: &BuilderCtx) -> usize
-	{
-		return context.to_impl().borrow().num_current_brush_faces();
+		return MapSourceBuilder::run(|mut builder| {
+			(self.parse_fn.parse_fn)(&XCStr::new(data), &mut builder);
+		});
 	}
 }

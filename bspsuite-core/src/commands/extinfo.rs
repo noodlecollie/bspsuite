@@ -64,11 +64,6 @@ fn get_map_formats(extension: &mut Extension) -> Vec<String>
 	let name: String = extension.get_name().to_string();
 	let api_endpoints: &mut ApiEndpoints = extension.get_api_endpoints_mut();
 
-	if let Some(dummy_api) = &api_endpoints.dummy_api
-	{
-		dummy_api.call_entry_point();
-	}
-
 	if let Some(map_format_api) = &mut api_endpoints.map_format_api
 	{
 		map_format_api.register_map_formats(&name);

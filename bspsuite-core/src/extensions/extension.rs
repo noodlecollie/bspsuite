@@ -1,18 +1,18 @@
-use crate::extensions::api_impl::dummy_api::DummyApiEndpoint;
-use crate::extensions::api_impl::{dummy_api_impl, log_api_impl, map_format_api_impl};
+use std::cell::{BorrowError, BorrowMutError, Ref, RefCell, RefMut};
+use std::path::PathBuf;
+
+use super::api_impl::{ExportedApis, ProbeApiImpl};
+use crate::extensions::api_impl::map_format_api_impl;
 use anyhow::{Context, Result};
 use anyhow::{bail, ensure};
-use bspextifc::probe_api::ProbeResult;
-use bspextifc::probe_api::internal::{ApiProvider, CallbacksContainer, ExportedApis};
+use bspextifc::probe_api;
+use bspextifc::probe_api::{BoxedProbeApi, ProbeResult};
 use bspextifc::{
 	EXTENSION_INFO_VERSION, FFI_VERSION, SYMBOL_EXTENSION_INFO, SYMBOL_EXTENSION_INFO_VERSION,
 };
 use bspextifc::{ExtensionInfo, ExtensionInfoVersionType};
-use bspextifc::{dummy_api, log_api, map_format_api, probe_api};
 use libloading::{Library, Symbol};
 use log::{debug, trace};
-use std::cell::{BorrowError, BorrowMutError, Ref, RefCell, RefMut};
-use std::path::PathBuf;
 use target_lexicon::{HOST, OperatingSystem};
 
 #[cfg(target_os = "linux")]
@@ -22,7 +22,6 @@ use libloading::os::windows::Symbol as UnsafeSymbol;
 
 pub struct ApiEndpoints
 {
-	pub dummy_api: Option<DummyApiEndpoint>,
 	pub map_format_api: Option<map_format_api_impl::Endpoint>,
 }
 
@@ -31,7 +30,6 @@ impl Default for ApiEndpoints
 	fn default() -> Self
 	{
 		return Self {
-			dummy_api: None,
 			map_format_api: None,
 		};
 	}
@@ -150,13 +148,13 @@ impl Extension
 		let ffi_api_version: u64 = extension_info.ffi_version;
 
 		trace!(
-			"Extension {} reported FFI version {ffi_api_version}, probe API version {probe_api_version}",
+			"Extension {} reported FFI version {ffi_api_version:0>6}, probe API version {probe_api_version}",
 			path.to_str().unwrap()
 		);
 
 		ensure!(
 			ffi_api_version == FFI_VERSION,
-			"Required FFI version {FFI_VERSION}, but extension provided FFI version {ffi_api_version}.",
+			"Required FFI version {FFI_VERSION:0>6}, but extension provided FFI version {ffi_api_version:0>6}.",
 		);
 
 		ensure!(
@@ -210,15 +208,9 @@ impl Extension
 		let callbacks: ExportedApis = self.probe_and_return_callbacks()?;
 
 		let api_endpoints: ApiEndpoints = ApiEndpoints {
-			dummy_api: callbacks
-				.dummy_callbacks
-				.take()
-				.into_option()
-				.map(|cb| dummy_api_impl::DummyApiEndpoint::new(cb)),
 			map_format_api: callbacks
 				.map_format_callbacks
 				.take()
-				.into_option()
 				.map(|cb| map_format_api_impl::Endpoint::new(cb)),
 		};
 
@@ -228,27 +220,20 @@ impl Extension
 
 	fn probe_and_return_callbacks(&self) -> Result<ExportedApis>
 	{
-		let mut exported_apis: ExportedApis = Extension::create_exported_apis();
-		let mut probe: probe_api::ProbeApi =
-			probe_api::internal::create_probe_api(&self.name, &mut exported_apis);
+		let mut exported_apis: ExportedApis = ExportedApis::new();
 
-		let probe_result: ProbeResult = (self.extension_info.probe_fn)(&mut probe);
-
-		if let ProbeResult::Failure = probe_result
 		{
-			bail!("Extension {} failed probe call", self.name);
+			let mut probe: BoxedProbeApi =
+				BoxedProbeApi::new(ProbeApiImpl::new(&self.name, &mut exported_apis));
+			let probe_result: ProbeResult = (self.extension_info.probe_fn)(&mut probe);
+
+			if let ProbeResult::Failure = probe_result
+			{
+				bail!("Extension {} failed probe call", self.name);
+			}
 		}
 
 		return Ok(exported_apis);
-	}
-
-	fn create_exported_apis() -> ExportedApis
-	{
-		return ExportedApis {
-			log_api: ApiProvider::new(&log_api::API_INFO, log_api_impl::create_api()),
-			dummy_callbacks: CallbacksContainer::new(&dummy_api::API_INFO),
-			map_format_callbacks: CallbacksContainer::new(&map_format_api::API_INFO),
-		};
 	}
 
 	fn compute_library_name(filename_stem: &str) -> String

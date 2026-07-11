@@ -7,7 +7,7 @@ mod build_generated;
 pub mod builders;
 pub mod types;
 
-pub use apis::{ApiInfo, dummy_api, log_api, map_format_api, probe_api};
+pub use apis::{ApiInfo, log_api, map_format_api, probe_api};
 
 /// Struct whose sole responsibility is to expose a versioned entry point API to
 /// users of an extension.
@@ -16,7 +16,7 @@ pub struct ExtensionInfo
 {
 	pub ffi_version: u64,
 	pub probe_api_version: usize,
-	pub probe_fn: probe_api::ExtFnProbe,
+	pub probe_fn: probe_api::ProbeExtensionFn,
 }
 
 /// Name of the library symbol that exposes the extension's interface

@@ -4,8 +4,9 @@ use std::path::Path;
 
 use crate::extensions::api_impl::map_format_api;
 use crate::extensions::{Extension, ExtensionList, ExtensionRef};
-use anyhow::{Context, Result, bail};
-use bspextifc::builders::map_source_builder::MapSourceBuilder;
+use crate::{CompilerError, CompilerErrorCode};
+use anyhow::{Context, Result, anyhow, bail};
+use bspextifc::builders::map_source_builder::Entity;
 
 pub struct ExtensionForParsingMapFormat
 {
@@ -49,10 +50,11 @@ pub fn choose_extension_to_parse_map(
 // should have been produced by a previous call to
 // choose_extension_to_parse_map().
 pub fn parse_map(
+	full_path: &Path,
 	list: &ExtensionList,
 	input_data: &str,
 	parse_using: &ExtensionForParsingMapFormat,
-) -> Result<MapSourceBuilder>
+) -> Result<Vec<Entity>, CompilerError>
 {
 	let extension: &ExtensionRef = list
 		.find_by_name(&parse_using.extension_name)
@@ -60,7 +62,8 @@ pub fn parse_map(
 
 	let ext_mut_ref: RefMut<Extension> = extension
 		.get_extension_mut()
-		.with_context(|| "Failed to acquire mutable reference to extension")?;
+		.with_context(|| "Failed to acquire mutable reference to extension")
+		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;
 
 	let map_format_api: &map_format_api::Endpoint = ext_mut_ref
 		.get_api_endpoints()
@@ -72,7 +75,12 @@ pub fn parse_map(
 		.get_definition(&parse_using.map_format_name)
 		.expect("Expected to be able to get map format definition to parse map");
 
-	return Ok(map_format_def.parse_map(input_data));
+	return map_format_def.parse_map(input_data).map_err(|err| {
+		CompilerError::from_anyhow(
+			CompilerErrorCode::IoError,
+			anyhow!("Failed to parse map {}. {err}", full_path.display()),
+		)
+	});
 }
 
 fn choose_extension_to_parse_map_based_on_file_extension(

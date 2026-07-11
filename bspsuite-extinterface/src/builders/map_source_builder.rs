@@ -1,8 +1,13 @@
-use crate::types::{DPlane3, DVec2, DVec3};
-use log::trace;
+use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use std::ops::{Deref, DerefMut};
+
+use crate::types::{DPlane3, DVec2, DVec3};
+use bspffi::types::{XCOption, XCStr};
+use log::trace;
+use thin_trait_object::thin_trait_object;
 
 #[derive(Debug, PartialEq)]
 pub enum OperationError
@@ -12,9 +17,38 @@ pub enum OperationError
 
 	/// A previous operation had not been completed before starting a new one.
 	OperationNotFinished,
+
+	/// A previous operation failed, prohibiting others from taking place.
+	OperationFailed,
 }
 
-#[derive(Debug)]
+pub enum BuilderResult
+{
+	Entities(Vec<Entity>),
+	Failure(BuilderError),
+}
+
+impl Default for BuilderResult
+{
+	fn default() -> Self
+	{
+		return Self::Entities(Vec::new());
+	}
+}
+
+impl From<BuilderResult> for Result<Vec<Entity>, BuilderError>
+{
+	fn from(value: BuilderResult) -> Self
+	{
+		return match value
+		{
+			BuilderResult::Entities(entities) => Ok(entities),
+			BuilderResult::Failure(error) => Err(error),
+		};
+	}
+}
+
+#[derive(Debug, Clone)]
 pub struct BuilderError
 {
 	pub line: usize,
@@ -51,21 +85,27 @@ impl Error for BuilderError
 /// properties will remain at their defaults. It is the responsibility of the
 /// CSG phase of map compliation to check whether the resulting geometry
 /// produced by the map source builder is valid.
-pub trait IMapSourceBuilder
+#[thin_trait_object(drop_abi = "C")]
+pub trait MapSourceBuilderApi
 {
-	/// Sets a failure state on the builder, including the line and column in
-	/// the input where the failure occurred.
-	///
-	/// Regardless of which components have been added by other function calls,
-	/// the build will be considered to have failed if this function is called.
-	fn set_failure(&mut self, description: String);
+	/// Instructs the builder that the build process has finished. If this is
+	/// not called, the result of the build process is considered to be
+	/// OperationNotFinished.
+	fn finish(&mut self);
 
 	/// Sets a failure state on the builder, including the line and column in
 	/// the input where the failure occurred.
 	///
 	/// Regardless of which components have been added by other function calls,
 	/// the build will be considered to have failed if this function is called.
-	fn set_failure_with_location(&mut self, line: usize, column: usize, description: String);
+	fn set_failure(&mut self, description: XCStr);
+
+	/// Sets a failure state on the builder, including the line and column in
+	/// the input where the failure occurred.
+	///
+	/// Regardless of which components have been added by other function calls,
+	/// the build will be considered to have failed if this function is called.
+	fn set_failure_with_location(&mut self, line: usize, column: usize, description: XCStr);
 
 	/// Begins construction of an entity. Must be paired with [end_entity].
 	///
@@ -85,7 +125,7 @@ pub trait IMapSourceBuilder
 	/// If [begin_entity] has not previously been called, returns
 	/// [BuilderError::OperationNotStarted]. If there is any current unfinished
 	/// brush or face, returns [BuilderError::OperationNotFinished].
-	fn add_entity_keyvalue(&mut self, key: String, value: String) -> Result<(), OperationError>;
+	fn add_entity_keyvalue(&mut self, key: XCStr, value: XCStr) -> Result<(), OperationError>;
 
 	/// Begins a brush within the current entity. Must be paired with
 	/// [end_brush].
@@ -126,7 +166,7 @@ pub trait IMapSourceBuilder
 	///
 	/// If there is no current face, returns
 	/// [BuilderError::OperationNotStarted].
-	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), OperationError>;
+	fn set_brush_face_material(&mut self, material_name: XCStr) -> Result<(), OperationError>;
 
 	/// Sets the material axes for the current brush face.
 	///
@@ -155,15 +195,15 @@ pub trait IMapSourceBuilder
 
 	/// Gets the index of the current entity, or None if there is no current
 	/// entity.
-	fn current_entity_index(&self) -> Option<usize>;
+	fn current_entity_index(&self) -> XCOption<usize>;
 
 	/// Gets the index of the current brush in the current entity, or None if
 	/// there is no current brush or entity.
-	fn current_brush_index(&self) -> Option<usize>;
+	fn current_brush_index(&self) -> XCOption<usize>;
 
 	/// Gets the index of the current face in the current brush and entity, or
 	/// None if there is no current face, brush or entity.
-	fn current_brush_face_index(&self) -> Option<usize>;
+	fn current_brush_face_index(&self) -> XCOption<usize>;
 
 	/// Gets the total number of entities, including any currently unfinished
 	/// ones.
@@ -234,63 +274,102 @@ impl Entity
 	}
 }
 
-pub struct MapSourceBuilder
+// This struct is implemented in this crate so that extensions can use it to
+// build their own tests for parsing the map formats they support. This
+// implementation is used in the core compiler crate too.
+pub struct MapSourceBuilder<'l>
 {
-	entities: Vec<Entity>,
+	result: RefMut<'l, BuilderResult>,
 	current_entity: Option<Entity>,
 	current_brush: Option<Brush>,
 	current_face: Option<BrushFace>,
-	failure: Option<BuilderError>,
 }
 
-impl MapSourceBuilder
+impl<'l> MapSourceBuilder<'l>
 {
-	pub fn new() -> Self
+	pub fn new(mut result_ref: RefMut<'l, BuilderResult>) -> Self
 	{
+		*result_ref = BuilderResult::default();
+
 		return Self {
-			entities: Vec::new(),
+			result: result_ref,
 			current_entity: None,
 			current_brush: None,
 			current_face: None,
-			failure: None,
 		};
 	}
 
-	pub fn collect(self) -> Result<Vec<Entity>, BuilderError>
+	pub fn run<Closure>(closure: Closure) -> Result<Vec<Entity>, BuilderError>
+	where
+		Closure: FnOnce(BoxedMapSourceBuilderApi),
 	{
-		if self.failure.is_some()
-		{
-			return Err(self.failure.unwrap());
-		}
+		let result: RefCell<BuilderResult> = RefCell::new(BuilderResult::default());
 
-		if self.current_entity.is_some()
-			|| self.current_brush.is_some()
-			|| self.current_face.is_some()
-		{
-			return Err(BuilderError {
-				line: 1,
-				column: 0,
-				description: "An operation was left unfinished".to_owned(),
-			});
-		}
+		closure(BoxedMapSourceBuilderApi::new(MapSourceBuilder::new(
+			result.borrow_mut(),
+		)));
 
-		return Ok(self.entities);
+		return result.into_inner().into();
 	}
 }
 
-impl IMapSourceBuilder for MapSourceBuilder
+impl<'l> Drop for MapSourceBuilder<'l>
 {
-	fn set_failure(&mut self, description: String)
+	fn drop(&mut self)
+	{
+		self.finish();
+	}
+}
+
+impl<'l> MapSourceBuilderApi for MapSourceBuilder<'l>
+{
+	fn finish(&mut self)
+	{
+		match self.result.deref()
+		{
+			BuilderResult::Failure(_) => return,
+			BuilderResult::Entities(_) =>
+			{
+				let name: Option<&str> = if self.current_face.is_some()
+				{
+					Some("Face")
+				}
+				else if self.current_brush.is_some()
+				{
+					Some("Brush")
+				}
+				else if self.current_entity.is_some()
+				{
+					Some("Entity")
+				}
+				else
+				{
+					None
+				};
+
+				if let Some(name) = name
+				{
+					*self.result = BuilderResult::Failure(BuilderError {
+						line: 1,
+						column: 0,
+						description: format!("{name} creation operation was not terminated"),
+					});
+				}
+			}
+		};
+	}
+
+	fn set_failure(&mut self, description: XCStr)
 	{
 		self.set_failure_with_location(1, 0, description);
 	}
 
-	fn set_failure_with_location(&mut self, line: usize, column: usize, description: String)
+	fn set_failure_with_location(&mut self, line: usize, column: usize, description: XCStr)
 	{
-		self.failure = Some(BuilderError {
+		*self.result = BuilderResult::Failure(BuilderError {
 			line: line,
 			column: column,
-			description: description,
+			description: description.into(),
 		});
 	}
 
@@ -304,13 +383,21 @@ impl IMapSourceBuilder for MapSourceBuilder
 		}
 
 		self.current_entity = Some(Entity::new());
-		trace!("Begin entity {}", self.current_entity_index().unwrap());
+		trace!(
+			"Begin entity {}",
+			self.current_entity_index().into_option().unwrap()
+		);
 
 		return Ok(());
 	}
 
 	fn end_entity(&mut self) -> Result<(), OperationError>
 	{
+		if let BuilderResult::Failure(_) = self.result.deref()
+		{
+			return Err(OperationError::OperationFailed);
+		}
+
 		if self.current_entity.is_none()
 		{
 			return Err(OperationError::OperationNotStarted);
@@ -321,13 +408,23 @@ impl IMapSourceBuilder for MapSourceBuilder
 			return Err(OperationError::OperationNotFinished);
 		}
 
-		trace!("End entity {}", self.current_entity_index().unwrap());
-		self.entities.push(self.current_entity.take().unwrap());
+		trace!(
+			"End entity {}",
+			self.current_entity_index().into_option().unwrap()
+		);
 
-		return Ok(());
+		match self.result.deref_mut()
+		{
+			BuilderResult::Entities(entities) =>
+			{
+				entities.push(self.current_entity.take().unwrap());
+				return Ok(());
+			}
+			BuilderResult::Failure(_) => unreachable!(),
+		}
 	}
 
-	fn add_entity_keyvalue(&mut self, key: String, value: String) -> Result<(), OperationError>
+	fn add_entity_keyvalue(&mut self, key: XCStr, value: XCStr) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 		{
@@ -341,16 +438,16 @@ impl IMapSourceBuilder for MapSourceBuilder
 
 		trace!(
 			"Add entity {} keyvalue: \"{}\" = \"{}\"",
-			self.current_entity_index().unwrap(),
-			key,
-			value
+			self.current_entity_index().into_option().unwrap(),
+			key.as_str(),
+			value.as_str()
 		);
 
 		self.current_entity
 			.as_mut()
 			.unwrap()
 			.keyvalues
-			.insert(key, value);
+			.insert(key.into(), value.into());
 
 		return Ok(());
 	}
@@ -368,7 +465,10 @@ impl IMapSourceBuilder for MapSourceBuilder
 		}
 
 		self.current_brush = Some(Brush::new());
-		trace!("Begin entity brush {}", self.current_brush_index().unwrap());
+		trace!(
+			"Begin entity brush {}",
+			self.current_brush_index().into_option().unwrap()
+		);
 
 		return Ok(());
 	}
@@ -385,7 +485,10 @@ impl IMapSourceBuilder for MapSourceBuilder
 			return Err(OperationError::OperationNotStarted);
 		}
 
-		trace!("End entity brush {}", self.current_brush_index().unwrap());
+		trace!(
+			"End entity brush {}",
+			self.current_brush_index().into_option().unwrap()
+		);
 
 		self.current_entity
 			.as_mut()
@@ -411,7 +514,7 @@ impl IMapSourceBuilder for MapSourceBuilder
 		self.current_face = Some(BrushFace::new());
 		trace!(
 			"Begin entity brush face {}",
-			self.current_brush_face_index().unwrap()
+			self.current_brush_face_index().into_option().unwrap()
 		);
 
 		return Ok(());
@@ -428,7 +531,7 @@ impl IMapSourceBuilder for MapSourceBuilder
 
 		trace!(
 			"End entity brush face {}",
-			self.current_brush_face_index().unwrap()
+			self.current_brush_face_index().into_option().unwrap()
 		);
 
 		self.current_brush
@@ -451,7 +554,7 @@ impl IMapSourceBuilder for MapSourceBuilder
 
 		trace!(
 			"Set face {} plane: {:?}",
-			self.current_brush_face_index().unwrap(),
+			self.current_brush_face_index().into_option().unwrap(),
 			plane
 		);
 
@@ -459,7 +562,7 @@ impl IMapSourceBuilder for MapSourceBuilder
 		return Ok(());
 	}
 
-	fn set_brush_face_material(&mut self, material_name: String) -> Result<(), OperationError>
+	fn set_brush_face_material(&mut self, material_name: XCStr) -> Result<(), OperationError>
 	{
 		if self.current_entity.is_none()
 			|| self.current_brush.is_none()
@@ -470,11 +573,11 @@ impl IMapSourceBuilder for MapSourceBuilder
 
 		trace!(
 			"Set face {} material: {}",
-			self.current_brush_face_index().unwrap(),
-			material_name
+			self.current_brush_face_index().into_option().unwrap(),
+			material_name.as_str()
 		);
 
-		self.current_face.as_mut().unwrap().material_name = material_name;
+		self.current_face.as_mut().unwrap().material_name = material_name.into();
 		return Ok(());
 	}
 
@@ -493,7 +596,7 @@ impl IMapSourceBuilder for MapSourceBuilder
 
 		trace!(
 			"Set face {} material axes: ({:?}, {:?})",
-			self.current_brush_face_index().unwrap(),
+			self.current_brush_face_index().into_option().unwrap(),
 			u_unit_axis,
 			v_unit_axis
 		);
@@ -518,7 +621,7 @@ impl IMapSourceBuilder for MapSourceBuilder
 
 		trace!(
 			"Set face {} material translation: {:?}",
-			self.current_brush_face_index().unwrap(),
+			self.current_brush_face_index().into_option().unwrap(),
 			translation
 		);
 
@@ -539,7 +642,7 @@ impl IMapSourceBuilder for MapSourceBuilder
 
 		trace!(
 			"Set face {} material scale: {:?}",
-			self.current_brush_face_index().unwrap(),
+			self.current_brush_face_index().into_option().unwrap(),
 			scale
 		);
 
@@ -549,30 +652,47 @@ impl IMapSourceBuilder for MapSourceBuilder
 		return Ok(());
 	}
 
-	fn current_entity_index(&self) -> Option<usize>
+	fn current_entity_index(&self) -> XCOption<usize>
 	{
-		return self.current_entity.as_ref().map(|_| self.entities.len());
+		return if self.current_entity.is_some()
+			&& let BuilderResult::Entities(entities) = self.result.deref()
+		{
+			entities.len().into()
+		}
+		else
+		{
+			XCOption::None
+		};
 	}
 
-	fn current_brush_index(&self) -> Option<usize>
+	fn current_brush_index(&self) -> XCOption<usize>
 	{
 		return self
 			.current_brush
 			.as_ref()
-			.map(|_| self.current_entity.as_ref().unwrap().brushes.len());
+			.map(|_| self.current_entity.as_ref().unwrap().brushes.len())
+			.into();
 	}
 
-	fn current_brush_face_index(&self) -> Option<usize>
+	fn current_brush_face_index(&self) -> XCOption<usize>
 	{
 		return self
 			.current_face
 			.as_ref()
-			.map(|_| self.current_brush.as_ref().unwrap().faces.len());
+			.map(|_| self.current_brush.as_ref().unwrap().faces.len())
+			.into();
 	}
 
 	fn num_entities(&self) -> usize
 	{
-		return self.entities.len() + self.current_entity.as_ref().map_or(0, |_| 1);
+		return match self.result.deref()
+		{
+			BuilderResult::Entities(entities) =>
+			{
+				entities.len() + self.current_entity.as_ref().map_or(0, |_| 1)
+			}
+			BuilderResult::Failure(_) => 0,
+		};
 	}
 
 	fn num_current_brushes(&self) -> usize
@@ -596,79 +716,97 @@ mod tests
 	use super::*;
 
 	#[test]
+	fn drop_trait_calls_finish()
+	{
+		// First check when we call finish ourselves
+		let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.end_entity(), Ok(()));
+			builder.finish();
+		});
+
+		assert_eq!(result.expect("Expected no failure").len(), 1);
+
+		// Then check when we let the Drop trait do it
+		let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.end_entity(), Ok(()));
+		});
+
+		assert_eq!(result.expect("Expected no failure").len(), 1);
+	}
+
+	#[test]
 	fn error_on_operations_not_started()
 	{
 		// No current entity
 		{
-			let mut builder = MapSourceBuilder::new();
-			assert_eq!(
-				builder.end_entity(),
-				Err(OperationError::OperationNotStarted)
-			);
-			assert_eq!(
-				builder.begin_brush(),
-				Err(OperationError::OperationNotStarted)
-			);
-			assert_eq!(
-				builder.end_brush(),
-				Err(OperationError::OperationNotStarted)
-			);
-			assert_eq!(
-				builder.begin_brush_face(),
-				Err(OperationError::OperationNotStarted)
-			);
-			assert_eq!(
-				builder.end_brush_face(),
-				Err(OperationError::OperationNotStarted)
-			);
+			let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+				assert_eq!(
+					builder.end_entity(),
+					Err(OperationError::OperationNotStarted)
+				);
+				assert_eq!(
+					builder.begin_brush(),
+					Err(OperationError::OperationNotStarted)
+				);
+				assert_eq!(
+					builder.end_brush(),
+					Err(OperationError::OperationNotStarted)
+				);
+				assert_eq!(
+					builder.begin_brush_face(),
+					Err(OperationError::OperationNotStarted)
+				);
+				assert_eq!(
+					builder.end_brush_face(),
+					Err(OperationError::OperationNotStarted)
+				);
+			});
 
-			let entities = builder.collect();
-			assert!(entities.is_ok());
-			assert_eq!(entities.as_ref().unwrap().len(), 0);
+			assert_eq!(result.expect("Expected no failure").len(), 0);
 		}
 
 		// No current brush
 		{
-			let mut builder = MapSourceBuilder::new();
-			assert_eq!(builder.begin_entity(), Ok(()));
+			let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+				assert_eq!(builder.begin_entity(), Ok(()));
+
+				assert_eq!(
+					builder.end_brush(),
+					Err(OperationError::OperationNotStarted)
+				);
+				assert_eq!(
+					builder.begin_brush_face(),
+					Err(OperationError::OperationNotStarted)
+				);
+				assert_eq!(
+					builder.end_brush_face(),
+					Err(OperationError::OperationNotStarted)
+				);
+			});
 
 			assert_eq!(
-				builder.end_brush(),
-				Err(OperationError::OperationNotStarted)
-			);
-			assert_eq!(
-				builder.begin_brush_face(),
-				Err(OperationError::OperationNotStarted)
-			);
-			assert_eq!(
-				builder.end_brush_face(),
-				Err(OperationError::OperationNotStarted)
-			);
-
-			let entities = builder.collect();
-			assert!(entities.is_err());
-			assert_eq!(
-				entities.unwrap_err().description,
-				"An operation was left unfinished"
+				result.expect_err("Expected a failure").description,
+				"Entity creation operation was not terminated"
 			);
 		}
 
 		// No current face
 		{
-			let mut builder = MapSourceBuilder::new();
-			assert_eq!(builder.begin_entity(), Ok(()));
-			assert_eq!(builder.begin_brush(), Ok(()));
+			let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+				assert_eq!(builder.begin_entity(), Ok(()));
+				assert_eq!(builder.begin_brush(), Ok(()));
+
+				assert_eq!(
+					builder.end_brush_face(),
+					Err(OperationError::OperationNotStarted)
+				);
+			});
 
 			assert_eq!(
-				builder.end_brush_face(),
-				Err(OperationError::OperationNotStarted)
-			);
-
-			let entities = builder.collect();
-			assert!(entities.is_err());
-			assert_eq!(
-				entities.unwrap_err().description,
-				"An operation was left unfinished"
+				result.expect_err("Expected a failure").description,
+				"Brush creation operation was not terminated"
 			);
 		}
 	}
@@ -678,102 +816,96 @@ mod tests
 	{
 		// Begin new entity without finishing previous entity
 		{
-			let mut builder = MapSourceBuilder::new();
-			assert_eq!(builder.begin_entity(), Ok(()));
+			let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+				assert_eq!(builder.begin_entity(), Ok(()));
+
+				assert_eq!(
+					builder.begin_entity(),
+					Err(OperationError::OperationNotFinished)
+				);
+			});
 
 			assert_eq!(
-				builder.begin_entity(),
-				Err(OperationError::OperationNotFinished)
-			);
-
-			let entities = builder.collect();
-			assert!(entities.is_err());
-			assert_eq!(
-				entities.unwrap_err().description,
-				"An operation was left unfinished"
+				result.expect_err("Expected a failure").description,
+				"Entity creation operation was not terminated"
 			);
 		}
 
 		// Begin new brush without finishing previous brush
 		{
-			let mut builder = MapSourceBuilder::new();
-			assert_eq!(builder.begin_entity(), Ok(()));
-			assert_eq!(builder.begin_brush(), Ok(()));
+			let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+				assert_eq!(builder.begin_entity(), Ok(()));
+				assert_eq!(builder.begin_brush(), Ok(()));
+
+				assert_eq!(
+					builder.begin_brush(),
+					Err(OperationError::OperationNotFinished)
+				);
+			});
 
 			assert_eq!(
-				builder.begin_brush(),
-				Err(OperationError::OperationNotFinished)
-			);
-
-			let entities = builder.collect();
-			assert!(entities.is_err());
-			assert_eq!(
-				entities.unwrap_err().description,
-				"An operation was left unfinished"
+				result.expect_err("Expected a failure").description,
+				"Brush creation operation was not terminated"
 			);
 		}
 
 		// Begin new face without finishing previous face
 		{
-			let mut builder = MapSourceBuilder::new();
-			assert_eq!(builder.begin_entity(), Ok(()));
-			assert_eq!(builder.begin_brush(), Ok(()));
-			assert_eq!(builder.begin_brush_face(), Ok(()));
+			let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+				assert_eq!(builder.begin_entity(), Ok(()));
+				assert_eq!(builder.begin_brush(), Ok(()));
+				assert_eq!(builder.begin_brush_face(), Ok(()));
+
+				assert_eq!(
+					builder.begin_brush_face(),
+					Err(OperationError::OperationNotFinished)
+				);
+			});
 
 			assert_eq!(
-				builder.begin_brush_face(),
-				Err(OperationError::OperationNotFinished)
-			);
-
-			let entities = builder.collect();
-			assert!(entities.is_err());
-			assert_eq!(
-				entities.unwrap_err().description,
-				"An operation was left unfinished"
+				result.expect_err("Expected a failure").description,
+				"Face creation operation was not terminated"
 			);
 		}
 
 		// Begin new entity without finishing brush
 		{
-			let mut builder = MapSourceBuilder::new();
-			assert_eq!(builder.begin_entity(), Ok(()));
-			assert_eq!(builder.begin_brush(), Ok(()));
+			let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+				assert_eq!(builder.begin_entity(), Ok(()));
+				assert_eq!(builder.begin_brush(), Ok(()));
+
+				assert_eq!(
+					builder.begin_entity(),
+					Err(OperationError::OperationNotFinished)
+				);
+			});
 
 			assert_eq!(
-				builder.begin_entity(),
-				Err(OperationError::OperationNotFinished)
-			);
-
-			let entities = builder.collect();
-			assert!(entities.is_err());
-			assert_eq!(
-				entities.unwrap_err().description,
-				"An operation was left unfinished"
+				result.expect_err("Expected a failure").description,
+				"Brush creation operation was not terminated"
 			);
 		}
 
 		// Begin new entity or brush without finishing face
 		{
-			let mut builder = MapSourceBuilder::new();
-			assert_eq!(builder.begin_entity(), Ok(()));
-			assert_eq!(builder.begin_brush(), Ok(()));
-			assert_eq!(builder.begin_brush_face(), Ok(()));
+			let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+				assert_eq!(builder.begin_entity(), Ok(()));
+				assert_eq!(builder.begin_brush(), Ok(()));
+				assert_eq!(builder.begin_brush_face(), Ok(()));
 
-			assert_eq!(
-				builder.begin_entity(),
-				Err(OperationError::OperationNotFinished)
-			);
+				assert_eq!(
+					builder.begin_entity(),
+					Err(OperationError::OperationNotFinished)
+				);
 
+				assert_eq!(
+					builder.begin_brush(),
+					Err(OperationError::OperationNotFinished)
+				);
+			});
 			assert_eq!(
-				builder.begin_brush(),
-				Err(OperationError::OperationNotFinished)
-			);
-
-			let entities = builder.collect();
-			assert!(entities.is_err());
-			assert_eq!(
-				entities.unwrap_err().description,
-				"An operation was left unfinished"
+				result.expect_err("Expected a failure").description,
+				"Face creation operation was not terminated"
 			);
 		}
 	}
@@ -781,23 +913,19 @@ mod tests
 	#[test]
 	fn construct_empty()
 	{
-		let builder = MapSourceBuilder::new();
-		let entities = builder.collect();
-		assert!(entities.is_ok());
-		assert_eq!(entities.as_ref().unwrap().len(), 0);
+		let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|_| {});
+		assert_eq!(result.expect("Expected no failure").len(), 0);
 	}
 
 	#[test]
 	fn construct_single_empty_entity()
 	{
-		let mut builder = MapSourceBuilder::new();
-		assert_eq!(builder.begin_entity(), Ok(()));
-		assert_eq!(builder.end_entity(), Ok(()));
+		let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.end_entity(), Ok(()));
+		});
 
-		let entities = builder.collect();
-		assert!(entities.is_ok());
-
-		let entities = entities.unwrap();
+		let entities: Vec<Entity> = result.expect("Expected no failure");
 		assert_eq!(entities.len(), 1);
 
 		let ent: &Entity = &entities[0];
@@ -808,16 +936,14 @@ mod tests
 	#[test]
 	fn construct_single_entity_and_empty_brush()
 	{
-		let mut builder = MapSourceBuilder::new();
-		assert_eq!(builder.begin_entity(), Ok(()));
-		assert_eq!(builder.begin_brush(), Ok(()));
-		assert_eq!(builder.end_brush(), Ok(()));
-		assert_eq!(builder.end_entity(), Ok(()));
+		let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.begin_brush(), Ok(()));
+			assert_eq!(builder.end_brush(), Ok(()));
+			assert_eq!(builder.end_entity(), Ok(()));
+		});
 
-		let entities = builder.collect();
-		assert!(entities.is_ok());
-
-		let entities = entities.unwrap();
+		let entities: Vec<Entity> = result.expect("Expected no failure");
 		assert_eq!(entities.len(), 1);
 
 		let ent: &Entity = &entities[0];
@@ -831,18 +957,16 @@ mod tests
 	#[test]
 	fn construct_single_entity_and_brush_with_single_face()
 	{
-		let mut builder = MapSourceBuilder::new();
-		assert_eq!(builder.begin_entity(), Ok(()));
-		assert_eq!(builder.begin_brush(), Ok(()));
-		assert_eq!(builder.begin_brush_face(), Ok(()));
-		assert_eq!(builder.end_brush_face(), Ok(()));
-		assert_eq!(builder.end_brush(), Ok(()));
-		assert_eq!(builder.end_entity(), Ok(()));
+		let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(builder.begin_brush(), Ok(()));
+			assert_eq!(builder.begin_brush_face(), Ok(()));
+			assert_eq!(builder.end_brush_face(), Ok(()));
+			assert_eq!(builder.end_brush(), Ok(()));
+			assert_eq!(builder.end_entity(), Ok(()));
+		});
 
-		let entities = builder.collect();
-		assert!(entities.is_ok());
-
-		let entities = entities.unwrap();
+		let entities: Vec<Entity> = result.expect("Expected no failure");
 		assert_eq!(entities.len(), 1);
 
 		let ent: &Entity = &entities[0];
@@ -870,36 +994,34 @@ mod tests
 		let face_scale = DVec2::new(1.0, 1.5);
 		let face_material = String::from("example_material");
 
-		let mut builder = MapSourceBuilder::new();
-		assert_eq!(builder.begin_entity(), Ok(()));
-		assert_eq!(
-			builder.add_entity_keyvalue("classname".to_owned(), "worldspawn".to_owned()),
-			Ok(())
-		);
-		assert_eq!(builder.begin_brush(), Ok(()));
-		assert_eq!(builder.begin_brush_face(), Ok(()));
-		assert_eq!(
-			builder.set_brush_face_material(face_material.clone()),
-			Ok(())
-		);
-		assert_eq!(builder.set_brush_face_plane(face_plane), Ok(()));
-		assert_eq!(
-			builder.set_brush_face_material_axes(face_axis_u, face_axis_v),
-			Ok(())
-		);
-		assert_eq!(
-			builder.set_brush_face_material_translation(face_translation),
-			Ok(())
-		);
-		assert_eq!(builder.set_brush_face_material_scale(face_scale), Ok(()));
-		assert_eq!(builder.end_brush_face(), Ok(()));
-		assert_eq!(builder.end_brush(), Ok(()));
-		assert_eq!(builder.end_entity(), Ok(()));
+		let result: Result<Vec<Entity>, BuilderError> = MapSourceBuilder::run(|mut builder| {
+			assert_eq!(builder.begin_entity(), Ok(()));
+			assert_eq!(
+				builder.add_entity_keyvalue("classname".into(), "worldspawn".into()),
+				Ok(())
+			);
+			assert_eq!(builder.begin_brush(), Ok(()));
+			assert_eq!(builder.begin_brush_face(), Ok(()));
+			assert_eq!(
+				builder.set_brush_face_material(face_material.as_str().into()),
+				Ok(())
+			);
+			assert_eq!(builder.set_brush_face_plane(face_plane), Ok(()));
+			assert_eq!(
+				builder.set_brush_face_material_axes(face_axis_u, face_axis_v),
+				Ok(())
+			);
+			assert_eq!(
+				builder.set_brush_face_material_translation(face_translation),
+				Ok(())
+			);
+			assert_eq!(builder.set_brush_face_material_scale(face_scale), Ok(()));
+			assert_eq!(builder.end_brush_face(), Ok(()));
+			assert_eq!(builder.end_brush(), Ok(()));
+			assert_eq!(builder.end_entity(), Ok(()));
+		});
 
-		let entities = builder.collect();
-		assert!(entities.is_ok());
-
-		let entities = entities.unwrap();
+		let entities: Vec<Entity> = result.expect("Expected no failure");
 		assert_eq!(entities.len(), 1);
 
 		let ent: &Entity = &entities[0];

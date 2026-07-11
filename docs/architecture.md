@@ -56,58 +56,8 @@ It would certainly be useful to leverage vector instructions for the compiler, p
 
 # Extension FFI
 
-**TODO:** In future this approach might be better replaced by https://docs.rs/thin_trait_object/latest/thin_trait_object/
+**TODO:** In future this approach might be better replaced by 
 
-A plugin-based system in Rust needs careful consideration regarding the exchange of data over the boundary between the plugin host (here, the compiler) and the plugin libraries (here, the extensions). After some experimentation, the general approach for extension calls across a library boundary is as follows.
+A plugin-based system in Rust needs careful consideration regarding the exchange of data over the boundary between the plugin host (here, the compiler) and the plugin libraries (here, the extensions). This project makes used of [thin_trait_object](https://docs.rs/thin_trait_object/latest/thin_trait_object/), which allows for creation of traits which can be called across shared library boundaries. These traits should be sure to make use of FFI-safe data types, some of which can be found in the `bspsuite-ffi` crate.
 
-## FfiTable
-
-The `FfiTable` is basically a struct containing a context pointer, and one or more `unsafe extern "C"` function pointers.
-
-```
-// In pseudo-Rust:
-FfiTable:
-	// Context passed to each function
-  context_ptr,
-
-  // Function 1, taking no other arguments, and returning nothing
-  extern "C" fn fptr_func1(context_ptr),
-
-  // Function 2, taking an additional i32 argument, and returning an i32
-  extern "C" fn fptr_func2(context_ptr, i32) -> i32,
-```
-
-The `FfiTable` for an API represents the set of functions implemented by `bspcore.dll` to support the API.
-
-Each of the function pointers stored in the `FfiTable` takes a context pointer as its first argument, similarly to `self` in normal Rust. This essentially allows the implementation of the function to act like a member function of a struct, where the struct data is stored opaquely in the context pointer.
-
-The `FfiTable` for an API is defined within an `internal` module for that API, to make it obvious that extensions should not use it directly.
-
-## ffi_impl
-
-Within `bspcore.dll`, the functions referenced in the `FfiTable` are implemented in a relevant submodule for the API, called `ffi_impl`. This keeps the boilerplate functions separate from the rest of the code.
-
-## Client Struct
-
-The extension code itself interacts with a given API using a "client struct" which presents the API. Internally, the client struct keeps a reference to the `FfiTable` for the API, and manages converting arguments and return values to and from FFI-safe types.
-
-The client struct is named after the API. It does not use a prefix on its type name to identify it, since as far as the extension is concerned, this struct is the main way with which to interact with the API.
-
-## Host Struct
-
-When `bspcore.dll` calls into an extension, it provides the extension with a reference to the relevant client struct for the API. When creating the `FfiTable` for the client struct to use, the context pointer is set to point to a "host struct". When an `ffi_impl` function is called from the `FfiTable`, the context pointer is translated back into a host struct pointer, and the relevant function on the host struct is called.
-
-The host struct is named after the API that it implements, except with a suffix of `Impl`. This easily distinguishes its type name from the type name of the client-facing struct type.
-
-## Call Sequence
-
-This is an example of calling a `dummy_action()` functon on an extension, and providing a `DummyApi` client struct for the extension to call into.
-
-1. Host constructs `DummyApiHost` struct.
-2. Host constructs `internal::FfiTable`, binding function pointers and setting context pointer to `DummyApiHost`.
-3. Host constructs `DummyApi` struct, providing a reference to `FfiTable`.
-4. Host calls `dummy_action()` on extension, passing a reference to `DummyApi` struct.
-5. Within `dummy_action()`, extension call `store_number(3)` on `DummyApi` struct.
-6. `DummyApi` struct calls `self.ffi_table.fptr_store_number(self.ffi_table.context_ptr, num_to_store)`.
-7. The `FFIImpl` function `store_number()` calls `(*context_ptr as DummyApiHost).store_number(num_to_store)`.
-8. After execution of `dummy_action()` has finished, the number `3` is stored in the `DummyApiHost` struct.
+Note that as of version `1.1.2` of `thin_trait_object`, there is a compilation issue which prohibits trait functions with more than one argument following `self`. For this reason, the repo has been added manually to this project, so that we can build off the `main` branch.
