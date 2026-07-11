@@ -16,7 +16,7 @@ pub struct ExtensionInfo
 {
 	pub ffi_version: u64,
 	pub probe_api_version: usize,
-	pub probe_fn: probe_api::ExtFnProbe,
+	pub probe_fn: probe_api::ProbeExtensionFn,
 }
 
 /// Name of the library symbol that exposes the extension's interface

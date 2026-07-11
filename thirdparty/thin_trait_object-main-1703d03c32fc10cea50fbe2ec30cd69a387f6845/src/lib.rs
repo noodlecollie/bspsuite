@@ -54,11 +54,11 @@
 //! ```
 //! The following options are supported:
 //! - `vtable(<attributes> <visibility> <name>)` — specifies the visibility and name of the generated vtable structure and optionally attaches attributes to it *(that includes documentation comments)*.
-//!   
+//!
 //!   By default, `#[repr(C)]` and `#[derive(Copy, Clone, Debug, Hash)]` are attached, the visibility is taken from the trait definition, and the name is of form `<trait_name>Vtable`, as in `MyTraitVtable`.
 //!
 //!   `#[repr(C)]` will be overriden, while the `#[derive(...)]` will not be, meaning that specifying `#[derive(PartialEq)]`, for example, will add `PartialEq` to the list of traits being derived without overriding it.
-//!   
+//!
 //!   Example:
 //!   ```no_run
 //!   # use thin_trait_object::*;
@@ -74,15 +74,15 @@
 //!   )]
 //!   # trait MyTrait {}
 //!   ```
-//!   
+//!
 //! - `trait_object(<attributes> <visibility> <name>)` — same as `vtable(...)`, but applies its effects to the generated boxed trait object structure.
-//!   
+//!
 //!   **Cannot attach a `#[derive(...)]` attribute for soundness reasons** (so that a `#[derive(Copy)]` wouldn't lead to undefined behavior without any usage of the `unsafe` keyword on the macro usage site.)
-//!   
+//!
 //!   By default, `#[repr(transparent)]` is attached (cannot be overriden), the visibility is taken from the trait definition, and the name is of form `Boxed<trait_name>`, as in `BoxedMyTrait`.
-//!   
+//!
 //! - `inline_vtable = <true/false>` — specifies whether the vtable should be stored directly in the trait object (`true`) or be stored as a `&'static` reference to the vtable. Set to `false` by default, and **overriding this is not recommended** unless the trait has very few (one or two) methods, or it is absolutely necessary to override this in order to be compatible with certain third-party code.
-//!   
+//!
 //!   Example:
 //!   ```rust
 //!   # use thin_trait_object::*;
@@ -91,9 +91,9 @@
 //!   )]
 //!   # trait MyTrait {}
 //!   ```
-//!   
+//!
 //! - `drop_abi = "..."` — specifies the ABI (the `"C"` in `extern "C"`) for the `drop` function pointer in the vtable. The ABI for all other methods in the vtable can be specified in the trait definition directly.
-//!   
+//!
 //!   Example:
 //!   ```rust
 //!   # use thin_trait_object::*;
@@ -103,17 +103,17 @@
 //!   # trait MyTrait {}
 //!   ```
 //! - `marker_traits(...)` — specifies a comma-separated list of traits which are to be considered marker traits, i.e. be implemented via an empty `impl` block on the generated thin trait object structure if the trait definition lists them as supertraits. Unsafe traits in the list need to be prefixed with the `unsafe` keyword.
-//!   
+//!
 //!   By default, the list is `marker_traits(unsafe Send, unsafe Sync, UnwindSafe, RefUnwindSafe)`.
-//!   
+//!
 //!   See the [Supertraits](#supertraits) section for more on how the macro interacts with supertraits.
-//!   
+//!
 //!   Example:
 //!   ```rust
 //!   # use thin_trait_object::*;
 //!   trait SafeTrait {}
 //!   unsafe trait UnsafeTrait {}
-//!   
+//!
 //!   #[thin_trait_object(
 //!       marker_traits(
 //!           SafeTrait,
@@ -259,9 +259,9 @@
 //! The following is a comprehensive list of everything the macro emits:
 //! - **The trait itself**, with all other attributes.
 //! - **A virtual dispatch table struct definition.**
-//!   
+//!
 //!   The name can be customized via the `vtable(...)` configuration option (see the *Configuring the macro* section); the default name is `{trait name}Vtable`, as in, `FooVtable` for a trait named `Foo`.
-//!   
+//!
 //!   The virtual dispatch table is defined as follows:
 //!   ```no_run
 //!   # /*
@@ -277,9 +277,9 @@
 //!   - `&self` or `&mut self`, if present, are replaced with [`*mut ::core::ffi::c_void`][`core::ffi::c_void`];
 //!   - If there was no `unsafe` on the trait method, it is added automatically, since the pointer passed as the first argument is never validated.
 //! - **A thin trait object struct definition.**
-//!   
+//!
 //!   The name can be customized via the `trait_object(...)` configuration option (see the *Configuring the macro* section); the default name is `Boxed{trait name}`, as in, `BoxedFoo` for a trait named `Foo`.
-//!   
+//!
 //!   The virtual dispatch table is defined as follows:
 //!   ```rust
 //!   # /*
@@ -291,7 +291,7 @@
 //!   # */
 //!   ```
 //!   If the trait has a `'static` lifetime bound, the `'inner` lifetime parameter is not emitted, since all possible contained implementations are restricted to be `'static`.
-//!   
+//!
 //!   The following methods and associated functions are present on the boxed thin trait object structure:
 //!   - ```no_run
 //!     # /*
@@ -345,6 +345,7 @@
 
 #![deny(rust_2018_idioms)]
 #![warn(missing_docs, clippy::cargo)]
+#![allow(dead_code)] // NoodleCollie: Addition for fewer compile warnings
 
 use proc_macro::TokenStream;
 
