@@ -7,7 +7,7 @@ mod build_generated;
 pub mod builders;
 pub mod types;
 
-pub use apis::{ApiInfo, dummy_api, log_api, map_format_api, probe_api};
+pub use apis::{ApiInfo, log_api, map_format_api, probe_api};
 
 /// Struct whose sole responsibility is to expose a versioned entry point API to
 /// users of an extension.

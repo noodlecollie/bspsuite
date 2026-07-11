@@ -2,8 +2,7 @@ use std::cell::{BorrowError, BorrowMutError, Ref, RefCell, RefMut};
 use std::path::PathBuf;
 
 use super::api_impl::{ExportedApis, ProbeApiImpl};
-use crate::extensions::api_impl::dummy_api::DummyApiEndpoint;
-use crate::extensions::api_impl::{dummy_api_impl, map_format_api_impl};
+use crate::extensions::api_impl::map_format_api_impl;
 use anyhow::{Context, Result};
 use anyhow::{bail, ensure};
 use bspextifc::probe_api;
@@ -23,7 +22,6 @@ use libloading::os::windows::Symbol as UnsafeSymbol;
 
 pub struct ApiEndpoints
 {
-	pub dummy_api: Option<DummyApiEndpoint>,
 	pub map_format_api: Option<map_format_api_impl::Endpoint>,
 }
 
@@ -32,7 +30,6 @@ impl Default for ApiEndpoints
 	fn default() -> Self
 	{
 		return Self {
-			dummy_api: None,
 			map_format_api: None,
 		};
 	}
@@ -211,10 +208,6 @@ impl Extension
 		let callbacks: ExportedApis = self.probe_and_return_callbacks()?;
 
 		let api_endpoints: ApiEndpoints = ApiEndpoints {
-			dummy_api: callbacks
-				.dummy_callbacks
-				.take()
-				.map(|cb| dummy_api_impl::DummyApiEndpoint::new(cb)),
 			map_format_api: callbacks
 				.map_format_callbacks
 				.take()

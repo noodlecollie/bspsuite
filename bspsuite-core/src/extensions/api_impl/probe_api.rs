@@ -1,6 +1,5 @@
 use super::log_api_impl;
 use bspextifc::ApiInfo;
-use bspextifc::dummy_api::{API_INFO as DUMMY_API_INFO, DummyApiCallbacks};
 use bspextifc::log_api::{API_INFO as LOG_API_INFO, LogApi};
 use bspextifc::map_format_api::{API_INFO as MAP_FORMAT_API_INFO, MapFormatApiCallbacks};
 use bspextifc::probe_api::{ProbeApi, RequestError};
@@ -35,20 +34,6 @@ impl<'l> ProbeApi for ProbeApiImpl<'l>
 		);
 	}
 
-	fn register_dummy_api_callbacks(
-		&mut self,
-		requested_version: u64,
-		callbacks: bspextifc::dummy_api::DummyApiCallbacks,
-	) -> Result<(), RequestError>
-	{
-		return ExportedApis::request_set_callbacks(
-			self.extension_name.as_str(),
-			&mut self.apis.dummy_callbacks,
-			requested_version,
-			callbacks,
-		);
-	}
-
 	fn register_map_format_api_callbacks(
 		&mut self,
 		requested_version: u64,
@@ -67,7 +52,6 @@ impl<'l> ProbeApi for ProbeApiImpl<'l>
 pub(crate) struct ExportedApis
 {
 	pub log_api: ApiProvider<LogApi>,
-	pub dummy_callbacks: CallbacksContainer<DummyApiCallbacks>,
 	pub map_format_callbacks: CallbacksContainer<MapFormatApiCallbacks>,
 }
 
@@ -77,7 +61,6 @@ impl ExportedApis
 	{
 		return Self {
 			log_api: ApiProvider::new(&LOG_API_INFO, log_api_impl::create_api()),
-			dummy_callbacks: CallbacksContainer::new(&DUMMY_API_INFO),
 			map_format_callbacks: CallbacksContainer::new(&MAP_FORMAT_API_INFO),
 		};
 	}

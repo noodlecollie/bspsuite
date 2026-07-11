@@ -1,4 +1,3 @@
-use crate::apis::dummy_api::DummyApiCallbacks;
 use crate::apis::log_api::LogApi;
 use crate::apis::map_format_api::MapFormatApiCallbacks;
 use std::result::Result;
@@ -37,12 +36,6 @@ pub enum ProbeResult
 pub trait ProbeApi
 {
 	fn request_log_api(&mut self, requested_version: u64) -> Result<LogApi, RequestError>;
-
-	fn register_dummy_api_callbacks(
-		&mut self,
-		requested_version: u64,
-		callbacks: DummyApiCallbacks,
-	) -> Result<(), RequestError>;
 
 	fn register_map_format_api_callbacks(
 		&mut self,
