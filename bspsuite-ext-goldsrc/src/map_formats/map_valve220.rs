@@ -1,6 +1,4 @@
-use bspextifc::builders::map_source_builder::{
-	BoxedMapSourceBuilderApiNew, MapSourceBuilderApiNew,
-};
+use bspextifc::builders::map_source_builder::{BoxedMapSourceBuilderApi, MapSourceBuilderApi};
 use bspextifc::types::{DPlane3, DVec2, DVec3, LineCounter, ParseError, ParseResult};
 use bspffi::types::XCStr;
 use logos::Logos;
@@ -147,7 +145,7 @@ enum MaterialNameContext
 	String(String),
 }
 
-pub extern "C" fn parse(data: &XCStr, builder: &mut BoxedMapSourceBuilderApiNew)
+pub extern "C" fn parse(data: &XCStr, builder: &mut BoxedMapSourceBuilderApi)
 {
 	if let Err(err) = parse_map(data.as_str(), builder)
 	{
@@ -161,7 +159,7 @@ pub extern "C" fn parse(data: &XCStr, builder: &mut BoxedMapSourceBuilderApiNew)
 
 pub fn parse_map<Builder>(source: &str, builder: &mut Builder) -> ParseResult
 where
-	Builder: MapSourceBuilderApiNew,
+	Builder: MapSourceBuilderApi,
 {
 	let mut lexer: logos::Lexer<'_, BaseContext> = BaseContext::lexer(source);
 
@@ -200,7 +198,7 @@ fn parse_entity<Builder>(
 	builder: &mut Builder,
 ) -> ParseResult
 where
-	Builder: MapSourceBuilderApiNew,
+	Builder: MapSourceBuilderApi,
 {
 	while let Some(token) = lexer.next()
 	{
@@ -248,7 +246,7 @@ fn parse_entity_value_after_key<Builder>(
 	key: String,
 ) -> ParseResult
 where
-	Builder: MapSourceBuilderApiNew,
+	Builder: MapSourceBuilderApi,
 {
 	return match lexer.next()
 	{
@@ -283,7 +281,7 @@ fn parse_brush<Builder>(
 	builder: &mut Builder,
 ) -> ParseResult
 where
-	Builder: MapSourceBuilderApiNew,
+	Builder: MapSourceBuilderApi,
 {
 	loop
 	{
@@ -304,7 +302,7 @@ fn parse_brush_face_or_end_of_brush<Builder>(
 	builder: &mut Builder,
 ) -> Result<BrushProgressionResult, ParseError>
 where
-	Builder: MapSourceBuilderApiNew,
+	Builder: MapSourceBuilderApi,
 {
 	while let Some(token) = lexer.next()
 	{
@@ -345,7 +343,7 @@ fn parse_brush_face<Builder>(
 	builder: &mut Builder,
 ) -> ParseResult
 where
-	Builder: MapSourceBuilderApiNew,
+	Builder: MapSourceBuilderApi,
 {
 	let mut sub_lexer = lexer.clone().morph::<Point3DContext>();
 	let plane_points: (DVec3, DVec3, DVec3) =

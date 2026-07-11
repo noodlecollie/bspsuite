@@ -2,21 +2,21 @@ use std::collections::HashMap;
 
 use bspextifc::builders::map_source_builder::{BuilderError, Entity};
 use bspextifc::map_format_api;
-use bspextifc::map_format_api::MapFormatApiNew;
+use bspextifc::map_format_api::MapFormatApi;
 use bspextifc::{
-	builders::map_source_builder::MapSourceBuilder, map_format_api::BoxedMapFormatApiNew,
+	builders::map_source_builder::MapSourceBuilder, map_format_api::BoxedMapFormatApi,
 };
 use bspffi::types::{XCSlice, XCStr};
 use itertools::Itertools;
 use log::{debug, warn};
 
-struct MapFormatApiImplNew<'l>
+struct MapFormatApiImpl<'l>
 {
 	extension_name: String,
 	formats: &'l mut HashMap<String, MapFormatDefinition>,
 }
 
-impl<'l> MapFormatApiImplNew<'l>
+impl<'l> MapFormatApiImpl<'l>
 {
 	pub fn new(extension_name: &str, formats: &'l mut HashMap<String, MapFormatDefinition>)
 	-> Self
@@ -28,7 +28,7 @@ impl<'l> MapFormatApiImplNew<'l>
 	}
 }
 
-impl<'l> MapFormatApiNew for MapFormatApiImplNew<'l>
+impl<'l> MapFormatApi for MapFormatApiImpl<'l>
 {
 	fn register_map_format(
 		&mut self,
@@ -154,8 +154,8 @@ impl Endpoint
 		let mut formats: HashMap<String, MapFormatDefinition> = HashMap::new();
 
 		{
-			let mut api_impl: BoxedMapFormatApiNew =
-				BoxedMapFormatApiNew::new(MapFormatApiImplNew::new(extension_name, &mut formats));
+			let mut api_impl: BoxedMapFormatApi =
+				BoxedMapFormatApi::new(MapFormatApiImpl::new(extension_name, &mut formats));
 
 			(self.inner.register_map_formats)(&mut api_impl);
 		}

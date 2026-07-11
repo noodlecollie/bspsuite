@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use crate::map_formats::map_valve220::parse_map;
 use bspextifc::builders::map_source_builder::{
-	BoxedMapSourceBuilderApiNew, Brush, BrushFace, BuilderError, BuilderResult, Entity,
+	BoxedMapSourceBuilderApi, Brush, BrushFace, BuilderError, BuilderResult, Entity,
 	MapSourceBuilder,
 };
 use bspextifc::types::{DPlane3, DVec2, DVec3};
@@ -90,7 +90,7 @@ fn parse_box_map()
 	let build_result: RefCell<BuilderResult> = RefCell::new(BuilderResult::default());
 	let result = parse_map(
 		BOX_MAP_SOURCE,
-		&mut BoxedMapSourceBuilderApiNew::new(MapSourceBuilder::new(build_result.borrow_mut())),
+		&mut BoxedMapSourceBuilderApi::new(MapSourceBuilder::new(build_result.borrow_mut())),
 	);
 
 	let build_result: Result<Vec<Entity>, BuilderError> = build_result.into_inner().into();

@@ -86,7 +86,7 @@ impl Error for BuilderError
 /// CSG phase of map compliation to check whether the resulting geometry
 /// produced by the map source builder is valid.
 #[thin_trait_object(drop_abi = "C")]
-pub trait MapSourceBuilderApiNew
+pub trait MapSourceBuilderApi
 {
 	/// Instructs the builder that the build process has finished. If this is
 	/// not called, the result of the build process is considered to be
@@ -301,11 +301,11 @@ impl<'l> MapSourceBuilder<'l>
 
 	pub fn run<Closure>(closure: Closure) -> Result<Vec<Entity>, BuilderError>
 	where
-		Closure: FnOnce(BoxedMapSourceBuilderApiNew),
+		Closure: FnOnce(BoxedMapSourceBuilderApi),
 	{
 		let result: RefCell<BuilderResult> = RefCell::new(BuilderResult::default());
 
-		closure(BoxedMapSourceBuilderApiNew::new(MapSourceBuilder::new(
+		closure(BoxedMapSourceBuilderApi::new(MapSourceBuilder::new(
 			result.borrow_mut(),
 		)));
 
@@ -321,7 +321,7 @@ impl<'l> Drop for MapSourceBuilder<'l>
 	}
 }
 
-impl<'l> MapSourceBuilderApiNew for MapSourceBuilder<'l>
+impl<'l> MapSourceBuilderApi for MapSourceBuilder<'l>
 {
 	fn finish(&mut self)
 	{

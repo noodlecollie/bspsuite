@@ -1,11 +1,11 @@
 use crate::ApiInfo;
-use crate::builders::map_source_builder::BoxedMapSourceBuilderApiNew;
+use crate::builders::map_source_builder::BoxedMapSourceBuilderApi;
 use bspffi::types::{XCSlice, XCStr};
 use thin_trait_object::thin_trait_object;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
-pub type RegisterMapFormatsFn = extern "C" fn(&mut BoxedMapFormatApiNew);
-pub type MapParseFn = extern "C" fn(&XCStr, &mut BoxedMapSourceBuilderApiNew);
+pub type RegisterMapFormatsFn = extern "C" fn(&mut BoxedMapFormatApi);
+pub type MapParseFn = extern "C" fn(&XCStr, &mut BoxedMapSourceBuilderApi);
 
 #[repr(C)]
 #[derive(Debug, PartialEq)]
@@ -26,7 +26,7 @@ pub struct MapFormatApiCallbacks
 
 // TODO: Docs
 #[thin_trait_object(drop_abi = "C")]
-pub trait MapFormatApiNew
+pub trait MapFormatApi
 {
 	fn register_map_format(
 		&mut self,
