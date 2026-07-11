@@ -33,7 +33,7 @@ pub enum ProbeResult
 }
 
 // TODO: Docs
-#[thin_trait_object]
+#[thin_trait_object(drop_abi = "C")]
 pub trait ProbeApi
 {
 	fn request_log_api(&mut self, requested_version: u64) -> Result<LogApi, RequestError>;

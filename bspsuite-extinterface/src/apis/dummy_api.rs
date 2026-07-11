@@ -1,7 +1,6 @@
 // Example of the conventions used to create an extension API.
 
 use crate::ApiInfo;
-use thin_trait_object::thin_trait_object;
 
 // Each API has a name and a version.
 pub const API_INFO: ApiInfo = ApiInfo::new("DummyApi", 1);
@@ -11,11 +10,6 @@ pub const API_INFO: ApiInfo = ApiInfo::new("DummyApi", 1);
 // extension in order to run extension code for
 // this API.
 pub type DummyApiEntryPointFn = extern "C" fn(&mut DummyApi);
-
-#[thin_trait_object]
-pub trait DummyApiNew
-{
-}
 
 // The functions an extension can call to interact with the
 // core library are on a struct named "<api name>Api".

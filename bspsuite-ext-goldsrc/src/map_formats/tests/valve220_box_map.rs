@@ -1,6 +1,9 @@
+use std::cell::RefCell;
+
 use crate::map_formats::map_valve220::parse_map;
 use bspextifc::builders::map_source_builder::{
-	Brush, BrushFace, BuilderError, Entity, MapSourceBuilder,
+	BoxedMapSourceBuilderApiNew, Brush, BrushFace, BuilderError, BuilderResult, Entity,
+	MapSourceBuilder,
 };
 use bspextifc::types::{DPlane3, DVec2, DVec3};
 
@@ -84,14 +87,19 @@ const BOX_MAP_SOURCE: &str = r#"
 #[test]
 fn parse_box_map()
 {
-	let mut builder: MapSourceBuilder = MapSourceBuilder::new();
-	let result = parse_map(BOX_MAP_SOURCE, &mut builder);
-	let build_result: Result<Vec<Entity>, BuilderError> = builder.collect();
+	let build_result: RefCell<BuilderResult> = RefCell::new(BuilderResult::default());
+	let result = parse_map(
+		BOX_MAP_SOURCE,
+		&mut BoxedMapSourceBuilderApiNew::new(MapSourceBuilder::new(build_result.borrow_mut())),
+	);
+
+	let build_result: Result<Vec<Entity>, BuilderError> = build_result.into_inner().into();
 
 	assert!(result.is_ok());
 	assert!(build_result.is_ok());
 
 	let build_result = build_result.unwrap();
+	assert_eq!(build_result.len(), 2);
 
 	let world: &Entity = &build_result[0];
 	assert_eq!(world.keyvalues.len(), 9);

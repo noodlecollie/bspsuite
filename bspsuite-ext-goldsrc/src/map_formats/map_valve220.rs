@@ -1,5 +1,6 @@
-use bspextifc::builders::map_source_builder::IMapSourceBuilder;
-use bspextifc::map_format_api::MapSourceBuilderApi;
+use bspextifc::builders::map_source_builder::{
+	BoxedMapSourceBuilderApiNew, MapSourceBuilderApiNew,
+};
 use bspextifc::types::{DPlane3, DVec2, DVec3, LineCounter, ParseError, ParseResult};
 use bspffi::types::XCStr;
 use logos::Logos;
@@ -146,17 +147,21 @@ enum MaterialNameContext
 	String(String),
 }
 
-pub extern "C" fn parse(data: &XCStr, builder: &mut MapSourceBuilderApi)
+pub extern "C" fn parse(data: &XCStr, builder: &mut BoxedMapSourceBuilderApiNew)
 {
 	if let Err(err) = parse_map(data.as_str(), builder)
 	{
-		builder.set_failure_with_location(err.line, err.column, err.description);
+		builder.set_failure_with_location(
+			err.line,
+			err.column,
+			XCStr::from(err.description.as_str()),
+		);
 	}
 }
 
 pub fn parse_map<Builder>(source: &str, builder: &mut Builder) -> ParseResult
 where
-	Builder: IMapSourceBuilder,
+	Builder: MapSourceBuilderApiNew,
 {
 	let mut lexer: logos::Lexer<'_, BaseContext> = BaseContext::lexer(source);
 
@@ -195,7 +200,7 @@ fn parse_entity<Builder>(
 	builder: &mut Builder,
 ) -> ParseResult
 where
-	Builder: IMapSourceBuilder,
+	Builder: MapSourceBuilderApiNew,
 {
 	while let Some(token) = lexer.next()
 	{
@@ -243,7 +248,7 @@ fn parse_entity_value_after_key<Builder>(
 	key: String,
 ) -> ParseResult
 where
-	Builder: IMapSourceBuilder,
+	Builder: MapSourceBuilderApiNew,
 {
 	return match lexer.next()
 	{
@@ -252,7 +257,7 @@ where
 			Ok(EntityContext::QuotedString(value)) =>
 			{
 				builder
-					.add_entity_keyvalue(key, value)
+					.add_entity_keyvalue(XCStr::from(key.as_str()), XCStr::from(value.as_str()))
 					.map_err(|_| parse_error(lexer, "add_entity_keyvalue() failed"))?;
 
 				Ok(())
@@ -278,7 +283,7 @@ fn parse_brush<Builder>(
 	builder: &mut Builder,
 ) -> ParseResult
 where
-	Builder: IMapSourceBuilder,
+	Builder: MapSourceBuilderApiNew,
 {
 	loop
 	{
@@ -299,7 +304,7 @@ fn parse_brush_face_or_end_of_brush<Builder>(
 	builder: &mut Builder,
 ) -> Result<BrushProgressionResult, ParseError>
 where
-	Builder: IMapSourceBuilder,
+	Builder: MapSourceBuilderApiNew,
 {
 	while let Some(token) = lexer.next()
 	{
@@ -340,7 +345,7 @@ fn parse_brush_face<Builder>(
 	builder: &mut Builder,
 ) -> ParseResult
 where
-	Builder: IMapSourceBuilder,
+	Builder: MapSourceBuilderApiNew,
 {
 	let mut sub_lexer = lexer.clone().morph::<Point3DContext>();
 	let plane_points: (DVec3, DVec3, DVec3) =
@@ -382,7 +387,7 @@ where
 		.map_err(|_| parse_error(lexer, "set_brush_face_plane() failed"))?;
 
 	builder
-		.set_brush_face_material(material_path)
+		.set_brush_face_material(XCStr::from(material_path.as_str()))
 		.map_err(|_| parse_error(lexer, "set_brush_face_material() failed"))?;
 
 	builder
