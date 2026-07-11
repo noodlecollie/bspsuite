@@ -1,4 +1,4 @@
-use super::api_info::ApiInfo;
+use crate::ApiInfo;
 use crate::builders::map_source_builder::{IMapSourceBuilder, OperationError};
 use crate::types::{DPlane3, DVec2, DVec3};
 use bspffi::types::{XCOption, XCSlice, XCStr};
