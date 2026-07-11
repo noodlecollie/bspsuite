@@ -14,7 +14,7 @@ crate-type = ["lib"]
 [dependencies]
 bspsuite-ffi = { path = "../bspsuite-ffi" }
 log.workspace = true
-steckrs.workspace = true
+thin_trait_object.workspace = true
 
 [build-dependencies]
 serde.workspace = true

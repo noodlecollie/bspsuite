@@ -34,24 +34,24 @@ struct CargoToml
 
 pub fn main()
 {
-	let cargo_toml_raw = include_str!("../Cargo.toml");
+	let dep_name: &str = "thin_trait_object";
+	let cargo_toml_raw = include_str!("../Cargo.toml"); // Workspace's config file
 	let cargo_toml: CargoToml = toml::from_str(cargo_toml_raw).unwrap();
-	let steckrs_dep: &DependencyValue = cargo_toml.workspace.dependencies.get("steckrs").unwrap();
-	let steckrs_version_string: String = match steckrs_dep
+	let dep: &DependencyValue = cargo_toml.workspace.dependencies.get(dep_name).unwrap();
+	let version_string: String = match dep
 	{
 		DependencyValue::String(val) => val.to_owned(),
 		DependencyValue::Object { version, .. } => version.clone(),
 	};
 
 	let version_regex: Regex = Regex::new(r"^(\d+)\.(\d+)\.(\d+)$").unwrap();
-	let captures = version_regex.captures(&steckrs_version_string).expect(
-		format!("steckrs version \"{steckrs_version_string}\" was not in expected format").as_ref(),
+	let captures = version_regex.captures(&version_string).expect(
+		format!("{dep_name} version \"{version_string}\" was not in expected format").as_ref(),
 	);
 
 	assert!(
 		captures.len() == 4,
-		"Expected major, minor and patch version numbers from steckrs, but got {} captures",
-		captures.len()
+		"Expected major, minor and patch version numbers from {dep_name}"
 	);
 
 	// Compute a version number with 1000 different options per slot
@@ -64,13 +64,22 @@ pub fn main()
 	let patch_version: u64 = captures[3].parse::<u64>().unwrap();
 	assert!(patch_version < 999);
 
+	// Full version encoded as an integer
 	let full_version: u64 = (major_version * 1000 * 1000) + (minor_version * 1000) + patch_version;
+
+	// Compatible version encoded as an integer (we assume patch changes do not
+	// matter).
+	let compat_version: u64 = (major_version * 1000) + minor_version;
 
 	// Now we switch over to use const_gen in order to export the version as a const
 	// variable. env!() would let us read it as a const string, but we want an
 	// integer.
 	let out_dir = env::var_os("OUT_DIR").unwrap();
 	let dest_path = Path::new(&out_dir).join("const_gen.rs");
-	let const_declarations = vec![const_declaration!(pub FFI_VERSION = full_version)].join("\n");
+	let const_declarations = vec![
+		const_declaration!(pub FFI_FULL_VERSION = full_version),
+		const_declaration!(pub FFI_VERSION = compat_version),
+	]
+	.join("\n");
 	fs::write(&dest_path, const_declarations).unwrap();
 }
