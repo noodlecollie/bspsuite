@@ -2,7 +2,8 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::marker::PhantomData;
 
-// TODO: Docs
+/// Wraps a reference to an OpaqueType object. The reference is stored
+/// internally as a C void* pointer.
 pub struct ContextPtr<'l, OpaqueType>
 {
 	ptr: *const c_void,

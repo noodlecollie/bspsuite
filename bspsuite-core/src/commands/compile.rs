@@ -21,8 +21,7 @@ pub struct CompileArgs
 	pub dump_source_file: bool,
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn bspcore_run_compile(args: &CompileArgs) -> ResultCode
+pub fn bspcore_run_compile(args: &CompileArgs) -> ResultCode
 {
 	return wrap_residual_errors(|| run_compile(args));
 }

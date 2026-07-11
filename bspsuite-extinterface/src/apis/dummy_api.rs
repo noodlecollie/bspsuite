@@ -1,6 +1,13 @@
 // Example of the conventions used to create an extension API.
 
 use super::api_info::ApiInfo;
+use thin_trait_object::thin_trait_object;
+
+#[thin_trait_object]
+pub trait ThinTraitTest
+{
+	fn print_hello_world(&self);
+}
 
 // Each API has a name and a version.
 pub const API_INFO: ApiInfo = ApiInfo::new("DummyApi", 1);
@@ -55,6 +62,14 @@ impl<'l> DummyApi<'l>
 		// called knows what type to convert the context into.
 		return unsafe { (self.ffi_table.get_magic_number_fn)(&self.ffi_table.context) };
 	}
+
+	pub fn thin_trait_test(&self, thin_trait: &BoxedThinTraitTest)
+	{
+		// SAFETY: Core library responsible for ensuring that self.fns.context
+		// is valid for this struct's lifetime, and that the function being
+		// called knows what type to convert the context into.
+		unsafe { (self.ffi_table.thin_trait_test_fn)(&self.ffi_table.context, thin_trait) };
+	}
 }
 
 pub mod internal
@@ -89,6 +104,7 @@ pub mod internal
 		// Functions implemented by the core library.
 		pub store_number_fn: unsafe extern "C" fn(&mut Ctx, i32),
 		pub get_magic_number_fn: unsafe extern "C" fn(&Ctx) -> i32,
+		pub thin_trait_test_fn: unsafe extern "C" fn(&Ctx, &BoxedThinTraitTest),
 	}
 
 	// Called by the core library in order to create the dummy API struct.

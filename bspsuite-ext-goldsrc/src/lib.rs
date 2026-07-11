@@ -1,8 +1,10 @@
 use bspextifc::{
-	implement_extension_info, implement_extension_logger, log_api, map_format_api, probe_api,
+	dummy_api, implement_extension_info, implement_extension_logger, log_api, map_format_api,
+	probe_api,
 };
 use log::error;
 
+mod dummy_api_impl;
 mod map_formats;
 
 implement_extension_info!(probe);
@@ -21,6 +23,15 @@ extern "C" fn probe(api: &mut probe_api::ProbeApi) -> probe_api::ProbeResult
 	)
 	{
 		error!("Failed to register for map format API.");
+		return probe_api::ProbeResult::Failure;
+	}
+
+	if let Err(_) = api.register_dummy_api_callbacks(
+		dummy_api::API_INFO.version,
+		dummy_api_impl::create_callbacks(),
+	)
+	{
+		error!("Failed to register for dummy API.");
 		return probe_api::ProbeResult::Failure;
 	}
 

@@ -15,8 +15,7 @@ pub struct ExtinfoArgs
 	pub extension_name: Option<String>,
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
+pub fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 {
 	return wrap_panics(|| {
 		let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root);
@@ -64,6 +63,11 @@ fn get_map_formats(extension: &mut Extension) -> Vec<String>
 {
 	let name: String = extension.get_name().to_string();
 	let api_endpoints: &mut ApiEndpoints = extension.get_api_endpoints_mut();
+
+	if let Some(dummy_api) = &api_endpoints.dummy_api
+	{
+		dummy_api.call_entry_point();
+	}
 
 	if let Some(map_format_api) = &mut api_endpoints.map_format_api
 	{
