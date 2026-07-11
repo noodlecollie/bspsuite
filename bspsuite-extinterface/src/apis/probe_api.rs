@@ -3,6 +3,8 @@ use bspffi::types::{XCOption, XCStr};
 use log::{error, trace};
 use std::result::Result;
 
+use thin_trait_object::thin_trait_object;
+
 pub const API_VERSION: usize = 1;
 pub type ExtFnProbe = extern "C" fn(&mut ProbeApi) -> ProbeResult;
 
@@ -28,6 +30,13 @@ pub enum ProbeResult
 	/// The extension was not able to obtain all the APIs it needed to function
 	/// correctly.
 	Failure,
+}
+
+#[thin_trait_object]
+pub trait ProbeApiNew
+{
+	fn one(&mut self, a: u64);
+	fn two(&mut self, a: u64, b: u64);
 }
 
 #[repr(C)]

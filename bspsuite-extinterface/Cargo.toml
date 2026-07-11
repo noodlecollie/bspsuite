@@ -13,8 +13,8 @@ crate-type = ["lib"]
 
 [dependencies]
 bspsuite-ffi = { path = "../bspsuite-ffi" }
+thin_trait_object = { path = "../thirdparty/thin_trait_object-main-1703d03c32fc10cea50fbe2ec30cd69a387f6845" }
 log.workspace = true
-thin_trait_object.workspace = true
 
 [build-dependencies]
 serde.workspace = true

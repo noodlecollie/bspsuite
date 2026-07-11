@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::{env, fs, path::Path};
 
 use const_gen::*;
@@ -8,44 +7,31 @@ use toml;
 
 // These structs are for determining the version of steckrs.
 // The code is based on https://stackoverflow.com/a/75276470
+// We used to parse the workspace's Cargo.toml, but now that we have to manually
+// clone thin_trait_object in order to use a functional version of it, we parse
+// that crate's Cargo.toml directly.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-enum DependencyValue
+struct Package
 {
-	String(String),
-	Object
-	{
-		version: String,
-		features: Vec<String>,
-	},
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Workspace
-{
-	dependencies: HashMap<String, DependencyValue>,
+	version: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CargoToml
 {
-	workspace: Workspace,
+	package: Package,
 }
 
 pub fn main()
 {
 	let dep_name: &str = "thin_trait_object";
-	let cargo_toml_raw = include_str!("../Cargo.toml"); // Workspace's config file
+	let cargo_toml_raw = include_str!(
+		"../thirdparty/thin_trait_object-main-1703d03c32fc10cea50fbe2ec30cd69a387f6845/Cargo.toml"
+	);
 	let cargo_toml: CargoToml = toml::from_str(cargo_toml_raw).unwrap();
-	let dep: &DependencyValue = cargo_toml.workspace.dependencies.get(dep_name).unwrap();
-	let version_string: String = match dep
-	{
-		DependencyValue::String(val) => val.to_owned(),
-		DependencyValue::Object { version, .. } => version.clone(),
-	};
-
 	let version_regex: Regex = Regex::new(r"^(\d+)\.(\d+)\.(\d+)$").unwrap();
-	let captures = version_regex.captures(&version_string).expect(
+	let version_string: &str = &cargo_toml.package.version;
+	let captures = version_regex.captures(version_string).expect(
 		format!("{dep_name} version \"{version_string}\" was not in expected format").as_ref(),
 	);
 
