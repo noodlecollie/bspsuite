@@ -1,7 +1,6 @@
 use bspextifc::probe_api::ProbeApi;
 use bspextifc::{
-	dummy_api, implement_extension_info, implement_extension_logger, log_api, map_format_api,
-	probe_api,
+	implement_extension_info, implement_extension_logger, log_api, map_format_api, probe_api,
 };
 use log::error;
 

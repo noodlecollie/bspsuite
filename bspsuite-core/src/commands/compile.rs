@@ -7,8 +7,8 @@ use crate::compiler_error::{CompilerError, CompilerErrorCode};
 use crate::extensions::{ExtensionList, extension_routines};
 use crate::io::{MapGeomFileIO, MapSourceFileIO, VersionedIOFormat};
 use crate::model::{MapGeomFile, MapSourceFile};
-use anyhow::{Context, Result, anyhow};
-use bspextifc::builders::map_source_builder::{Entity, MapSourceBuilder};
+use anyhow::{Context, Result};
+use bspextifc::builders::map_source_builder::Entity;
 use log::{debug, info};
 
 pub struct CompileArgs

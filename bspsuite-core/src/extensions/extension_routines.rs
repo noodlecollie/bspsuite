@@ -6,7 +6,7 @@ use crate::extensions::api_impl::map_format_api;
 use crate::extensions::{Extension, ExtensionList, ExtensionRef};
 use crate::{CompilerError, CompilerErrorCode};
 use anyhow::{Context, Result, anyhow, bail};
-use bspextifc::builders::map_source_builder::{BuilderError, Entity, MapSourceBuilder};
+use bspextifc::builders::map_source_builder::Entity;
 
 pub struct ExtensionForParsingMapFormat
 {

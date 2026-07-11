@@ -1,17 +1,12 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
-use bspextifc::builders::map_source_builder::{
-	BoxedMapSourceBuilderApiNew, BuilderError, Entity, MapSourceBuilderApiNew, OperationError,
-};
+use bspextifc::builders::map_source_builder::{BuilderError, Entity};
 use bspextifc::map_format_api;
 use bspextifc::map_format_api::MapFormatApiNew;
-use bspextifc::types::{DPlane3, DVec2, DVec3};
 use bspextifc::{
 	builders::map_source_builder::MapSourceBuilder, map_format_api::BoxedMapFormatApiNew,
 };
-use bspffi::types::{XCOption, XCSlice, XCStr};
+use bspffi::types::{XCSlice, XCStr};
 use itertools::Itertools;
 use log::{debug, warn};
 
