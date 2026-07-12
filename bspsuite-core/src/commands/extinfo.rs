@@ -118,9 +118,12 @@ fn get_map_formats(extension: &mut Extension) -> Vec<String>
 
 fn get_resource_formats(extension: &mut Extension) -> HashMap<String, Vec<String>>
 {
+	let mut formats_map: HashMap<String, Vec<String>> = HashMap::new();
+	let mut image_formats: Vec<String> = Vec::new();
+
 	if let Some(resource_format_api) = &mut extension.get_api_endpoints_mut().resource_format_api
 	{
-		let image_formats: Vec<String> = resource_format_api
+		image_formats = resource_format_api
 			.get_supported_image_format_defs()
 			.iter()
 			.map(|(name, def)| {
@@ -134,16 +137,10 @@ fn get_resource_formats(extension: &mut Extension) -> HashMap<String, Vec<String
 				}
 			})
 			.collect();
-
-		let mut formats_map: HashMap<String, Vec<String>> = HashMap::new();
-		formats_map.insert("Image".into(), image_formats);
-
-		return formats_map;
 	}
-	else
-	{
-		return HashMap::new();
-	}
+
+	formats_map.insert("Image".into(), image_formats);
+	return formats_map;
 }
 
 fn list_extensions(toolchain_root: &PathBuf, extensions: &ExtensionList)

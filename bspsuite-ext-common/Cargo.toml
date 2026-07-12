@@ -1,0 +1,20 @@
+[package]
+name = "bspsuite-ext-common"
+description = ""
+
+version.workspace = true
+authors.workspace = true
+documentation.workspace = true
+edition.workspace = true
+
+[lib]
+name = "commonext"
+# This is a cdylib since it's 100% dynamically loaded,
+# so we can't guarantee a particular Rust ABI.
+crate-type = ["cdylib"]
+
+[dependencies]
+bspsuite-extinterface = { path = "../bspsuite-extinterface" }
+bspsuite-ffi = { path = "../bspsuite-ffi" }
+log = { workspace = true, features = ["std"] }
+anyhow.workspace = true

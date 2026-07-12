@@ -10,6 +10,7 @@ members = [
 	"bspsuite-extinterface",
 	"bspsuite-ffi",
 	"bspsuite-visualiser",
+	"bspsuite-ext-common",
 ]
 
 [workspace.package]

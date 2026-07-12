@@ -175,6 +175,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bspsuite-ext-common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bspsuite-extinterface",
+ "bspsuite-ffi",
+ "log",
+]
+
+[[package]]
 name = "bspsuite-ext-goldsrc"
 version = "0.1.0"
 dependencies = [
