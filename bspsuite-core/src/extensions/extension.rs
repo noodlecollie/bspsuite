@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use super::api_impl::{ExportedApis, ProbeApiImpl};
 use crate::extensions::api_impl::map_format_api_impl;
+use crate::extensions::api_impl::resource_format_api_impl;
 use anyhow::{Context, Result};
 use anyhow::{bail, ensure};
 use bspextifc::probe_api;
@@ -23,6 +24,7 @@ use libloading::os::windows::Symbol as UnsafeSymbol;
 pub struct ApiEndpoints
 {
 	pub map_format_api: Option<map_format_api_impl::Endpoint>,
+	pub resource_format_api: Option<resource_format_api_impl::Endpoint>,
 }
 
 impl Default for ApiEndpoints
@@ -31,6 +33,7 @@ impl Default for ApiEndpoints
 	{
 		return Self {
 			map_format_api: None,
+			resource_format_api: None,
 		};
 	}
 }
@@ -212,6 +215,10 @@ impl Extension
 				.map_format_callbacks
 				.take()
 				.map(|cb| map_format_api_impl::Endpoint::new(cb)),
+			resource_format_api: callbacks
+				.resource_format_callbacks
+				.take()
+				.map(|cb| resource_format_api_impl::Endpoint::new(cb)),
 		};
 
 		self.api_endpoints = api_endpoints;

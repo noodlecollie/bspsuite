@@ -6,5 +6,5 @@ pub mod conversions;
 pub mod internal;
 
 pub use xcoption::XCOption;
-pub use xcslice::XCSlice;
+pub use xcslice::{XCBytes, XCSlice};
 pub use xcstr::XCStr;

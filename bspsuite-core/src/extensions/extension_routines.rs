@@ -14,20 +14,58 @@ pub struct ExtensionForParsingMapFormat
 	pub map_format_name: String,
 }
 
+pub fn register_all_formats(list: &ExtensionList)
+{
+	register_map_formats(list);
+	register_resource_formats(list);
+}
+
+pub fn register_all_formats_for_ext(extension: &mut Extension) -> Result<()>
+{
+	register_map_formats_for_ext(extension)?;
+	register_resource_formats_for_ext(extension)?;
+
+	Ok(())
+}
+
 pub fn register_map_formats(list: &ExtensionList)
 {
 	return list.for_each_or_warn("Registering map formats", |ext_ref| {
 		let mut ext_mut_ref = ext_ref.get_extension_mut()?;
-		let ext_name: String = String::from(ext_mut_ref.get_name());
-		let api_endpoints = ext_mut_ref.get_api_endpoints_mut();
-
-		if let Some(map_format_api) = &mut api_endpoints.map_format_api
-		{
-			map_format_api.register_map_formats(&ext_name);
-		}
-
-		Ok(())
+		register_map_formats_for_ext(&mut ext_mut_ref)
 	});
+}
+
+pub fn register_map_formats_for_ext(extension: &mut Extension) -> Result<()>
+{
+	let ext_name: String = extension.get_name().into();
+	let api_endpoints = extension.get_api_endpoints_mut();
+	if let Some(map_format_api) = &mut api_endpoints.map_format_api
+	{
+		map_format_api.register_map_formats(&ext_name);
+	}
+
+	Ok(())
+}
+
+pub fn register_resource_formats(list: &ExtensionList)
+{
+	return list.for_each_or_warn("Registering resource formats", |ext_ref| {
+		let mut ext_mut_ref = ext_ref.get_extension_mut()?;
+		register_resource_formats_for_ext(&mut ext_mut_ref)
+	});
+}
+
+pub fn register_resource_formats_for_ext(extension: &mut Extension) -> Result<()>
+{
+	let ext_name: String = extension.get_name().into();
+	let api_endpoints = extension.get_api_endpoints_mut();
+	if let Some(resource_format_api) = &mut api_endpoints.resource_format_api
+	{
+		resource_format_api.register_resource_formats(&ext_name);
+	}
+
+	Ok(())
 }
 
 pub fn choose_extension_to_parse_map(

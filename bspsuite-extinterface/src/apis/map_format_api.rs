@@ -8,17 +8,6 @@ pub type RegisterMapFormatsFn = extern "C" fn(&mut BoxedMapFormatApi);
 pub type MapParseFn = extern "C" fn(&XCStr, &mut BoxedMapSourceBuilderApi);
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
-pub enum OperationError
-{
-	/// A required operation had not been started.
-	OperationNotStarted,
-
-	/// A previous operation had not been completed before starting a new one.
-	OperationNotFinished,
-}
-
-#[repr(C)]
 pub struct MapFormatApiCallbacks
 {
 	pub register_map_formats: RegisterMapFormatsFn,

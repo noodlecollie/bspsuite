@@ -37,7 +37,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 	);
 
 	let extensions: ExtensionList = ctx.toolchain.find_extensions();
-	extension_routines::register_map_formats(&extensions);
+	extension_routines::register_all_formats(&extensions);
 
 	let map_format_result: Result<extension_routines::ExtensionForParsingMapFormat> =
 		extension_routines::choose_extension_to_parse_map(
