@@ -2,6 +2,8 @@ use crate::traits::RefMarshaller;
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
+pub type XCBytes<'l> = XCSlice<'l, u8>;
+
 /// FFI-safe and extern "C"-safe reference to a Rust slice.
 ///
 /// An `XCSlice<T>` may only be constructed from a Rust slice of type `T`, and

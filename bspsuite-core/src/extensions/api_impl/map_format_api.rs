@@ -1,25 +1,22 @@
 use std::collections::HashMap;
 
+use crate::extensions::FileFormatList;
 use bspextifc::builders::map_source_builder::{BuilderError, Entity};
-use bspextifc::map_format_api;
-use bspextifc::map_format_api::MapFormatApi;
+use bspextifc::map_format_api::{MapFormatApi, MapFormatApiCallbacks, MapParseFn};
 use bspextifc::{
 	builders::map_source_builder::MapSourceBuilder, map_format_api::BoxedMapFormatApi,
 };
 use bspffi::types::{XCSlice, XCStr};
-use itertools::Itertools;
-use log::{debug, warn};
 
 struct MapFormatApiImpl<'l>
 {
 	extension_name: String,
-	formats: &'l mut HashMap<String, MapFormatDefinition>,
+	formats: &'l mut FileFormatList<MapParseCallback>,
 }
 
 impl<'l> MapFormatApiImpl<'l>
 {
-	pub fn new(extension_name: &str, formats: &'l mut HashMap<String, MapFormatDefinition>)
-	-> Self
+	pub fn new(extension_name: &str, formats: &'l mut FileFormatList<MapParseCallback>) -> Self
 	{
 		return Self {
 			extension_name: extension_name.to_owned(),
@@ -34,85 +31,14 @@ impl<'l> MapFormatApi for MapFormatApiImpl<'l>
 		&mut self,
 		format_name: &XCStr,
 		file_extensions: &XCSlice<XCStr>,
-		parse_fn: map_format_api::MapParseFn,
+		parse_fn: MapParseFn,
 	)
 	{
-		let format_name: &str = format_name.as_str();
-		let file_extensions: &[XCStr] = file_extensions.as_slice();
-
-		if file_extensions.is_empty()
-		{
-			warn!(
-				"Extension {} specified no file extensions for map format {format_name}. \
-				This format will be ignored.",
-				self.extension_name
-			);
-
-			return;
-		}
-
-		// We want to do a few things here:
-		// - Trim leading and trailing whitespace
-		// - Trim leading dots, in case people specify ".map" instead of "map"
-		// - Remove any items that end up being empty after these operations
-		// - Remove duplicates
-		let extension_strings: Vec<String> = file_extensions
-			.iter()
-			.map(|item| item.as_str().trim().trim_start_matches(".").to_string())
-			.filter(|item| !item.is_empty())
-			.unique()
-			.collect();
-
-		if extension_strings.is_empty()
-		{
-			warn!(
-				"After removing invalid file extensions, extension {} was left with no valid file extensions \
-				for map format {format_name}. This format will be ignored.",
-				self.extension_name
-			);
-
-			return;
-		}
-
-		if extension_strings.len() < file_extensions.len()
-		{
-			warn!(
-				"Extension {} provided {} empty, duplicated, or otherwise invalid file extensions for map format \
-				{format_name}. These will be ignored.",
-				self.extension_name,
-				file_extensions.len() - extension_strings.len()
-			);
-		}
-
-		if let Some(_) = self.formats.insert(
-			String::from(format_name),
-			MapFormatDefinition {
-				file_extensions: extension_strings,
-				parse_fn: MapParseCallback { parse_fn: parse_fn },
-			},
-		)
-		{
-			warn!(
-				"Overriding existing registration for extension {} map format \"{format_name}\"",
-				self.extension_name
-			);
-		}
-
-		if log::max_level() >= log::LevelFilter::Debug
-		{
-			let all_extensions: String = self
-				.formats
-				.get(format_name)
-				.unwrap()
-				.file_extensions
-				.join(", ");
-
-			debug!(
-				"Extension {} registered support for map format {format_name}, with \
-				file extensions: {all_extensions}",
-				self.extension_name
-			);
-		}
+		self.formats.add(
+			format_name.as_str(),
+			file_extensions.as_slice(),
+			MapParseCallback { parse_fn },
+		);
 	}
 }
 
@@ -123,8 +49,8 @@ pub struct MapParseCallback
 	// library, but we have no way to codify this dependency!
 	// Instead, we treat the callback as being owned
 	// by the endpoint, which in turn is owned by the
-	// extension.
-	parse_fn: map_format_api::MapParseFn,
+	// extension. This struct purposefully does not implement Clone.
+	parse_fn: MapParseFn,
 }
 
 pub struct MapFormatDefinition
@@ -135,13 +61,13 @@ pub struct MapFormatDefinition
 
 pub struct Endpoint
 {
-	inner: map_format_api::MapFormatApiCallbacks,
+	inner: MapFormatApiCallbacks,
 	map_formats: HashMap<String, MapFormatDefinition>,
 }
 
 impl Endpoint
 {
-	pub fn new(callbacks: map_format_api::MapFormatApiCallbacks) -> Self
+	pub fn new(callbacks: MapFormatApiCallbacks) -> Self
 	{
 		return Self {
 			inner: callbacks,
@@ -151,7 +77,8 @@ impl Endpoint
 
 	pub fn register_map_formats(&mut self, extension_name: &str)
 	{
-		let mut formats: HashMap<String, MapFormatDefinition> = HashMap::new();
+		let mut formats: FileFormatList<MapParseCallback> =
+			FileFormatList::new(extension_name.into(), "map".into());
 
 		{
 			let mut api_impl: BoxedMapFormatApi =
@@ -160,7 +87,19 @@ impl Endpoint
 			(self.inner.register_map_formats)(&mut api_impl);
 		}
 
-		self.map_formats = formats;
+		self.map_formats = formats
+			.collect()
+			.into_iter()
+			.map(|(key, value)| {
+				(
+					key,
+					MapFormatDefinition {
+						file_extensions: value.1,
+						parse_fn: value.0,
+					},
+				)
+			})
+			.collect();
 	}
 
 	pub fn supports_map_format(&self, format_name: &str) -> bool
@@ -207,110 +146,6 @@ impl Endpoint
 			.iter()
 			.map(|(key, val)| (key.as_str(), val))
 			.collect();
-	}
-}
-
-struct ApiImpl
-{
-	extension_name: String,
-	formats: HashMap<String, MapFormatDefinition>,
-}
-
-impl ApiImpl
-{
-	pub fn new(extension_name: &str) -> Self
-	{
-		return Self {
-			extension_name: extension_name.to_owned(),
-			formats: HashMap::new(),
-		};
-	}
-
-	pub fn register_map_format(
-		&mut self,
-		format_name: &str,
-		file_extensions: &[XCStr],
-		parse_fn: map_format_api::MapParseFn,
-	)
-	{
-		if file_extensions.is_empty()
-		{
-			warn!(
-				"Extension {} specified no file extensions for map format {format_name}. \
-				This format will be ignored.",
-				self.extension_name
-			);
-
-			return;
-		}
-
-		// We want to do a few things here:
-		// - Trim leading and trailing whitespace
-		// - Trim leading dots, in case people specify ".map" instead of "map"
-		// - Remove any items that end up being empty after these operations
-		// - Remove duplicates
-		let extension_strings: Vec<String> = file_extensions
-			.iter()
-			.map(|item| item.as_str().trim().trim_start_matches(".").to_string())
-			.filter(|item| !item.is_empty())
-			.unique()
-			.collect();
-
-		if extension_strings.is_empty()
-		{
-			warn!(
-				"After removing invalid file extensions, extension {} was left with no valid file extensions \
-				for map format {format_name}. This format will be ignored.",
-				self.extension_name
-			);
-
-			return;
-		}
-
-		if extension_strings.len() < file_extensions.len()
-		{
-			warn!(
-				"Extension {} provided {} empty, duplicated, or otherwise invalid file extensions for map format \
-				{format_name}. These will be ignored.",
-				self.extension_name,
-				file_extensions.len() - extension_strings.len()
-			);
-		}
-
-		if let Some(_) = self.formats.insert(
-			String::from(format_name),
-			MapFormatDefinition {
-				file_extensions: extension_strings,
-				parse_fn: MapParseCallback { parse_fn: parse_fn },
-			},
-		)
-		{
-			warn!(
-				"Overriding existing registration for extension {} map format \"{format_name}\"",
-				self.extension_name
-			);
-		}
-
-		if log::max_level() >= log::LevelFilter::Debug
-		{
-			let all_extensions: String = self
-				.formats
-				.get(format_name)
-				.unwrap()
-				.file_extensions
-				.join(", ");
-
-			debug!(
-				"Extension {} registered support for map format {format_name}, with \
-				file extensions: {all_extensions}",
-				self.extension_name
-			);
-		}
-	}
-
-	pub fn finish(self) -> HashMap<String, MapFormatDefinition>
-	{
-		return self.formats;
 	}
 }
 

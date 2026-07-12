@@ -1,5 +1,6 @@
 use crate::apis::log_api::LogApi;
 use crate::apis::map_format_api::MapFormatApiCallbacks;
+use crate::resource_format_api::ResourceFormatApiCallbacks;
 use std::result::Result;
 
 use thin_trait_object::thin_trait_object;
@@ -41,5 +42,11 @@ pub trait ProbeApi
 		&mut self,
 		requested_version: u64,
 		callbacks: MapFormatApiCallbacks,
+	) -> Result<(), RequestError>;
+
+	fn register_resource_format_api_callbacks(
+		&mut self,
+		requested_version: u64,
+		callbacks: ResourceFormatApiCallbacks,
 	) -> Result<(), RequestError>;
 }
