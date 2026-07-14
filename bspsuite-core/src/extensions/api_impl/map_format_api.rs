@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use crate::extensions::FileFormatList;
+use crate::extensions::{FormatLoader, FormatSpec};
+use anyhow::anyhow;
 use bspextifc::builders::map_source_builder::{BuilderError, Entity};
 use bspextifc::map_format_api::{MapFormatApi, MapFormatApiCallbacks, ParseMapFn};
 use bspextifc::{
@@ -91,52 +93,6 @@ impl Endpoint
 			})
 			.collect();
 	}
-
-	pub fn supports_map_format(&self, format_name: &str) -> bool
-	{
-		return self.map_formats.contains_key(format_name);
-	}
-
-	pub fn supports_map_format_with_file_extension(
-		&self,
-		format_name: &str,
-		file_extension: &str,
-	) -> bool
-	{
-		return self
-			.get_definition(format_name)
-			.map(|def| def.file_extensions.contains(&file_extension.to_owned()))
-			.unwrap_or(false);
-	}
-
-	pub fn get_definition(&self, format_name: &str) -> Option<&MapFormatDefinition>
-	{
-		return self.map_formats.get(format_name);
-	}
-
-	pub fn get_definition_supported_file_extensions(
-		&self,
-		format_name: &str,
-	) -> Option<&Vec<String>>
-	{
-		return self
-			.get_definition(format_name)
-			.map(|def| &def.file_extensions);
-	}
-
-	pub fn get_supported_map_formats(&self) -> Vec<String>
-	{
-		return self.map_formats.keys().map(|item| item.clone()).collect();
-	}
-
-	pub fn get_supported_map_format_defs(&self) -> Vec<(&str, &MapFormatDefinition)>
-	{
-		return self
-			.map_formats
-			.iter()
-			.map(|(key, val)| (key.as_str(), val))
-			.collect();
-	}
 }
 
 impl MapFormatDefinition
@@ -146,5 +102,65 @@ impl MapFormatDefinition
 		return MapSourceBuilder::run(|mut builder| {
 			(self.parse_fn)(&XCStr::new(data), &mut builder);
 		});
+	}
+}
+
+impl FormatLoader for Endpoint
+{
+	type LoaderError = BuilderError;
+	type LoaderInterface = MapFormatDefinition;
+	type LoaderOutput = Vec<Entity>;
+
+	fn supported_formats(&self) -> Vec<FormatSpec>
+	{
+		return self
+			.map_formats
+			.iter()
+			.map(|(key, value)| FormatSpec {
+				format_name: key.clone(),
+				associated_file_extensions: value.file_extensions.clone(),
+			})
+			.collect();
+	}
+
+	fn supports_loading_format(&self, format_name: &str) -> bool
+	{
+		return self.map_formats.contains_key(format_name);
+	}
+
+	fn supports_loading_format_from_file(&self, format_name: &str, file_extension: &str) -> bool
+	{
+		return self
+			.map_formats
+			.get(format_name)
+			.map(|def| def.file_extensions.contains(&file_extension.to_owned()))
+			.unwrap_or(false);
+	}
+
+	fn supported_file_extensions_for_format(&self, format_name: &str) -> Option<Vec<&str>>
+	{
+		return self.map_formats.get(format_name).map(|def| {
+			def.file_extensions
+				.iter()
+				.map(|item| item.as_str())
+				.collect()
+		});
+	}
+
+	fn load_if_supported<Callback>(
+		&self,
+		format_name: &str,
+		callback: Callback,
+	) -> anyhow::Result<Self::LoaderOutput>
+	where
+		Callback:
+			Fn(&Self::LoaderInterface) -> anyhow::Result<Self::LoaderOutput, Self::LoaderError>,
+	{
+		let def: &MapFormatDefinition = self
+			.map_formats
+			.get(format_name)
+			.ok_or_else(|| anyhow!(format!("Map format {format_name} is not supported")))?;
+
+		return Ok((callback)(&def)?);
 	}
 }

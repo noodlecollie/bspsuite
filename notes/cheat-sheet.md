@@ -45,3 +45,18 @@ Note that for `Option<T>`, the `anyhow` crate also adds a `with_context()` funct
 ## How do I unwrap a `Result` if it's valid, and return an error if it's not?
 
 Use `let variable: Value = my_result?`. If you need to transform the provided error into a different type before returning it, use `.or_else()`.
+
+## How do I easily return an `anyhow::Result<T, anyhow::Error>` from a normal `Result<T, E>`?
+
+The `?` operator will automatically perform this conversion. For example:
+
+```rust
+fn myfunc() -> Result<(), anyhow::Error>
+{
+	// This function returns a non-anyhow error, but we can just use the ? operator.
+	func_returning_error()?;
+
+	// We can also use this slightly weird syntax to cope with the success condition too.
+	return Ok(hopefully_successful_function()?);
+}
+```

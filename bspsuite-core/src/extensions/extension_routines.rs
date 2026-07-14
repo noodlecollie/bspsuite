@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::extensions::api_impl::map_format_api;
-use crate::extensions::{Extension, ExtensionList, ExtensionRef};
+use crate::extensions::{Extension, ExtensionList, ExtensionRef, FormatLoader};
 use crate::{CompilerError, CompilerErrorCode};
 use anyhow::{Context, Result, anyhow, bail};
 use bspextifc::builders::map_source_builder::Entity;
@@ -131,16 +131,14 @@ pub fn parse_map(
 		.as_ref()
 		.expect("Expected to be able to get map format API endpoint to parse map");
 
-	let map_format_def: &map_format_api::MapFormatDefinition = map_format_api
-		.get_definition(&parse_using.format_name)
-		.expect("Expected to be able to get map format definition to parse map");
-
-	return map_format_def.parse_map(input_data).map_err(|err| {
-		CompilerError::from_anyhow(
-			CompilerErrorCode::IoError,
-			anyhow!("Failed to parse map {}. {err}", full_path.display()),
-		)
-	});
+	return map_format_api
+		.load_if_supported(&parse_using.format_name, |def| def.parse_map(input_data))
+		.map_err(|err| {
+			CompilerError::from_anyhow(
+				CompilerErrorCode::IoError,
+				anyhow!("Failed to parse map {}. {err}", full_path.display()),
+			)
+		});
 }
 
 fn choose_extension_to_parse_map_based_on_file_extension(
@@ -260,7 +258,7 @@ fn find_extensions_supporting_map_source_file_extension<'l>(
 		.iter()
 		.filter_map(|ext| {
 			let formats: Vec<String> =
-				all_allowed_map_format_names_extension_supports_for_file_extension(
+				all_allowed_map_format_names_that_extension_supports_for_file_extension(
 					ext,
 					file_extension,
 					allowed_formats,
@@ -325,12 +323,12 @@ fn extension_supports_format(extension: &ExtensionRef, format_name: &str) -> boo
 		ext_ref.get_api_endpoints().map_format_api.as_ref();
 
 	return map_format_api
-		.map(|api| api.supports_map_format(format_name))
+		.map(|api| api.supports_loading_format(format_name))
 		.unwrap_or(false);
 }
 
 // Expects that no extension is being mutably accessed.
-fn all_allowed_map_format_names_extension_supports_for_file_extension(
+fn all_allowed_map_format_names_that_extension_supports_for_file_extension(
 	extension: &ExtensionRef,
 	file_extension: &str,
 	allowed_formats: &Vec<&str>,
@@ -348,20 +346,9 @@ fn all_allowed_map_format_names_extension_supports_for_file_extension(
 		return Vec::new();
 	}
 
-	let map_format_api: &map_format_api::Endpoint = map_format_api.unwrap();
-	let file_extension_string: String = file_extension.to_owned();
-
 	return map_format_api
-		.get_supported_map_formats()
-		.into_iter()
-		.filter(|fmt| allowed_formats.contains(&fmt.as_ref()))
-		.filter(|fmt| {
-			map_format_api
-				.get_definition_supported_file_extensions(fmt)
-				.unwrap()
-				.contains(&file_extension_string)
-		})
-		.collect();
+		.unwrap()
+		.supported_formats_for_file_extension(file_extension, allowed_formats);
 }
 
 fn all_supported_map_formats(list: &ExtensionList) -> Vec<String>
@@ -378,9 +365,12 @@ fn all_supported_map_formats(list: &ExtensionList) -> Vec<String>
 
 		if let Some(endpoint) = map_format_api
 		{
-			endpoint.get_supported_map_formats().iter().for_each(|fmt| {
-				formats.insert(fmt.clone());
-			});
+			endpoint
+				.supported_format_names()
+				.into_iter()
+				.for_each(|fmt| {
+					formats.insert(fmt);
+				});
 		}
 	});
 
@@ -404,22 +394,19 @@ fn all_supported_map_format_description_strings(list: &ExtensionList) -> Vec<Str
 
 		if let Some(endpoint) = map_format_api
 		{
-			endpoint
-				.get_supported_map_format_defs()
-				.iter()
-				.for_each(|(name, def)| {
-					if !format_to_exts.contains_key(*name)
-					{
-						format_to_exts.insert((*name).to_owned(), HashSet::new());
-					}
+			endpoint.supported_formats().into_iter().for_each(|spec| {
+				if !format_to_exts.contains_key(&spec.format_name)
+				{
+					format_to_exts.insert(spec.format_name.clone(), HashSet::new());
+				}
 
-					let exts_hash: &mut HashSet<String> = format_to_exts.get_mut(*name).unwrap();
+				let exts_hash: &mut HashSet<String> =
+					format_to_exts.get_mut(&spec.format_name).unwrap();
 
-					for ext in &def.file_extensions
-					{
-						exts_hash.insert(ext.clone());
-					}
+				spec.associated_file_extensions.into_iter().for_each(|ext| {
+					exts_hash.insert(ext);
 				});
+			});
 		}
 	});
 

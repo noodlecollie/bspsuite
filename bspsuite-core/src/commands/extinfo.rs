@@ -7,6 +7,7 @@ use log::info;
 
 use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_residual_errors;
+use crate::extensions::FormatLoader;
 use crate::extensions::extension_routines;
 use crate::extensions::{Extension, ExtensionList, ExtensionRef};
 use crate::toolchain::Toolchain;
@@ -104,16 +105,20 @@ fn get_map_formats(extension: &mut Extension) -> Vec<String>
 	if let Some(map_format_api) = &mut extension.get_api_endpoints_mut().map_format_api
 	{
 		return map_format_api
-			.get_supported_map_format_defs()
-			.iter()
-			.map(|(name, def)| {
-				if !def.file_extensions.is_empty()
+			.supported_formats()
+			.into_iter()
+			.map(|spec| {
+				if !spec.associated_file_extensions.is_empty()
 				{
-					format!("{name} (.{})", def.file_extensions.join(", ."))
+					format!(
+						"{} (.{})",
+						spec.format_name,
+						spec.associated_file_extensions.join(", .")
+					)
 				}
 				else
 				{
-					name.to_string()
+					spec.format_name.to_string()
 				}
 			})
 			.collect();
