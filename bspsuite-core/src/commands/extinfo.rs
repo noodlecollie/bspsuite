@@ -90,7 +90,12 @@ fn get_vfs_types(extension: &mut Extension) -> Vec<String>
 		.get_api_endpoints_mut()
 		.vfs_api
 		.as_ref()
-		.map(|api| api.get_supported_vfs_types())
+		.map(|api| {
+			api.get_supported_vfs_types()
+				.into_iter()
+				.map(|str| str.to_owned())
+				.collect()
+		})
 		.unwrap_or_else(|| Vec::new());
 }
 

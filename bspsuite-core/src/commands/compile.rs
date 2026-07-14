@@ -39,7 +39,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 	let extensions: ExtensionList = ctx.toolchain.find_extensions();
 	extension_routines::register_all_formats(&extensions);
 
-	let map_format_result: Result<extension_routines::ExtensionForParsingMapFormat> =
+	let map_format_result: Result<extension_routines::ExtensionAndSupportedFormat> =
 		extension_routines::choose_extension_to_parse_map(
 			&extensions,
 			ctx.input_path_metadata.full_path.as_path(),
@@ -51,12 +51,12 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 			&ctx.map_format_override.as_ref().map(|s| s.as_str()),
 		);
 
-	let map_format: extension_routines::ExtensionForParsingMapFormat = map_format_result
+	let map_format: extension_routines::ExtensionAndSupportedFormat = map_format_result
 		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err))?;
 
 	debug!(
 		"Input map format: {} ({})",
-		map_format.map_format_name,
+		map_format.format_name,
 		ctx.map_format_override
 			.map(|_| "provided as argument")
 			.unwrap_or("inferred from file extension")

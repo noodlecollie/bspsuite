@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::extensions::FileFormatList;
 use bspextifc::builders::map_source_builder::{BuilderError, Entity};
-use bspextifc::map_format_api::{MapFormatApi, MapFormatApiCallbacks, MapParseFn};
+use bspextifc::map_format_api::{MapFormatApi, MapFormatApiCallbacks, ParseMapFn};
 use bspextifc::{
 	builders::map_source_builder::MapSourceBuilder, map_format_api::BoxedMapFormatApi,
 };
@@ -11,12 +11,12 @@ use bspffi::types::{XCSlice, XCStr};
 struct MapFormatApiImpl<'l>
 {
 	extension_name: String,
-	formats: &'l mut FileFormatList<MapParseCallback>,
+	formats: &'l mut FileFormatList<ParseMapFn>,
 }
 
 impl<'l> MapFormatApiImpl<'l>
 {
-	pub fn new(extension_name: &str, formats: &'l mut FileFormatList<MapParseCallback>) -> Self
+	pub fn new(extension_name: &str, formats: &'l mut FileFormatList<ParseMapFn>) -> Self
 	{
 		return Self {
 			extension_name: extension_name.to_owned(),
@@ -31,33 +31,22 @@ impl<'l> MapFormatApi for MapFormatApiImpl<'l>
 		&mut self,
 		format_name: &XCStr,
 		file_extensions: &XCSlice<XCStr>,
-		parse_fn: MapParseFn,
+		parse_fn: ParseMapFn,
 	)
 	{
 		self.formats.add(
 			format_name.as_str(),
 			file_extensions.as_slice(),
-			MapParseCallback { parse_fn },
+			parse_fn,
 			false,
 		);
 	}
 }
 
-pub struct MapParseCallback
-{
-	// This callback must be encapsulated, since it's
-	// copyable/cloneable and depends on the extension
-	// library, but we have no way to codify this dependency!
-	// Instead, we treat the callback as being owned
-	// by the endpoint, which in turn is owned by the
-	// extension. This struct purposefully does not implement Clone.
-	parse_fn: MapParseFn,
-}
-
 pub struct MapFormatDefinition
 {
 	pub file_extensions: Vec<String>,
-	pub parse_fn: MapParseCallback,
+	pub parse_fn: ParseMapFn,
 }
 
 pub struct Endpoint
@@ -78,7 +67,7 @@ impl Endpoint
 
 	pub fn register_map_formats(&mut self, extension_name: &str)
 	{
-		let mut formats: FileFormatList<MapParseCallback> =
+		let mut formats: FileFormatList<ParseMapFn> =
 			FileFormatList::new(extension_name.into(), "map format".into());
 
 		{
@@ -155,7 +144,7 @@ impl MapFormatDefinition
 	pub fn parse_map(&self, data: &str) -> Result<Vec<Entity>, BuilderError>
 	{
 		return MapSourceBuilder::run(|mut builder| {
-			(self.parse_fn.parse_fn)(&XCStr::new(data), &mut builder);
+			(self.parse_fn)(&XCStr::new(data), &mut builder);
 		});
 	}
 }

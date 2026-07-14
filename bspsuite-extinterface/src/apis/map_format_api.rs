@@ -5,7 +5,7 @@ use thin_trait_object::thin_trait_object;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("MapFormatApi", 1);
 pub type RegisterMapFormatsFn = extern "C" fn(&mut BoxedMapFormatApi);
-pub type MapParseFn = extern "C" fn(&XCStr, &mut BoxedMapSourceBuilderApi);
+pub type ParseMapFn = extern "C" fn(&XCStr, &mut BoxedMapSourceBuilderApi);
 
 #[repr(C)]
 pub struct MapFormatApiCallbacks
@@ -21,6 +21,6 @@ pub trait MapFormatApi
 		&mut self,
 		format_name: &XCStr,
 		file_extensions: &XCSlice<XCStr>,
-		parse_fn: MapParseFn,
+		parse_fn: ParseMapFn,
 	);
 }

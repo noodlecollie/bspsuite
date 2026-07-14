@@ -102,12 +102,20 @@ impl Endpoint
 		self.vfs_impls = impls.collect();
 	}
 
-	pub fn get_supported_vfs_types(&self) -> Vec<String>
+	pub fn get_registered_vfs_records(&self) -> Vec<(&str, &Vec<String>)>
 	{
-		return self.vfs_impls.keys().cloned().collect();
+		return self
+			.vfs_impls
+			.iter()
+			.map(|(key, value)| (key.as_str(), &value.1))
+			.collect();
 	}
 
-	// An empty list means that the VFS requires a disk directory as its root.
+	pub fn get_supported_vfs_types(&self) -> Vec<&str>
+	{
+		return self.vfs_impls.keys().map(|key| key.as_str()).collect();
+	}
+
 	pub fn get_vfs_root_file_extensions(&self, vfs_type: &str) -> Option<&Vec<String>>
 	{
 		return self.vfs_impls.get(vfs_type).map(|item| &item.1);

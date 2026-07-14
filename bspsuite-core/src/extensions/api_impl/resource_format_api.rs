@@ -6,29 +6,15 @@ use bspextifc::resource_format_api::{
 };
 use bspffi::types::{XCSlice, XCStr};
 
-// TODO: Re-evaluate this. It might be better to make a utility newtype that
-// wraps a function and prevents it from being copied/cloned, and which is also
-// callable.
-pub struct ImageLoadCallback
-{
-	// This callback must be encapsulated, since it's
-	// copyable/cloneable and depends on the extension
-	// library, but we have no way to codify this dependency!
-	// Instead, we treat the callback as being owned
-	// by the endpoint, which in turn is owned by the
-	// extension. This struct purposefully does not implement Clone.
-	load_fn: LoadImageFn,
-}
-
 pub struct ImageFormatDefinition
 {
 	pub file_extensions: Vec<String>,
-	pub load_fn: ImageLoadCallback,
+	pub load_fn: LoadImageFn,
 }
 
 struct ResourceFormatsCollector
 {
-	image_formats: FileFormatList<ImageLoadCallback>,
+	image_formats: FileFormatList<LoadImageFn>,
 }
 
 struct ResourceFormatApiImpl<'l>
@@ -76,7 +62,7 @@ impl<'l> ResourceFormatApi for ResourceFormatApiImpl<'l>
 		self.formats.image_formats.add(
 			format_name.as_str(),
 			file_extensions.as_slice(),
-			ImageLoadCallback { load_fn },
+			load_fn,
 			false,
 		);
 	}

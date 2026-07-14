@@ -8,10 +8,10 @@ use crate::{CompilerError, CompilerErrorCode};
 use anyhow::{Context, Result, anyhow, bail};
 use bspextifc::builders::map_source_builder::Entity;
 
-pub struct ExtensionForParsingMapFormat
+pub struct ExtensionAndSupportedFormat
 {
 	pub extension_name: String,
-	pub map_format_name: String,
+	pub format_name: String,
 }
 
 pub fn register_all_formats(list: &ExtensionList)
@@ -95,7 +95,7 @@ pub fn choose_extension_to_parse_map(
 	input_file: &Path,
 	allowed_formats: &Vec<&str>,
 	map_format_override: &Option<&str>,
-) -> Result<ExtensionForParsingMapFormat>
+) -> Result<ExtensionAndSupportedFormat>
 {
 	return map_format_override
 		.map(|map_format| {
@@ -113,7 +113,7 @@ pub fn parse_map(
 	full_path: &Path,
 	list: &ExtensionList,
 	input_data: &str,
-	parse_using: &ExtensionForParsingMapFormat,
+	parse_using: &ExtensionAndSupportedFormat,
 ) -> Result<Vec<Entity>, CompilerError>
 {
 	let extension: &ExtensionRef = list
@@ -132,7 +132,7 @@ pub fn parse_map(
 		.expect("Expected to be able to get map format API endpoint to parse map");
 
 	let map_format_def: &map_format_api::MapFormatDefinition = map_format_api
-		.get_definition(&parse_using.map_format_name)
+		.get_definition(&parse_using.format_name)
 		.expect("Expected to be able to get map format definition to parse map");
 
 	return map_format_def.parse_map(input_data).map_err(|err| {
@@ -147,7 +147,7 @@ fn choose_extension_to_parse_map_based_on_file_extension(
 	list: &ExtensionList,
 	input_file: &Path,
 	allowed_formats: &Vec<&str>,
-) -> Result<ExtensionForParsingMapFormat>
+) -> Result<ExtensionAndSupportedFormat>
 {
 	let input_ext: Option<&str> = input_file
 		.extension()
@@ -191,9 +191,9 @@ fn choose_extension_to_parse_map_based_on_file_extension(
 			}
 		}
 
-		return Ok(ExtensionForParsingMapFormat {
+		return Ok(ExtensionAndSupportedFormat {
 			extension_name: supported_exts[0].0.get_name().to_owned(),
-			map_format_name: supported_exts[0].1.clone(),
+			format_name: supported_exts[0].1.clone(),
 		});
 	}
 	else
@@ -209,7 +209,7 @@ fn choose_extension_to_parse_map_based_on_format_name(
 	list: &ExtensionList,
 	allowed_formats: &Vec<&str>,
 	map_format: &str,
-) -> Result<ExtensionForParsingMapFormat>
+) -> Result<ExtensionAndSupportedFormat>
 {
 	let supported_exts: Vec<&ExtensionRef> =
 		find_extensions_supporting_format(list, map_format, allowed_formats);
@@ -244,9 +244,9 @@ fn choose_extension_to_parse_map_based_on_format_name(
 		}
 	}
 
-	return Ok(ExtensionForParsingMapFormat {
+	return Ok(ExtensionAndSupportedFormat {
 		extension_name: supported_exts[0].get_name().to_owned(),
-		map_format_name: map_format.to_owned(),
+		format_name: map_format.to_owned(),
 	});
 }
 
