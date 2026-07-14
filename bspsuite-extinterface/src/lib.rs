@@ -33,16 +33,16 @@ pub type ExtensionInfoVersionType = u64;
 /// The version of the extension info struct that we expect to read.
 pub const EXTENSION_INFO_VERSION: ExtensionInfoVersionType = 1;
 
-// The version identifier for the underlying FFI mechanics.
-// This is set at build time for this crate.
-// In base 10, the format is [major][minor] with three digits for each
-// component, 000-999.
+/// The version identifier for the underlying FFI mechanics.
+/// This is set at build time for this crate.
+/// In base 10, the format is [major][minor] with three digits for each
+/// component, 000-999.
 pub const FFI_VERSION: u64 = build_generated::FFI_VERSION;
 
-// The full version identifier for the underlying FFI mechanics,
-// including the patch component.
-// // In base 10, the format is [major][minor][patch] with three digits for each
-// component, 000-999.
+/// The full version identifier for the underlying FFI mechanics,
+/// including the patch component.
+/// // In base 10, the format is [major][minor][patch] with three digits for
+/// each component, 000-999.
 pub const FFI_FULL_VERSION: u64 = build_generated::FFI_FULL_VERSION;
 
 /// Macro for implementing the required extension info symbols into a shared

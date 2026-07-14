@@ -4,6 +4,7 @@ pub mod log_api;
 pub mod map_format_api;
 pub mod probe_api;
 pub mod resource_format_api;
+pub mod vfs_api;
 
 pub struct ApiInfo
 {

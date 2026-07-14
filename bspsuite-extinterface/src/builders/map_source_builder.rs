@@ -90,7 +90,8 @@ pub trait MapSourceBuilderApi
 {
 	/// Instructs the builder that the build process has finished. If this is
 	/// not called, the result of the build process is considered to be
-	/// OperationNotFinished.
+	/// OperationNotFinished. If desired, this can be called from the Drop trait
+	/// of the implementer struct.
 	fn finish(&mut self);
 
 	/// Sets a failure state on the builder, including the line and column in
@@ -110,68 +111,70 @@ pub trait MapSourceBuilderApi
 	/// Begins construction of an entity. Must be paired with [end_entity].
 	///
 	/// If there is already a current entity, brush or face, returns
-	/// [BuilderError::OperationNotFinished].
+	/// [OperationError::OperationNotFinished].
 	fn begin_entity(&mut self) -> Result<(), OperationError>;
 
 	/// Ends construction of an entity previously begun with [begin_entity].
 	///
 	/// If [begin_entity] has not previously been called, returns
-	/// [BuilderError::OperationNotStarted]. If there is any current unfinished
-	/// brush or face, returns [BuilderError::OperationNotFinished].
+	/// [OperationError::OperationNotStarted]. If there is any current
+	/// unfinished brush or face, returns
+	/// [OperationError::OperationNotFinished].
 	fn end_entity(&mut self) -> Result<(), OperationError>;
 
 	/// Adds a key-value pair to the current entity.
 	///
 	/// If [begin_entity] has not previously been called, returns
-	/// [BuilderError::OperationNotStarted]. If there is any current unfinished
-	/// brush or face, returns [BuilderError::OperationNotFinished].
+	/// [OperationError::OperationNotStarted]. If there is any current
+	/// unfinished brush or face, returns
+	/// [OperationError::OperationNotFinished].
 	fn add_entity_keyvalue(&mut self, key: XCStr, value: XCStr) -> Result<(), OperationError>;
 
 	/// Begins a brush within the current entity. Must be paired with
 	/// [end_brush].
 	///
 	/// If there is already a current brush or face, returns
-	/// [BuilderError::OperationNotFinished]. If there is no current entity,
-	/// returns [BuilderError::OperationNotStarted].
+	/// [OperationError::OperationNotFinished]. If there is no current entity,
+	/// returns [OperationError::OperationNotStarted].
 	fn begin_brush(&mut self) -> Result<(), OperationError>;
 
 	/// Ends construction of a brush previously begun with [begin_brush].
 	///
 	/// If [begin_brush] has not previously been called, returns
-	/// [BuilderError::OperationNotStarted]. If there is any current unfinished
-	/// face, returns [BuilderError::OperationNotFinished].
+	/// [OperationError::OperationNotStarted]. If there is any current
+	/// unfinished face, returns [OperationError::OperationNotFinished].
 	fn end_brush(&mut self) -> Result<(), OperationError>;
 
 	/// Begins a face within the current brush. Must be paired with
 	/// [end_brush_face].
 	///
 	/// If there is already a current face, returns
-	/// [BuilderError::OperationNotFinished]. If there is no current entity or
-	/// brush, returns [BuilderError::OperationNotStarted].
+	/// [OperationError::OperationNotFinished]. If there is no current entity or
+	/// brush, returns [OperationError::OperationNotStarted].
 	fn begin_brush_face(&mut self) -> Result<(), OperationError>;
 
 	/// Ends construction of a face previously begun with [begin_brush_face].
 	///
 	/// If [begin_brush_face] jas not previously been called, returns
-	/// [BuilderError::OperationNotStarted].
+	/// [OperationError::OperationNotStarted].
 	fn end_brush_face(&mut self) -> Result<(), OperationError>;
 
 	/// Sets the plane of the current brush face.
 	///
 	/// If there is no current face, returns
-	/// [BuilderError::OperationNotStarted].
+	/// [OperationError::OperationNotStarted].
 	fn set_brush_face_plane(&mut self, plane: DPlane3) -> Result<(), OperationError>;
 
 	/// Sets the material for the current brush face.
 	///
 	/// If there is no current face, returns
-	/// [BuilderError::OperationNotStarted].
+	/// [OperationError::OperationNotStarted].
 	fn set_brush_face_material(&mut self, material_name: XCStr) -> Result<(), OperationError>;
 
 	/// Sets the material axes for the current brush face.
 	///
 	/// If there is no current face, returns
-	/// [BuilderError::OperationNotStarted].
+	/// [OperationError::OperationNotStarted].
 	fn set_brush_face_material_axes(
 		&mut self,
 		u_unit_axis: DVec3,
@@ -181,7 +184,7 @@ pub trait MapSourceBuilderApi
 	/// Sets the material translation for the current brush face.
 	///
 	/// If there is no current face, returns
-	/// [BuilderError::OperationNotStarted].
+	/// [OperationError::OperationNotStarted].
 	fn set_brush_face_material_translation(
 		&mut self,
 		translation: DVec2,
@@ -190,7 +193,7 @@ pub trait MapSourceBuilderApi
 	/// Sets the material scale for the current brush face.
 	///
 	/// If there is no current face, returns
-	/// [BuilderError::OperationNotStarted].
+	/// [OperationError::OperationNotStarted].
 	fn set_brush_face_material_scale(&mut self, scale: DVec2) -> Result<(), OperationError>;
 
 	/// Gets the index of the current entity, or None if there is no current
