@@ -57,22 +57,15 @@ fn extension_info(ext_ref: &ExtensionRef) -> Result<()>
 
 	extension_routines::register_all_formats_for_ext(extension.deref_mut())?;
 
+	let vfs_types: Vec<String> = get_vfs_types(extension.deref_mut());
 	let resource_formats: HashMap<String, Vec<String>> =
 		get_resource_formats(extension.deref_mut());
 	let map_formats: Vec<String> = get_map_formats(extension.deref_mut());
 
-	let formats_str: String = if !map_formats.is_empty()
-	{
-		map_formats.join(", ")
-	}
-	else
-	{
-		"None".into()
-	};
-
 	info!("Extension: {name}");
 	info!("  Path: {}", path.display());
-	info!("  Map formats: {formats_str}");
+	info!("  VFS types: {}", display_string(vfs_types));
+	info!("  Map formats: {}", display_string(map_formats));
 
 	for (key, value) in resource_formats.iter()
 	{
@@ -89,6 +82,16 @@ fn extension_info(ext_ref: &ExtensionRef) -> Result<()>
 	}
 
 	Ok(())
+}
+
+fn get_vfs_types(extension: &mut Extension) -> Vec<String>
+{
+	return extension
+		.get_api_endpoints_mut()
+		.vfs_api
+		.as_ref()
+		.map(|api| api.get_supported_vfs_types())
+		.unwrap_or_else(|| Vec::new());
 }
 
 fn get_map_formats(extension: &mut Extension) -> Vec<String>
@@ -177,4 +180,16 @@ fn list_extensions(toolchain_root: &PathBuf, extensions: &ExtensionList)
 
 		info!("  {name}:{padding} {}", filename.display())
 	});
+}
+
+fn display_string(vec: Vec<String>) -> String
+{
+	return if !vec.is_empty()
+	{
+		vec.join(", ")
+	}
+	else
+	{
+		"None".into()
+	};
 }

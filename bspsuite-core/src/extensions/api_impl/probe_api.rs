@@ -6,6 +6,7 @@ use bspextifc::probe_api::{ProbeApi, RequestError};
 use bspextifc::resource_format_api::{
 	API_INFO as RESOURCE_FORMAT_API_INFO, ResourceFormatApiCallbacks,
 };
+use bspextifc::vfs_api::{API_INFO as VFS_API_INFO, VfsApiCallbacks};
 use bspffi::types::XCStr;
 use log::{error, trace};
 
@@ -71,6 +72,7 @@ pub(crate) struct ExportedApis
 	pub log_api: ApiProvider<LogApi>,
 	pub map_format_callbacks: CallbacksContainer<MapFormatApiCallbacks>,
 	pub resource_format_callbacks: CallbacksContainer<ResourceFormatApiCallbacks>,
+	pub vfs_callbacks: CallbacksContainer<VfsApiCallbacks>,
 }
 
 impl ExportedApis
@@ -81,6 +83,7 @@ impl ExportedApis
 			log_api: ApiProvider::new(&LOG_API_INFO, log_api_impl::create_api()),
 			map_format_callbacks: CallbacksContainer::new(&MAP_FORMAT_API_INFO),
 			resource_format_callbacks: CallbacksContainer::new(&RESOURCE_FORMAT_API_INFO),
+			vfs_callbacks: CallbacksContainer::new(&VFS_API_INFO),
 		};
 	}
 }

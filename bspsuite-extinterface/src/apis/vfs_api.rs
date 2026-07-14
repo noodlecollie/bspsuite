@@ -23,7 +23,7 @@ pub trait VfsApi
 {
 	/// Registers support for a FVS under a given name. This name may be used in
 	/// a game config to request that resources be loaded through this VFS.
-	fn register_vfs(&mut self, name: &XCStr, callbacks: VfsApiCallbacks);
+	fn register_vfs(&mut self, name: &XCStr, callbacks: VfsImplCallbacks);
 }
 
 /// Set of functions that an extension must implement for a VFS.

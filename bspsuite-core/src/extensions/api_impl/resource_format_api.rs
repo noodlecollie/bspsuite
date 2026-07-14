@@ -48,7 +48,7 @@ impl<'l> ResourceFormatApiImpl<'l>
 	pub fn new(extension_name: &str, formats: &'l mut ResourceFormatsCollector) -> Self
 	{
 		return Self {
-			extension_name: extension_name.to_owned(),
+			extension_name: extension_name.into(),
 			formats,
 		};
 	}
