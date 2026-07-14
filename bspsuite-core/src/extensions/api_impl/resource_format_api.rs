@@ -59,7 +59,7 @@ impl ResourceFormatsCollector
 	pub fn new(extension_name: &str) -> Self
 	{
 		return Self {
-			image_formats: FileFormatList::new(extension_name.into(), "image".into()),
+			image_formats: FileFormatList::new(extension_name.into(), "image format".into()),
 		};
 	}
 }
@@ -77,6 +77,7 @@ impl<'l> ResourceFormatApi for ResourceFormatApiImpl<'l>
 			format_name.as_str(),
 			file_extensions.as_slice(),
 			ImageLoadCallback { load_fn },
+			false,
 		);
 	}
 }

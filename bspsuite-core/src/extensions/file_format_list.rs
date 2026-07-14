@@ -5,14 +5,14 @@ use itertools::Itertools;
 use log;
 use log::{debug, warn};
 
-pub(super) struct FileFormatList<HandlerFunc>
+pub(super) struct FileFormatList<Handler>
 {
 	extension_name: String,
 	format_desc: String,
-	formats: HashMap<String, (HandlerFunc, Vec<String>)>,
+	formats: HashMap<String, (Handler, Vec<String>)>,
 }
 
-impl<Func> FileFormatList<Func>
+impl<Handler> FileFormatList<Handler>
 {
 	pub fn new(extension_name: String, format_desc: String) -> Self
 	{
@@ -23,46 +23,61 @@ impl<Func> FileFormatList<Func>
 		};
 	}
 
-	pub fn add(&mut self, format_name: &str, file_extensions: &[XCStr], func: Func) -> bool
+	pub fn add(
+		&mut self,
+		format_name: &str,
+		file_extensions: &[XCStr],
+		handler: Handler,
+		allow_empty_exts_slice: bool,
+	) -> bool
 	{
-		if file_extensions.is_empty()
+		if file_extensions.is_empty() && !allow_empty_exts_slice
 		{
 			warn!(
-				"Extension {} specified no file extensions for {} format {format_name}. \
-				This format will be ignored.",
+				"Extension {} specified no file extensions for {} {format_name}. \
+				This request will be ignored.",
 				self.extension_name, self.format_desc
 			);
 
 			return false;
 		}
 
-		// We want to do a few things here:
-		// - Trim leading and trailing whitespace
-		// - Trim leading dots, in case people specify ".map" instead of "map"
-		// - Remove any items that end up being empty after these operations
-		// - Remove duplicates
-		let extension_strings: Vec<String> = file_extensions
-			.iter()
-			.map(|item| item.as_str().trim().trim_start_matches(".").to_string())
-			.filter(|item| !item.is_empty())
-			.unique()
-			.collect();
-
-		if extension_strings.is_empty()
+		let extension_strings: Vec<String> = if !file_extensions.is_empty()
 		{
-			warn!(
-				"After removing invalid file extensions, extension {} was left with no valid file extensions \
-				for {} format {format_name}. This format will be ignored.",
-				self.extension_name, self.format_desc
-			);
+			// We want to do a few things here:
+			// - Trim leading and trailing whitespace
+			// - Trim leading dots, in case people specify ".map" instead of "map"
+			// - Remove any items that end up being empty after these operations
+			// - Remove duplicates
+			let extension_strings: Vec<String> = file_extensions
+				.iter()
+				.map(|item| item.as_str().trim().trim_start_matches(".").to_string())
+				.filter(|item| !item.is_empty())
+				.unique()
+				.collect();
 
-			return false;
+			if extension_strings.is_empty()
+			{
+				warn!(
+					"After removing invalid file extensions, extension {} was left with no valid file extensions \
+					for {} {format_name}. This request will be ignored.",
+					self.extension_name, self.format_desc
+				);
+
+				return false;
+			}
+
+			extension_strings
 		}
+		else
+		{
+			Vec::new()
+		};
 
 		if extension_strings.len() < file_extensions.len()
 		{
 			warn!(
-				"Extension {} provided {} empty, duplicated, or otherwise invalid file extensions for {} format \
+				"Extension {} provided {} empty, duplicated, or otherwise invalid file extensions for {} \
 				{format_name}. These will be ignored.",
 				self.extension_name,
 				file_extensions.len() - extension_strings.len(),
@@ -72,10 +87,10 @@ impl<Func> FileFormatList<Func>
 
 		if let Some(_) = self
 			.formats
-			.insert(format_name.into(), (func, extension_strings))
+			.insert(format_name.into(), (handler, extension_strings))
 		{
 			warn!(
-				"Overriding existing registration for extension {} {} format \"{format_name}\"",
+				"Overriding existing registration for extension {} {} \"{format_name}\"",
 				self.extension_name, self.format_desc,
 			);
 		}
@@ -85,7 +100,7 @@ impl<Func> FileFormatList<Func>
 			let all_extensions: String = self.formats.get(format_name).unwrap().1.join(", ");
 
 			debug!(
-				"Extension {} registered support for {} format {format_name}, with \
+				"Extension {} registered support for {} {format_name}, with \
 				file extensions: {all_extensions}",
 				self.extension_name, self.format_desc
 			);
@@ -94,7 +109,7 @@ impl<Func> FileFormatList<Func>
 		return true;
 	}
 
-	pub fn collect(self) -> HashMap<String, (Func, Vec<String>)>
+	pub fn collect(self) -> HashMap<String, (Handler, Vec<String>)>
 	{
 		return self.formats;
 	}

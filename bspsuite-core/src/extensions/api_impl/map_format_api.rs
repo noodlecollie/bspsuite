@@ -38,6 +38,7 @@ impl<'l> MapFormatApi for MapFormatApiImpl<'l>
 			format_name.as_str(),
 			file_extensions.as_slice(),
 			MapParseCallback { parse_fn },
+			false,
 		);
 	}
 }
@@ -78,7 +79,7 @@ impl Endpoint
 	pub fn register_map_formats(&mut self, extension_name: &str)
 	{
 		let mut formats: FileFormatList<MapParseCallback> =
-			FileFormatList::new(extension_name.into(), "map".into());
+			FileFormatList::new(extension_name.into(), "map format".into());
 
 		{
 			let mut api_impl: BoxedMapFormatApi =

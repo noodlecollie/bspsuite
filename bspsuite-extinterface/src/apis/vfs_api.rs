@@ -1,5 +1,5 @@
 use crate::ApiInfo;
-use bspffi::types::{XCBytes, XCStr};
+use bspffi::types::{XCBytes, XCOption, XCSlice, XCStr};
 use thin_trait_object::thin_trait_object;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("VfsApi", 1);
@@ -23,7 +23,16 @@ pub trait VfsApi
 {
 	/// Registers support for a FVS under a given name. This name may be used in
 	/// a game config to request that resources be loaded through this VFS.
-	fn register_vfs(&mut self, name: &XCStr, callbacks: VfsImplCallbacks);
+	/// If the VFS root should be a file with a particular extension, the
+	/// supported extensions should be specified in the file_extensions
+	/// argument. If the VFS root should be a directory on disk, this argument
+	/// should be set to None.
+	fn register_vfs(
+		&mut self,
+		name: &XCStr,
+		file_extensions: &XCOption<XCSlice<XCStr>>,
+		callbacks: VfsImplCallbacks,
+	);
 }
 
 /// Set of functions that an extension must implement for a VFS.
