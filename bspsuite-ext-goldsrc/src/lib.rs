@@ -1,12 +1,10 @@
 use bspextifc::probe_api::ProbeApi;
 use bspextifc::{
 	implement_extension_info, implement_extension_logger, log_api, map_format_api, probe_api,
-	resource_format_api,
 };
 use log::error;
 
 mod map_formats;
-mod resource_formats;
 
 implement_extension_info!(probe);
 implement_extension_logger!(ExtensionLogger);
@@ -24,15 +22,6 @@ extern "C" fn probe(api: &mut probe_api::BoxedProbeApi) -> probe_api::ProbeResul
 	)
 	{
 		error!("Failed to register for map format API.");
-		return probe_api::ProbeResult::Failure;
-	}
-
-	if let Err(_) = api.register_resource_format_api_callbacks(
-		resource_format_api::API_INFO.version,
-		resource_formats::create_callbacks(),
-	)
-	{
-		error!("Failed to register for resource format API.");
 		return probe_api::ProbeResult::Failure;
 	}
 

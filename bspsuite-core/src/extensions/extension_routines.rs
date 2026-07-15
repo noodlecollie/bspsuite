@@ -132,7 +132,9 @@ pub fn parse_map(
 		.expect("Expected to be able to get map format API endpoint to parse map");
 
 	return map_format_api
-		.load_if_supported(&parse_using.format_name, |def| def.parse_map(input_data))
+		.load_if_supported(&parse_using.format_name, |def| {
+			Ok(def.parse_map(input_data)?)
+		})
 		.map_err(|err| {
 			CompilerError::from_anyhow(
 				CompilerErrorCode::IoError,

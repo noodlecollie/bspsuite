@@ -2,9 +2,12 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::extensions::FileFormatList;
+use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::{Result, anyhow, ensure};
 use bspextifc::vfs_api::{BoxedVfsApi, VfsApi, VfsApiCallbacks, VfsImplCallbacks};
 use bspffi::types::{XCOption, XCSlice, XCStr};
+
+pub type VfsInitialiser = extern "C" fn(real_root_node: &XCStr);
 
 struct VfsInstance
 {
@@ -119,5 +122,60 @@ impl Endpoint
 	pub fn get_vfs_root_file_extensions(&self, vfs_type: &str) -> Option<&Vec<String>>
 	{
 		return self.vfs_impls.get(vfs_type).map(|item| &item.1);
+	}
+}
+
+// The "format" here is the package type that may be used as a VFS root.
+impl FormatLoader<VfsInitialiser> for Endpoint
+{
+	type LoaderOutput = ();
+
+	fn supported_formats(&self) -> Vec<FormatSpec>
+	{
+		return self
+			.vfs_impls
+			.iter()
+			.map(|(key, value)| FormatSpec {
+				format_name: key.clone(),
+				associated_file_extensions: value.1.clone(),
+			})
+			.collect();
+	}
+
+	fn supports_loading_format(&self, format_name: &str) -> bool
+	{
+		return self.vfs_impls.contains_key(format_name);
+	}
+
+	fn supports_loading_format_from_file(&self, format_name: &str, file_extension: &str) -> bool
+	{
+		return self
+			.vfs_impls
+			.get(format_name)
+			.map_or(false, |vfs| vfs.1.contains(&file_extension.to_owned()));
+	}
+
+	fn supported_file_extensions_for_format(&self, format_name: &str) -> Option<Vec<&str>>
+	{
+		return self
+			.vfs_impls
+			.get(format_name)
+			.map(|vfs| vfs.1.iter().map(|str| str.as_str()).collect());
+	}
+
+	fn load_if_supported<Callback>(
+		&self,
+		format_name: &str,
+		callback: Callback,
+	) -> anyhow::Result<Self::LoaderOutput>
+	where
+		Callback: Fn(&VfsInitialiser) -> anyhow::Result<Self::LoaderOutput>,
+	{
+		let vfs = &self
+			.vfs_impls
+			.get(format_name)
+			.ok_or_else(|| anyhow!(format!("VFS format {format_name} is not supported")))?;
+
+		Ok((callback)(&vfs.0.initialise)?)
 	}
 }

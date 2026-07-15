@@ -6,11 +6,9 @@ pub(crate) struct FormatSpec
 	pub associated_file_extensions: Vec<String>,
 }
 
-pub(crate) trait FormatLoader
+pub(crate) trait FormatLoader<LoaderInterface>
 {
-	type LoaderInterface;
 	type LoaderOutput;
-	type LoaderError;
 
 	/// Returns a list of all supported formats, along with the file extensions
 	/// they are associated with.
@@ -39,7 +37,7 @@ pub(crate) trait FormatLoader
 		callback: Callback,
 	) -> anyhow::Result<Self::LoaderOutput>
 	where
-		Callback: Fn(&Self::LoaderInterface) -> Result<Self::LoaderOutput, Self::LoaderError>;
+		Callback: Fn(&LoaderInterface) -> anyhow::Result<Self::LoaderOutput>;
 
 	/// Convenience for obtaining just the format names from
 	/// [supported_formats].

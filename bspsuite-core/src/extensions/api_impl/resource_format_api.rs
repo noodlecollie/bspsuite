@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use crate::extensions::FileFormatList;
+use crate::extensions::{FormatLoader, FormatSpec};
+use anyhow::anyhow;
 use bspextifc::resource_format_api::{
 	BoxedResourceFormatApi, LoadImageFn, ResourceFormatApi, ResourceFormatApiCallbacks,
 };
@@ -151,5 +153,58 @@ impl Endpoint
 			.iter()
 			.map(|(key, val)| (key.as_str(), val))
 			.collect();
+	}
+}
+
+impl FormatLoader<LoadImageFn> for Endpoint
+{
+	type LoaderOutput = ();
+
+	fn supported_formats(&self) -> Vec<FormatSpec>
+	{
+		return self
+			.image_formats
+			.iter()
+			.map(|(key, value)| FormatSpec {
+				format_name: key.to_owned(),
+				associated_file_extensions: value.file_extensions.clone(),
+			})
+			.collect();
+	}
+
+	fn supports_loading_format(&self, format_name: &str) -> bool
+	{
+		return self.image_formats.contains_key(format_name);
+	}
+
+	fn supports_loading_format_from_file(&self, format_name: &str, file_extension: &str) -> bool
+	{
+		return self.image_formats.get(format_name).map_or(false, |def| {
+			def.file_extensions.contains(&file_extension.to_owned())
+		});
+	}
+
+	fn supported_file_extensions_for_format(&self, format_name: &str) -> Option<Vec<&str>>
+	{
+		return self
+			.image_formats
+			.get(format_name)
+			.map(|def| def.file_extensions.iter().map(|str| str.as_str()).collect());
+	}
+
+	fn load_if_supported<Callback>(
+		&self,
+		format_name: &str,
+		callback: Callback,
+	) -> anyhow::Result<Self::LoaderOutput>
+	where
+		Callback: Fn(&LoadImageFn) -> anyhow::Result<Self::LoaderOutput>,
+	{
+		let def: &ImageFormatDefinition = self
+			.image_formats
+			.get(format_name)
+			.ok_or_else(|| anyhow!(format!("Image format {format_name} is not supported")))?;
+
+		Ok((callback)(&def.load_fn)?)
 	}
 }

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::extensions::FileFormatList;
 use crate::extensions::{FormatLoader, FormatSpec};
+use anyhow::Result;
 use anyhow::anyhow;
 use bspextifc::builders::map_source_builder::{BuilderError, Entity};
 use bspextifc::map_format_api::{MapFormatApi, MapFormatApiCallbacks, ParseMapFn};
@@ -105,10 +106,8 @@ impl MapFormatDefinition
 	}
 }
 
-impl FormatLoader for Endpoint
+impl FormatLoader<MapFormatDefinition> for Endpoint
 {
-	type LoaderError = BuilderError;
-	type LoaderInterface = MapFormatDefinition;
 	type LoaderOutput = Vec<Entity>;
 
 	fn supported_formats(&self) -> Vec<FormatSpec>
@@ -130,11 +129,9 @@ impl FormatLoader for Endpoint
 
 	fn supports_loading_format_from_file(&self, format_name: &str, file_extension: &str) -> bool
 	{
-		return self
-			.map_formats
-			.get(format_name)
-			.map(|def| def.file_extensions.contains(&file_extension.to_owned()))
-			.unwrap_or(false);
+		return self.map_formats.get(format_name).map_or(false, |def| {
+			def.file_extensions.contains(&file_extension.to_owned())
+		});
 	}
 
 	fn supported_file_extensions_for_format(&self, format_name: &str) -> Option<Vec<&str>>
@@ -153,8 +150,7 @@ impl FormatLoader for Endpoint
 		callback: Callback,
 	) -> anyhow::Result<Self::LoaderOutput>
 	where
-		Callback:
-			Fn(&Self::LoaderInterface) -> anyhow::Result<Self::LoaderOutput, Self::LoaderError>,
+		Callback: Fn(&MapFormatDefinition) -> anyhow::Result<Self::LoaderOutput>,
 	{
 		let def: &MapFormatDefinition = self
 			.map_formats
