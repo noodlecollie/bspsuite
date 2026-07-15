@@ -99,11 +99,21 @@ impl<Handler> FileFormatList<Handler>
 		{
 			let all_extensions: String = self.formats.get(format_name).unwrap().1.join(", ");
 
-			debug!(
-				"Extension {} registered support for {} {format_name}, with \
+			if all_extensions.is_empty()
+			{
+				debug!(
+					"Extension {} registered support for {} {format_name}",
+					self.extension_name, self.format_desc
+				);
+			}
+			else
+			{
+				debug!(
+					"Extension {} registered support for {} {format_name}, with \
 				file extensions: {all_extensions}",
-				self.extension_name, self.format_desc
-			);
+					self.extension_name, self.format_desc
+				);
+			}
 		}
 
 		return true;

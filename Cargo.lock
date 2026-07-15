@@ -181,6 +181,7 @@ dependencies = [
  "anyhow",
  "bspsuite-extinterface",
  "bspsuite-ffi",
+ "lazy_static",
  "log",
 ]
 

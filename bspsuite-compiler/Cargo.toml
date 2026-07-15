@@ -17,7 +17,7 @@ bspsuite-core = { path = "../bspsuite-core" }
 bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 clap.workspace = true
 log.workspace = true
+lazy_static.workspace = true
 fern = { version = "0.7.1", features = ["colored"] }
 paris = { version = "1.5.15", features = ["no_logger"] }
 strum = { workspace = true, features = ["derive"] }
-lazy_static = "1.5.0"

@@ -65,6 +65,20 @@ impl<'l> ProbeApi for ProbeApiImpl<'l>
 			callbacks,
 		);
 	}
+
+	fn register_vfs_api_callbacks(
+		&mut self,
+		requested_version: u64,
+		callbacks: VfsApiCallbacks,
+	) -> Result<(), RequestError>
+	{
+		return ExportedApis::request_set_callbacks(
+			self.extension_name.as_str(),
+			&mut self.apis.vfs_callbacks,
+			requested_version,
+			callbacks,
+		);
+	}
 }
 
 pub(crate) struct ExportedApis

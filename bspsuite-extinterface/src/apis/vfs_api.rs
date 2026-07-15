@@ -43,7 +43,7 @@ pub struct VfsImplCallbacks
 	/// a file or directory on the physical disk that should serve as the root
 	/// of the VFS. The VFS is expected to persist until the extension library
 	/// is unloaded.
-	pub initialise: extern "C" fn(real_root_node: &XCStr),
+	pub initialise: extern "C" fn(real_root_node: &XCStr) -> VfsInitResultCode,
 
 	/// Returns true if a file or directory at the given path exists, or false
 	/// otherwise.
@@ -66,6 +66,15 @@ pub struct VfsImplCallbacks
 	/// be submitted to the recipient, or an error code provided if the
 	/// operation fails.
 	pub load_file: extern "C" fn(path: &XCStr, recipient: &mut BoxedVfsFileRecipient),
+}
+
+#[repr(C)]
+pub enum VfsInitResultCode
+{
+	Ok,
+	InternalError,
+	InvalidRootPath,
+	RootAlreadyInUse,
 }
 
 #[repr(C)]

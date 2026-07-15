@@ -12,6 +12,7 @@ pub struct V1File
 	pub game_id: String,
 	pub game_name: String,
 	pub map_formats: Vec<String>,
+	pub vfs_formats: Vec<String>,
 	pub default_compile_tuning_parameters: Option<V1TuningParams>,
 }
 
@@ -55,6 +56,7 @@ impl From<&GameConfig> for V1File
 			game_id: value.game_id.clone(),
 			game_name: value.game_name.clone(),
 			map_formats: value.map_formats.clone(),
+			vfs_formats: value.vfs_formats.clone(),
 			default_compile_tuning_parameters: value
 				.default_compile_tuning_parameters
 				.as_ref()
@@ -88,6 +90,7 @@ impl From<V1File> for GameConfig
 			game_id: value.game_id,
 			game_name: value.game_name,
 			map_formats: value.map_formats,
+			vfs_formats: value.vfs_formats,
 			default_compile_tuning_parameters: value
 				.default_compile_tuning_parameters
 				.map(|v| v.into()),
@@ -120,6 +123,7 @@ mod tests
 			game_id: "my_game".to_owned(),
 			game_name: "My Game".to_owned(),
 			map_formats: vec!["mapone".to_owned(), "maptwo".to_owned()],
+			vfs_formats: vec!["directory".to_owned()],
 			default_compile_tuning_parameters: Some(CompileTuningParametersConfig {
 				contact_epsilon: Some(1e-3),
 				equal_point_radius_epsilon: Some(1e-4),
@@ -143,6 +147,7 @@ mod tests
 			game_id: "my_game".to_owned(),
 			game_name: "My Game".to_owned(),
 			map_formats: vec!["mapone".to_owned(), "maptwo".to_owned()],
+			vfs_formats: vec!["directory".to_owned()],
 			default_compile_tuning_parameters: None,
 		};
 
@@ -160,7 +165,8 @@ mod tests
 		let toml_string: &str = r##"
 			game_id = "my_game"
 			game_name = "My Game"
-			map_formats = ["mapone", "maptwo"]"##;
+			map_formats = ["mapone", "maptwo"]
+			vfs_formats = ["directory"]"##;
 
 		let deserialized_data = toml::from_str::<V1File>(&toml_string);
 		let error = deserialized_data.expect_err("Expected deserialization to fail");
@@ -180,7 +186,8 @@ mod tests
 			version = 1
 			game_id = "my_game"
 			game_name = "My Game"
-			map_formats = ["mapone", "maptwo"]"##;
+			map_formats = ["mapone", "maptwo"]
+			vfs_formats = ["directory"]"##;
 
 		let deserialized_data = toml::from_str::<V1File>(&toml_string);
 		let error = deserialized_data.expect_err("Expected deserialization to fail");
@@ -200,7 +207,8 @@ mod tests
 			format = "gameconfig"
 			game_id = "my_game"
 			game_name = "My Game"
-			map_formats = ["mapone", "maptwo"]"##;
+			map_formats = ["mapone", "maptwo"]
+			vfs_formats = ["directory"]"##;
 
 		let deserialized_data = toml::from_str::<V1File>(&toml_string);
 		let error = deserialized_data.expect_err("Expected deserialization to fail");

@@ -1,5 +1,10 @@
 use bspextifc::probe_api::ProbeApi;
-use bspextifc::{implement_extension_info, implement_extension_logger, log_api, probe_api};
+use bspextifc::{
+	implement_extension_info, implement_extension_logger, log_api, probe_api, vfs_api,
+};
+use log::error;
+
+mod vfs;
 
 implement_extension_info!(probe);
 implement_extension_logger!(ExtensionLogger);
@@ -8,6 +13,13 @@ extern "C" fn probe(api: &mut probe_api::BoxedProbeApi) -> probe_api::ProbeResul
 {
 	if !set_up_logger(api)
 	{
+		return probe_api::ProbeResult::Failure;
+	}
+
+	if let Err(_) =
+		api.register_vfs_api_callbacks(vfs_api::API_INFO.version, vfs::create_callbacks())
+	{
+		error!("Failed to register for VFS API.");
 		return probe_api::ProbeResult::Failure;
 	}
 

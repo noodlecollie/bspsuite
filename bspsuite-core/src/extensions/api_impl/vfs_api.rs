@@ -4,10 +4,12 @@ use std::path::Path;
 use crate::extensions::FileFormatList;
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::{Result, anyhow, ensure};
-use bspextifc::vfs_api::{BoxedVfsApi, VfsApi, VfsApiCallbacks, VfsImplCallbacks};
+use bspextifc::vfs_api::{
+	BoxedVfsApi, VfsApi, VfsApiCallbacks, VfsImplCallbacks, VfsInitResultCode,
+};
 use bspffi::types::{XCOption, XCSlice, XCStr};
 
-pub type VfsInitialiser = extern "C" fn(real_root_node: &XCStr);
+pub type VfsInitialiser = extern "C" fn(real_root_node: &XCStr) -> VfsInitResultCode;
 
 struct VfsInstance
 {
@@ -128,7 +130,7 @@ impl Endpoint
 // The "format" here is the package type that may be used as a VFS root.
 impl FormatLoader<VfsInitialiser> for Endpoint
 {
-	type LoaderOutput = ();
+	type LoaderOutput = VfsInitResultCode;
 
 	fn supported_formats(&self) -> Vec<FormatSpec>
 	{

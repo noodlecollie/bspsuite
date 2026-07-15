@@ -18,3 +18,4 @@ bspsuite-extinterface = { path = "../bspsuite-extinterface" }
 bspsuite-ffi = { path = "../bspsuite-ffi" }
 log = { workspace = true, features = ["std"] }
 anyhow.workspace = true
+lazy_static.workspace = true
