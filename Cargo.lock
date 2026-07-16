@@ -195,6 +195,7 @@ dependencies = [
  "lazy_static",
  "log",
  "target-test-dir",
+ "vfs",
 ]
 
 [[package]]
@@ -471,6 +472,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12d741e2415d4e2e5bd1c1d00409d1a8865a57892c2d689b504365655d237d43"
 dependencies = [
  "winapi",
+]
+
+[[package]]
+name = "filetime"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
+dependencies = [
+ "cfg-if",
+ "libc",
 ]
 
 [[package]]
@@ -1107,6 +1118,15 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
+
+[[package]]
+name = "vfs"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69d33cbe2ac48f2a446f04c33aef4906078ffd224888df5ae60b7ed401ded771"
+dependencies = [
+ "filetime",
+]
 
 [[package]]
 name = "wasm-bindgen"
