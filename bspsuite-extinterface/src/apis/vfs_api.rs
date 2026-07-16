@@ -69,22 +69,27 @@ pub struct VfsImplCallbacks
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub enum VfsInitResultCode
 {
 	Ok,
 	InternalError,
 	InvalidRootPath,
 	RootAlreadyInUse,
+	RootsOverlap,
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub enum VfsFileErrorCode
 {
 	InternalError,
 	InvalidPath,
+	IoError,
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub enum VfsFileRecipientResult
 {
 	Ok,
@@ -105,17 +110,17 @@ pub struct VfsFileStats<'l>
 {
 	/// Path to the parent node in the filesystem, or an empty string if these
 	/// stats represent the root.
-	parent_path: XCStr<'l>,
+	pub parent_path: XCStr<'l>,
 
 	/// The name of the file or directory being queried.
 	/// `"{parent_path}/{name}"` represents the item's entire path.
-	name: XCStr<'l>,
+	pub name: XCStr<'l>,
 
 	/// True if the item is a directory, false if it's a file.
-	is_directory: bool,
+	pub is_directory: bool,
 
 	/// The size of the file in bytes, or 0 if the item is a directory.
-	file_size: usize,
+	pub file_size: usize,
 }
 
 // TODO: Docs

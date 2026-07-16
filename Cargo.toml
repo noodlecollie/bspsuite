@@ -31,3 +31,4 @@ glam = { version = "0.30.10", features = ["approx", "serde"] }
 clap = { version = "4.5.51", features = ["derive"] }
 serde = { version = "1.0.228", features = ["derive"] }
 thin_trait_object = { path = "thirdparty/thin_trait_object-main-1703d03c32fc10cea50fbe2ec30cd69a387f6845" }
+target-test-dir = "0.3.0"
