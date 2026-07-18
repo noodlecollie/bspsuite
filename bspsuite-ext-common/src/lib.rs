@@ -4,7 +4,7 @@ use bspextifc::{
 };
 use log::error;
 
-mod vfs;
+mod vfs_impl;
 
 implement_extension_info!(probe);
 implement_extension_logger!(ExtensionLogger);
@@ -17,7 +17,7 @@ extern "C" fn probe(api: &mut probe_api::BoxedProbeApi) -> probe_api::ProbeResul
 	}
 
 	if let Err(_) =
-		api.register_vfs_api_callbacks(vfs_api::API_INFO.version, vfs::create_callbacks())
+		api.register_vfs_api_callbacks(vfs_api::API_INFO.version, vfs_impl::create_callbacks())
 	{
 		error!("Failed to register for VFS API.");
 		return probe_api::ProbeResult::Failure;
