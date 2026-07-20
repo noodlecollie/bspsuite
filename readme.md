@@ -7,3 +7,14 @@ This project is primarily for me to implement my own, maintainable version of th
 
 
 [License](license.txt)
+
+## Setting Up Distrobox
+
+These commands **must** be run from the root of the repo, so that the paths in the configuration are correct:
+
+```bash
+distrobox assemble create -R --file .distrobox/distrobox.ini
+distrobox enter bspsuite_dev
+```
+
+Once entered, `sshd` will be started. You can then `exit` the shell, and reconnect from the IDE connect using `ssh -p 2222 <your username>@localhost`
