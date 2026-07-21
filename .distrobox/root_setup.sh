@@ -7,8 +7,8 @@ SSH_PORT=${2?:"Second argument must be the SSH port"}
 GROUP=$(id -g -n $APP_USER)
 
 # Fix stupid Distrobox ownership caused by mounting these... >:C
-chown ${APP_USER}:${GROUP} $HOME/.gitconfig
-chown ${APP_USER}:${GROUP} $HOME/.ssh
+# chown ${APP_USER}:${GROUP} $HOME/.gitconfig
+# chown ${APP_USER}:${GROUP} $HOME/.ssh
 
 # Create an sshd config
 cat <<EOT >/etc/ssh/sshd_config.d/app.conf
