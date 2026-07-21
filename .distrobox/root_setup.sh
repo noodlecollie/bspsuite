@@ -4,11 +4,11 @@ set -xe
 
 APP_USER=${1?:"First argument must be the container user"}
 SSH_PORT=${2?:"Second argument must be the SSH port"}
-GROUP=$(id -g -n)
+GROUP=$(id -g -n $APP_USER)
 
 # Fix stupid Distrobox ownership caused by mounting these... >:C
-chown ${APP_USER}:${GROUP} $HOME/.distrobox/bspsuite_dev/.gitconfig
-chown ${APP_USER}:${GROUP} $HOME/.distrobox/bspsuite_dev/.ssh
+chown ${APP_USER}:${GROUP} $HOME/.gitconfig
+chown ${APP_USER}:${GROUP} $HOME/.ssh
 
 # Create an sshd config
 cat <<EOT >/etc/ssh/sshd_config.d/app.conf
