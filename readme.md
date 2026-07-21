@@ -17,6 +17,26 @@ From the root of the repo, run:
 distrobox assemble create -R && distrobox enter bspsuite_dev
 ```
 
-Once entered, `sshd` will be started. You can then `exit` the shell, and reconnect from the IDE connect using `ssh -p 2222 <your username>@localhost`
+Once entered, `sshd` will be started. You can then `exit` the shell, and reconnect from the IDE connect using `ssh -p 2222 <your username>@localhost`.
 
-Visual Studio Code supports Devcontainers using an extension, but unfortunately Zed does not at time of writing, so should use the `ssh` method above.
+Visual Studio Code supports Devcontainers using an extension, but unfortunately Zed does not at time of writing, so should use the `ssh` method above. You can add a convenience shortcut into your settings file using:
+
+```
+"ssh_connections": [
+	{
+		"host": "localhost",
+		"username": "<your username here>",
+		"port": 2222,
+		"args": [],
+		"projects": [
+			{
+				"paths": [
+					"/workspace"
+				]
+			}
+		]
+	}
+],
+```
+
+You can connect to this folder from the remote projects panel, shown using `Ctrl+Alt+Shift+O`.
