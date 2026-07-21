@@ -1,8 +1,8 @@
 use std::ffi::OsStr;
-use std::fs;
 use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::{debug_assert, debug_assert_eq, fs};
 
 use anyhow::{Result, bail, ensure};
 use bspextifc::vfs_api::{
@@ -14,9 +14,9 @@ use filesize::PathExt;
 use lazy_static::lazy_static;
 use log::{error, warn};
 use vfs::error::VfsErrorKind;
-use vfs::{FileSystem, VfsError, VfsFileType, VfsMetadata, VfsPath};
 use vfs::impls::altroot::AltrootFS;
 use vfs::impls::physical::PhysicalFS;
+use vfs::{FileSystem, VfsError, VfsFileType, VfsMetadata, VfsPath};
 
 lazy_static! {
 	static ref static_vfs: Mutex<VfsRootContainer> = Mutex::new(VfsRootContainer::new());
@@ -46,32 +46,47 @@ impl<'l> From<&'l FileStats> for VfsFileStats<'l>
 
 struct VfsRoot
 {
-	root_path: PathBuf,
+	canonical_root_path: PathBuf,
 	vfs: VfsPath,
 }
 
 impl VfsRoot
 {
+	// Assumes root is canonicalised and absolute.
 	pub fn new(root: PathBuf) -> Result<Self>
 	{
-		ensure!(root.is_absolute(), "VFS root path must be absolute");
+		assert!(root.is_absolute(), "VFS root path must be absolute");
 
-		let canonical_root: PathBuf = root.canonicalize()?;
-		let physical_fs: PhysicalFS = PhysicalFS::new(canonical_root.clone());
-
-		return Ok(VfsRoot { root_path: canonical_root, vfs: VfsPath::new(physical_fs) });
+		return Ok(VfsRoot {
+			canonical_root_path: root.canonicalize()?,
+			vfs: VfsPath::new(PhysicalFS::new(root)),
+		});
 	}
 
 	pub fn overlaps(&self, other_root: &Path) -> bool
 	{
-		assert!(other_root.is_absolute(), "Expected root to be absolute for this comparison to work");
-		return other_root.starts_with(&self.root_path) || self.root_path.starts_with(other_root);
+		assert!(
+			other_root.is_absolute(),
+			"Expected root to be absolute for this comparison to work"
+		);
+
+		debug_assert_eq!(
+			other_root.canonicalize().unwrap(),
+			other_root,
+			"Expected root to be canonical for this comparison to work"
+		);
+
+		return other_root.starts_with(&self.canonical_root_path)
+			|| self.canonical_root_path.starts_with(other_root);
 	}
 
 	pub fn exists(&self, sub_path: &str) -> bool
 	{
-		return self.vfs.join(sub_path).and_then(|path| path.exists()).unwrap_or_else(|err|
-			{
+		return self
+			.vfs
+			.join(sub_path)
+			.and_then(|path| path.exists())
+			.unwrap_or_else(|err| {
 				match err.kind()
 				{
 					VfsErrorKind::FileNotFound | VfsErrorKind::InvalidPath => (),
@@ -89,10 +104,7 @@ impl VfsRoot
 	{
 		return match self.vfs.join(sub_path).and_then(|path| path.metadata())
 		{
-			Ok(md) =>
-			{
-				md.file_type == VfsFileType::File
-			},
+			Ok(md) => md.file_type == VfsFileType::File,
 			Err(err) =>
 			{
 				match err.kind()
@@ -106,17 +118,14 @@ impl VfsRoot
 
 				false
 			}
-		}
+		};
 	}
 
 	pub fn is_directory(&self, sub_path: &str) -> bool
 	{
 		return match self.vfs.join(sub_path).and_then(|path| path.metadata())
 		{
-			Ok(md) =>
-			{
-				md.file_type == VfsFileType::Directory
-			},
+			Ok(md) => md.file_type == VfsFileType::Directory,
 			Err(err) =>
 			{
 				match err.kind()
@@ -130,50 +139,75 @@ impl VfsRoot
 
 				false
 			}
-		}
+		};
 	}
 
 	pub fn stat(&self, sub_path: &str) -> Result<FileStats, VfsFileErrorCode>
 	{
-		return self.vfs.join(sub_path).and_then(|path| Ok((path.clone(), path.metadata()?))).map(|(full_path, md)|
-			{
+		return self
+			.vfs
+			.join(sub_path)
+			.and_then(|path| Ok((path.clone(), path.metadata()?)))
+			.map(|(full_path, md)| {
 				let parent_path: VfsPath = full_path.parent();
-				let parent_path_string: String = if full_path.is_root() { String::new() } else {parent_path.as_str().into()};
+				let parent_path_string: String = if full_path.is_root() || parent_path.is_root()
+				{
+					"/".to_owned()
+				}
+				else
+				{
+					parent_path.as_str().into()
+				};
 				let file_name: String = full_path.filename();
 
-				FileStats{
+				FileStats {
 					parent_path: parent_path_string,
 					name: file_name,
 					is_directory: match md.file_type
 					{
 						VfsFileType::Directory => true,
-						_ => false
+						_ => false,
 					},
-					file_size: md.len as usize
+					file_size: md.len as usize,
 				}
-			}).map_err(|err|
-		{
-			match err.kind()
-			{
-				VfsErrorKind::FileNotFound | VfsErrorKind::InvalidPath => VfsFileErrorCode::InvalidPath,
-				VfsErrorKind::IoError(_) =>
-				{
-					warn!("Unexpected VFS error: {err}");
-					VfsFileErrorCode::IoError
-				},
-				_ =>
-				{
-					warn!("Unexpected VFS error: {err}");
-					VfsFileErrorCode::InternalError
-				}
-			}
-		});
+			})
+			.map_err(|err| VfsRoot::transform_vfs_error("stat()", err));
 	}
 
-	pub fn load_file(&self, _sub_path: &Path) -> Result<Vec<u8>, VfsFileErrorCode>
+	pub fn load_file(&self, sub_path: &str) -> Result<Vec<u8>, VfsFileErrorCode>
 	{
-		// TODO
-		return Err(VfsFileErrorCode::InternalError);
+		let mut file = self
+			.vfs
+			.join(sub_path)
+			.and_then(|path| path.open_file())
+			.map_err(|err| VfsRoot::transform_vfs_error("load_file()", err))?;
+
+		let mut contents: Vec<u8> = Vec::new();
+
+		file.read_to_end(&mut contents).map_err(|err| {
+			warn!("Failed to load file {sub_path}: {err}");
+			VfsFileErrorCode::IoError
+		})?;
+
+		return Ok(contents);
+	}
+
+	fn transform_vfs_error(context: &str, err: VfsError) -> VfsFileErrorCode
+	{
+		return match err.kind()
+		{
+			VfsErrorKind::FileNotFound | VfsErrorKind::InvalidPath => VfsFileErrorCode::InvalidPath,
+			VfsErrorKind::IoError(_) =>
+			{
+				warn!("{context} encountered unexpected VFS error: {err}");
+				VfsFileErrorCode::IoError
+			}
+			_ =>
+			{
+				warn!("{context} encountered unexpected VFS error: {err}");
+				VfsFileErrorCode::InternalError
+			}
+		};
 	}
 }
 
@@ -191,50 +225,63 @@ impl VfsRootContainer
 
 	pub fn add(&mut self, root: PathBuf) -> Result<(), VfsInitResultCode>
 	{
-		if !root.is_dir()
+		if !root.is_dir() || !root.is_absolute()
 		{
+			warn!(
+				"VFS root {} was not an absolute path to a directory",
+				root.display()
+			);
+
 			return Err(VfsInitResultCode::InvalidRootPath);
 		}
 
+		let canonical_root: PathBuf = root.canonicalize().map_err(|err| {
+			warn!("Failed to canonicalise VFS root {}: {err}", root.display());
+			VfsInitResultCode::InvalidRootPath
+		})?;
+
 		for existing in self.vfs.iter()
 		{
-			if existing.root_path == root
+			if existing.canonical_root_path == canonical_root
 			{
 				return Err(VfsInitResultCode::RootAlreadyInUse);
 			}
 
-			if existing.overlaps(root.as_path())
+			if existing.overlaps(canonical_root.as_path())
 			{
 				return Err(VfsInitResultCode::RootsOverlap);
 			}
 		}
 
-		// TODO
-		// self.vfs.push(VfsRoot::new(root));
-		// return Ok(());
-		return Err(VfsInitResultCode::InternalError);
+		let vfs_root: VfsRoot = VfsRoot::new(root.clone()).map_err(|err| {
+			error!("Failed to create VFS root under {}: {err}", root.display());
+			VfsInitResultCode::InternalError
+		})?;
+
+		self.vfs.push(vfs_root);
+		return Ok(());
 	}
 
-	pub fn exists(&self, path: &Path) -> bool
+	pub fn exists(&self, sub_path: &str) -> bool
 	{
-		return self.vfs.iter().any(|vfs| vfs.exists(path));
+		return self.vfs.iter().any(|vfs| vfs.exists(sub_path));
 	}
 
-	pub fn is_file(&self, path: &Path) -> bool
+	pub fn is_file(&self, sub_path: &str) -> bool
 	{
-		return self.vfs.iter().any(|vfs| vfs.is_file(path));
+		return self.vfs.iter().any(|vfs| vfs.is_file(sub_path));
 	}
 
-	pub fn is_directory(&self, path: &Path) -> bool
+	pub fn is_directory(&self, sub_path: &str) -> bool
 	{
-		return self.vfs.iter().any(|vfs| vfs.is_directory(path));
+		return self.vfs.iter().any(|vfs| vfs.is_directory(sub_path));
 	}
 
-	pub fn stat(&self, path: &Path) -> Result<FileStats, VfsFileErrorCode>
+	pub fn stat(&self, sub_path: &str) -> Result<FileStats, VfsFileErrorCode>
 	{
 		for vfs in self.vfs.iter()
 		{
-			match vfs.stat(path)
+			match vfs.stat(sub_path)
 			{
 				Err(err) =>
 				{
@@ -253,11 +300,11 @@ impl VfsRootContainer
 		return Err(VfsFileErrorCode::InvalidPath);
 	}
 
-	pub fn load_file(&self, path: &Path) -> Result<Vec<u8>, VfsFileErrorCode>
+	pub fn load_file(&self, sub_path: &str) -> Result<Vec<u8>, VfsFileErrorCode>
 	{
 		for vfs in self.vfs.iter()
 		{
-			match vfs.load_file(path)
+			match vfs.load_file(sub_path)
 			{
 				Err(err) =>
 				{
@@ -300,7 +347,7 @@ pub(super) extern "C" fn exists(path: &XCStr) -> bool
 			error!("Unable to acquire VFS mutex: {err}");
 			false
 		},
-		|vfs| vfs.exists(PathBuf::from(path.as_str()).as_path()),
+		|vfs| vfs.exists(path.as_str()),
 	);
 }
 
@@ -311,7 +358,7 @@ pub(super) extern "C" fn is_file(path: &XCStr) -> bool
 			error!("Unable to acquire VFS mutex: {err}");
 			false
 		},
-		|vfs| vfs.is_file(PathBuf::from(path.as_str()).as_path()),
+		|vfs| vfs.is_file(path.as_str()),
 	);
 }
 
@@ -322,7 +369,7 @@ pub(super) extern "C" fn is_directory(path: &XCStr) -> bool
 			error!("Unable to acquire VFS mutex: {err}");
 			false
 		},
-		|vfs| vfs.is_directory(PathBuf::from(path.as_str()).as_path()),
+		|vfs| vfs.is_directory(path.as_str()),
 	);
 }
 
@@ -333,7 +380,7 @@ pub(super) extern "C" fn stat(path: &XCStr, recipient: &mut BoxedVfsStatRecipien
 			error!("Unable to acquire VFS mutex: {err}");
 			Err(VfsFileErrorCode::InternalError)
 		},
-		|vfs| vfs.stat(PathBuf::from(path.as_str()).as_path()),
+		|vfs| vfs.stat(path.as_str()),
 	);
 
 	match result
@@ -357,7 +404,7 @@ pub(super) extern "C" fn load_file(path: &XCStr, recipient: &mut BoxedVfsFileRec
 			error!("Unable to acquire VFS mutex: {err}");
 			Err(VfsFileErrorCode::InternalError)
 		},
-		|vfs| vfs.load_file(PathBuf::from(path.as_str()).as_path()),
+		|vfs| vfs.load_file(path.as_str()),
 	);
 
 	match result
@@ -377,120 +424,156 @@ pub(super) extern "C" fn load_file(path: &XCStr, recipient: &mut BoxedVfsFileRec
 #[cfg(test)]
 mod tests
 {
+	use std::assert_eq;
+
 	use super::*;
 	use target_test_dir::with_test_dir;
 
-	// #[test]
-	// fn overlaps()
-	// {
-	// 	let root: VfsRoot = VfsRoot::new(PathBuf::from("/path/to/my/dir"));
+	#[test]
+	#[with_test_dir]
+	fn overlaps()
+	{
+		let testdir = get_test_dir!();
 
-	// 	assert!(root.overlaps(PathBuf::from("/path/to/my/dir").as_path()));
-	// 	assert!(root.overlaps(PathBuf::from("/path/to/my").as_path()));
-	// 	assert!(root.overlaps(PathBuf::from("/path/to").as_path()));
-	// 	assert!(root.overlaps(PathBuf::from("/path").as_path()));
-	// 	assert!(root.overlaps(PathBuf::from("/").as_path()));
-	// 	assert!(root.overlaps(PathBuf::from("/path/to/my/dir/subdir").as_path()));
+		fs::create_dir_all(testdir.join("root1/dir/subdir/")).unwrap();
+		fs::create_dir_all(testdir.join("root2/dir/subdir")).unwrap();
 
-	// 	assert!(!root.overlaps(PathBuf::from("/path/to/somewhere/else").as_path()));
-	// }
+		let canonical_root: PathBuf = testdir.join("root1/dir/subdir/").canonicalize().unwrap();
+		let root: VfsRoot = VfsRoot::new(canonical_root.clone()).unwrap();
 
-	// TODO: Testing paths that go up outside the root
+		let canon = |path: &str| testdir.join(path).canonicalize().unwrap();
 
-	// #[test]
-	// #[with_test_dir]
-	// fn independent_filesystem_roots()
-	// {
-	// 	let testdir = get_test_dir!();
-	// 	create_test_filesystem(testdir.as_path());
+		assert!(root.overlaps(canon("root1/dir/subdir").as_path()));
+		assert!(root.overlaps(canon("root1/dir/").as_path()));
+		assert!(root.overlaps(canon("root1/").as_path()));
+		assert!(root.overlaps(canonical_root.as_path()));
 
-	// 	let root1: VfsRoot = VfsRoot::new(testdir.join("root1"));
-	// 	let root2: VfsRoot = VfsRoot::new(testdir.join("root2"));
+		assert!(!root.overlaps(canon("root2/dir/subdir").as_path()));
+		assert!(!root.overlaps(canon("root2/dir/").as_path()));
+		assert!(!root.overlaps(canon("root2/").as_path()));
+	}
 
-	// 	// All valid file paths should exist
-	// 	assert!(root1.exists(PathBuf::from("").as_path()));
-	// 	assert!(root1.exists(PathBuf::from("file1").as_path()));
-	// 	assert!(root1.exists(PathBuf::from("file2").as_path()));
-	// 	assert!(root1.exists(PathBuf::from("subdir").as_path()));
-	// 	assert!(root1.exists(PathBuf::from("subdir/file3").as_path()));
+	#[test]
+	#[with_test_dir]
+	fn independent_filesystem_roots()
+	{
+		let testdir = get_test_dir!();
+		create_test_filesystem(testdir.as_path());
 
-	// 	assert!(root1.is_file(PathBuf::from("file1").as_path()));
-	// 	assert!(root1.is_file(PathBuf::from("file2").as_path()));
-	// 	assert!(root1.is_file(PathBuf::from("subdir/file3").as_path()));
-	// 	assert!(root1.is_directory(PathBuf::from("").as_path()));
-	// 	assert!(root1.is_directory(PathBuf::from("subdir").as_path()));
+		let root1: VfsRoot = VfsRoot::new(testdir.join("root1")).unwrap();
+		let root2: VfsRoot = VfsRoot::new(testdir.join("root2")).unwrap();
 
-	// 	assert!(root2.exists(PathBuf::from("").as_path()));
-	// 	assert!(root2.exists(PathBuf::from("file4").as_path()));
-	// 	assert!(root2.exists(PathBuf::from("file5").as_path()));
-	// 	assert!(root2.exists(PathBuf::from("subdir").as_path()));
-	// 	assert!(root2.exists(PathBuf::from("subdir/file6").as_path()));
+		// All valid file paths should exist
+		assert!(root1.exists(""));
+		assert!(root1.exists("file1"));
+		assert!(root1.exists("file2"));
+		assert!(root1.exists("subdir"));
+		assert!(root1.exists("subdir/file3"));
 
-	// 	assert!(root2.is_file(PathBuf::from("file4").as_path()));
-	// 	assert!(root2.is_file(PathBuf::from("file5").as_path()));
-	// 	assert!(root2.is_file(PathBuf::from("subdir/file6").as_path()));
-	// 	assert!(root2.is_directory(PathBuf::from("").as_path()));
-	// 	assert!(root2.is_directory(PathBuf::from("subdir").as_path()));
+		assert!(root1.is_file("file1"));
+		assert!(root1.is_file("file2"));
+		assert!(root1.is_file("subdir/file3"));
+		assert!(root1.is_directory(""));
+		assert!(root1.is_directory("subdir"));
 
-	// 	// Files should not cross-pollinate
-	// 	assert!(!root2.exists(PathBuf::from("file1").as_path()));
-	// 	assert!(!root2.exists(PathBuf::from("file2").as_path()));
-	// 	assert!(!root2.exists(PathBuf::from("subdir/file3").as_path()));
-	// 	assert!(!root1.exists(PathBuf::from("file4").as_path()));
-	// 	assert!(!root1.exists(PathBuf::from("file5").as_path()));
-	// 	assert!(!root1.exists(PathBuf::from("subdir/file6").as_path()));
+		assert!(root2.exists(""));
+		assert!(root2.exists("file4"));
+		assert!(root2.exists("file5"));
+		assert!(root2.exists("subdir"));
+		assert!(root2.exists("subdir/file6"));
 
-	// 	// Stats should be reported as expected
-	// 	assert_eq!(
-	// 		root1.stat(PathBuf::from("file1").as_path()).unwrap(),
-	// 		FileStats {
-	// 			parent_path: "".to_owned(),
-	// 			name: "file1".to_owned(),
-	// 			is_directory: false,
-	// 			file_size: 14
-	// 		}
-	// 	);
+		assert!(root2.is_file("file4"));
+		assert!(root2.is_file("file5"));
+		assert!(root2.is_file("subdir/file6"));
+		assert!(root2.is_directory(""));
+		assert!(root2.is_directory("subdir"));
 
-	// 	assert_eq!(
-	// 		root1.stat(PathBuf::from("file2").as_path()).unwrap(),
-	// 		FileStats {
-	// 			parent_path: "".to_owned(),
-	// 			name: "file2".to_owned(),
-	// 			is_directory: false,
-	// 			file_size: 14
-	// 		}
-	// 	);
+		// Files should not cross-pollinate
+		assert!(!root2.exists("file1"));
+		assert!(!root2.exists("file2"));
+		assert!(!root2.exists("subdir/file3"));
+		assert!(!root1.exists("file4"));
+		assert!(!root1.exists("file5"));
+		assert!(!root1.exists("subdir/file6"));
 
-	// 	assert_eq!(
-	// 		root1.stat(PathBuf::from("subdir/file3").as_path()).unwrap(),
-	// 		FileStats {
-	// 			parent_path: "subdir".to_owned(),
-	// 			name: "file3".to_owned(),
-	// 			is_directory: false,
-	// 			file_size: 36
-	// 		}
-	// 	);
+		// Stats should be reported as expected
+		assert_eq!(
+			root1.stat("file1").unwrap(),
+			FileStats {
+				parent_path: "/".to_owned(),
+				name: "file1".to_owned(),
+				is_directory: false,
+				file_size: 14
+			}
+		);
 
-	// 	assert_eq!(
-	// 		root1.stat(PathBuf::from("").as_path()).unwrap(),
-	// 		FileStats {
-	// 			parent_path: "".to_owned(),
-	// 			name: "".to_owned(),
-	// 			is_directory: true,
-	// 			file_size: 0
-	// 		}
-	// 	);
+		assert_eq!(
+			root1.stat("file2").unwrap(),
+			FileStats {
+				parent_path: "/".to_owned(),
+				name: "file2".to_owned(),
+				is_directory: false,
+				file_size: 14
+			}
+		);
 
-	// 	assert_eq!(
-	// 		root1.stat(PathBuf::from("subdir").as_path()).unwrap(),
-	// 		FileStats {
-	// 			parent_path: "".to_owned(),
-	// 			name: "subdir".to_owned(),
-	// 			is_directory: true,
-	// 			file_size: 0
-	// 		}
-	// 	);
-	// }
+		assert_eq!(
+			root1.stat("subdir/file3").unwrap(),
+			FileStats {
+				parent_path: "/subdir".to_owned(),
+				name: "file3".to_owned(),
+				is_directory: false,
+				file_size: 36
+			}
+		);
+
+		assert_eq!(
+			root1.stat("").unwrap(),
+			FileStats {
+				parent_path: "/".to_owned(),
+				name: "".to_owned(),
+				is_directory: true,
+				file_size: 0
+			}
+		);
+
+		assert_eq!(
+			root1.stat("subdir").unwrap(),
+			FileStats {
+				parent_path: "/".to_owned(),
+				name: "subdir".to_owned(),
+				is_directory: true,
+				file_size: 0
+			}
+		);
+
+		// Backing up outside the root should not be allowed.
+		assert!(fs::exists(testdir.join("outside_roots")).unwrap());
+
+		assert!(!root1.exists("../outside_roots"));
+		assert!(!root1.is_file("../outside_roots"));
+		assert!(!root1.is_directory("../outside_roots"));
+		assert!(matches!(
+			root1.stat("../outside_roots").unwrap_err(),
+			VfsFileErrorCode::InvalidPath
+		));
+		assert!(matches!(
+			root1.load_file("../outside_roots").unwrap_err(),
+			VfsFileErrorCode::InvalidPath
+		));
+
+		assert!(!root2.exists("../outside_roots"));
+		assert!(!root2.is_file("../outside_roots"));
+		assert!(!root2.is_directory("../outside_roots"));
+		assert!(matches!(
+			root2.stat("../outside_roots").unwrap_err(),
+			VfsFileErrorCode::InvalidPath
+		));
+		assert!(matches!(
+			root2.load_file("../outside_roots").unwrap_err(),
+			VfsFileErrorCode::InvalidPath
+		));
+	}
 
 	#[test]
 	#[with_test_dir]
@@ -504,31 +587,29 @@ mod tests
 		vfs.add(testdir.join("root2")).unwrap();
 
 		// All valid file paths should exist
-		assert!(vfs.exists(PathBuf::from("file1").as_path()));
-		assert!(vfs.exists(PathBuf::from("file2").as_path()));
-		assert!(vfs.exists(PathBuf::from("subdir/file3").as_path()));
+		assert!(vfs.exists("file1"));
+		assert!(vfs.exists("file2"));
+		assert!(vfs.exists("subdir/file3"));
 
-		assert!(vfs.is_file(PathBuf::from("file1").as_path()));
-		assert!(vfs.is_file(PathBuf::from("file2").as_path()));
-		assert!(vfs.is_file(PathBuf::from("subdir/file3").as_path()));
+		assert!(vfs.is_file("file1"));
+		assert!(vfs.is_file("file2"));
+		assert!(vfs.is_file("subdir/file3"));
 
-		assert!(vfs.exists(PathBuf::from("file4").as_path()));
-		assert!(vfs.exists(PathBuf::from("file5").as_path()));
-		assert!(vfs.exists(PathBuf::from("subdir/file6").as_path()));
+		assert!(vfs.exists("file4"));
+		assert!(vfs.exists("file5"));
+		assert!(vfs.exists("subdir/file6"));
 
-		assert!(vfs.is_file(PathBuf::from("file4").as_path()));
-		assert!(vfs.is_file(PathBuf::from("file5").as_path()));
-		assert!(vfs.is_file(PathBuf::from("subdir/file6").as_path()));
+		assert!(vfs.is_file("file4"));
+		assert!(vfs.is_file("file5"));
+		assert!(vfs.is_file("subdir/file6"));
 
 		// The subdirectory is present under both roots - this is fine.
-		assert!(vfs.is_directory(PathBuf::from("subdir").as_path()));
+		assert!(vfs.is_directory("subdir"));
 
 		// The common file should exist.
-		assert!(vfs.is_file(PathBuf::from("common_file").as_path()));
+		assert!(vfs.is_file("common_file"));
 
-		let contents: Vec<u8> = vfs
-			.load_file(PathBuf::from("common_file").as_path())
-			.unwrap();
+		let contents: Vec<u8> = vfs.load_file("common_file").unwrap();
 
 		// We expect the common file to be loaded from root 1, as this was the first
 		// root that was added.
@@ -540,6 +621,12 @@ mod tests
 
 	fn create_test_filesystem(testdir: &Path)
 	{
+		fs::write(
+			testdir.join("outside_roots"),
+			"This is a file outside of both roots",
+		)
+		.unwrap();
+
 		fs::create_dir_all(testdir.join("root1")).unwrap();
 		fs::create_dir_all(testdir.join("root2")).unwrap();
 		fs::write(testdir.join("root1/file1"), "This is file 1").unwrap();
