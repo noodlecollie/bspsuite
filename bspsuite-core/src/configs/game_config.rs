@@ -1,6 +1,7 @@
 use crate::configs::CompileTuningParametersConfig;
 use crate::io::{GameConfigIO, VersionedIOFormat};
-use anyhow::{Context, Error, ensure};
+use anyhow::{Context, Result, ensure};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[derive(Debug, PartialEq)]
@@ -8,7 +9,7 @@ pub struct GameConfig
 {
 	pub game_id: String,
 	pub game_name: String,
-	pub map_formats: Vec<String>,
+	pub map_formats: HashSet<String>,
 	pub vfs_formats: Vec<String>,
 
 	pub default_compile_tuning_parameters: Option<CompileTuningParametersConfig>,
@@ -16,7 +17,7 @@ pub struct GameConfig
 
 impl GameConfig
 {
-	pub fn load_for_game(toolchain_root: &PathBuf, game: &str) -> Result<Self, Error>
+	pub fn load_for_game(toolchain_root: &PathBuf, game: &str) -> Result<Self>
 	{
 		let root_dir: PathBuf = GameConfig::game_config_root_directory(toolchain_root);
 		let game_config_path: PathBuf = root_dir.join(game).join(format!("config.toml"));

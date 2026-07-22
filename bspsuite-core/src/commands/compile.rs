@@ -9,6 +9,7 @@ use crate::io::{MapGeomFileIO, MapSourceFileIO, VersionedIOFormat};
 use crate::model::{MapGeomFile, MapSourceFile};
 use anyhow::{Context, Result};
 use bspextifc::builders::map_source_builder::Entity;
+use itertools::Itertools;
 use log::{debug, info};
 
 pub struct CompileArgs
@@ -33,7 +34,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 	debug!(
 		"Allowed map formats for game {}: {}",
 		ctx.game_config.game_id,
-		ctx.game_config.map_formats.join(", ")
+		ctx.game_config.map_formats.iter().join(", ")
 	);
 
 	let extensions: ExtensionList = ctx.toolchain.find_extensions();

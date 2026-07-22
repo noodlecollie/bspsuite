@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::configs::{CompileTuningParametersConfig, GameConfig};
 use crate::io::helpers::{IOFmtSignature, IOFormat};
 use serde::{Deserialize, Serialize};
@@ -11,7 +13,7 @@ pub struct V1File
 	signature: IOFmtSignature<V1File>,
 	pub game_id: String,
 	pub game_name: String,
-	pub map_formats: Vec<String>,
+	pub map_formats: HashSet<String>,
 	pub vfs_formats: Vec<String>,
 	pub default_compile_tuning_parameters: Option<V1TuningParams>,
 }
@@ -122,7 +124,7 @@ mod tests
 		let config: GameConfig = GameConfig {
 			game_id: "my_game".to_owned(),
 			game_name: "My Game".to_owned(),
-			map_formats: vec!["mapone".to_owned(), "maptwo".to_owned()],
+			map_formats: HashSet::from(["mapone".to_owned(), "maptwo".to_owned()]),
 			vfs_formats: vec!["directory".to_owned()],
 			default_compile_tuning_parameters: Some(CompileTuningParametersConfig {
 				contact_epsilon: Some(1e-3),
@@ -146,7 +148,7 @@ mod tests
 		let config: GameConfig = GameConfig {
 			game_id: "my_game".to_owned(),
 			game_name: "My Game".to_owned(),
-			map_formats: vec!["mapone".to_owned(), "maptwo".to_owned()],
+			map_formats: HashSet::from(["mapone".to_owned(), "maptwo".to_owned()]),
 			vfs_formats: vec!["directory".to_owned()],
 			default_compile_tuning_parameters: None,
 		};
