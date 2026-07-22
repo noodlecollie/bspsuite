@@ -2,8 +2,13 @@ use crate::ApiInfo;
 use bspffi::types::{XCBytes, XCOption, XCSlice, XCStr};
 use thin_trait_object::thin_trait_object;
 
+/// Version of the VFS API. This should be passed when registering callbacks
+/// with [register_vfs_api_callbacks].
 pub const API_INFO: ApiInfo = ApiInfo::new("VfsApi", 1);
 
+/// Extension function to be called when the compiler is querying for
+/// supported VFSes. The extension should use the provided boxed [VfsApi]
+/// interface to tell the compiler about the VFSes it supports.
 pub type RegisterVfsSupportFn = extern "C" fn(&mut BoxedVfsApi);
 
 /// Callbacks implemented by this extension when requesting access to the VFS
@@ -11,9 +16,8 @@ pub type RegisterVfsSupportFn = extern "C" fn(&mut BoxedVfsApi);
 #[repr(C)]
 pub struct VfsApiCallbacks
 {
-	/// Extension function to be called when the compiler is querying for
-	/// supported VFSes. The extension should use the provided BoxedVfsApi
-	/// interface to tell the compiler about the VFSes it supports.
+	/// Called when the compiler is querying for supported VFSes. See
+	/// [RegisterVfsSupportFn].
 	pub register_vfs_support: RegisterVfsSupportFn,
 }
 
@@ -21,12 +25,16 @@ pub struct VfsApiCallbacks
 #[thin_trait_object(drop_abi = "C")]
 pub trait VfsApi
 {
-	/// Registers support for a FVS under a given name. This name may be used in
-	/// a game config to request that resources be loaded through this VFS.
+	/// Registers support for a FVS under a given `name`. This name may be used
+	/// in a game config to request that resources be loaded through this VFS.
+	///
 	/// If the VFS root should be a file with a particular extension, the
-	/// supported extensions should be specified in the file_extensions
+	/// supported extensions should be specified in the `file_extensions`
 	/// argument. If the VFS root should be a directory on disk, this argument
 	/// should be set to None.
+	///
+	/// The provided `callbacks` will be called when the compiler needs to
+	/// interact with the VFS.
 	fn register_vfs(
 		&mut self,
 		name: &XCStr,
@@ -36,16 +44,22 @@ pub trait VfsApi
 }
 
 /// Set of functions that an extension must implement for a VFS.
+///
+/// Apart from the [initialise] function, all paths provided to callback
+/// functions in this struct are expected to be virtual, ie. to refer to files
+/// within the VFS rather than to files on the physical disk. Paths should use a
+/// forward slash (`/`) as a delimiter, and by convention should not begin with
+/// a slash.
 #[repr(C)]
 pub struct VfsImplCallbacks
 {
-	/// Called when the VFS is first initialised. real_root_node is the path to
-	/// a file or directory on the physical disk that should serve as the root
-	/// of the VFS. The VFS is expected to persist until the extension library
-	/// is unloaded.
+	/// Called when the VFS is first initialised. `real_root_node` is the path
+	/// to a file or directory on the physical disk that should serve as the
+	/// root of the VFS. The VFS is expected to persist until the extension
+	/// library is unloaded.
 	pub initialise: extern "C" fn(real_root_node: &XCStr) -> VfsInitResultCode,
 
-	/// Returns true if a file or directory at the given path exists, or false
+	/// Returns true if a file or directory at the given `path` exists, or false
 	/// otherwise.
 	pub exists: extern "C" fn(path: &XCStr) -> bool,
 
@@ -68,39 +82,66 @@ pub struct VfsImplCallbacks
 	pub load_file: extern "C" fn(path: &XCStr, recipient: &mut BoxedVfsFileRecipient),
 }
 
+/// Code representing the result of initialising a VFS.
 #[repr(C)]
 #[derive(Debug)]
 pub enum VfsInitResultCode
 {
+	/// Initialised OK.
 	Ok,
+
+	/// An unspecified internal error occurred.
 	InternalError,
+
+	/// The path to the VFS root on disk was not valid.
 	InvalidRootPath,
+
+	/// The provided VFS root has already been submitted before.
 	RootAlreadyInUse,
+
+	/// The provided VFS root path overlaps with another root that is already in
+	/// use.
 	RootsOverlap,
 }
 
+/// Error code produced when interacting with a VFS file.
 #[repr(C)]
 #[derive(Debug)]
 pub enum VfsFileErrorCode
 {
+	/// An unspecified internal error occurred.
 	InternalError,
+
+	/// The path to the file was not valid.
 	InvalidPath,
+
+	/// An error occured with the underlying IO system.
 	IoError,
 }
 
-#[repr(C)]
-#[derive(Debug)]
-pub enum VfsFileRecipientResult
-{
-	Ok,
-	AlreadyHasResult,
-}
-
-// TODO: Docs
+/// Interface that receives the contents of a file loaded from the VFS.
+///
+/// Since returning a `Result<Vec<u8>>` is not FFI-safe, this FFI interface
+/// serves as the recipient of the loaded bytes. Call
+/// [VfsFileRecipient::submit_bytes] if the file was loaded successfully, or
+/// call [VfsFileRecipient::set_error] to provide an appropriate code
+/// if an error occurs.
 #[thin_trait_object(drop_abi = "C")]
 pub trait VfsFileRecipient
 {
-	fn submit_bytes(&mut self, bytes: &XCBytes) -> VfsFileRecipientResult;
+	/// Receives the `bytes` loaded from the file. The extension retains
+	/// ownership of the data; if the compiler wants to keep and use the data,
+	/// it will make a copy.
+	///
+	/// If [VfsFileRecipient::set_error] was called earlier, calling this
+	/// function will clear the error.
+	fn submit_bytes(&mut self, bytes: &XCBytes);
+
+	/// Marks this file loading request as having failed, with the provided
+	/// `code`.
+	///
+	/// If [VfsFileRecipient::submit_bytes] was called earlier, calling this
+	/// function will invalidate the data and the error will take precedence.
 	fn set_error(&mut self, code: VfsFileErrorCode);
 }
 
@@ -109,7 +150,7 @@ pub trait VfsFileRecipient
 pub struct VfsFileStats<'l>
 {
 	/// Path to the parent node in the filesystem, or an empty string if these
-	/// stats represent the root.
+	/// stats represent the root. This path should not begin with a slash.
 	pub parent_path: XCStr<'l>,
 
 	/// The name of the file or directory being queried.
@@ -123,10 +164,26 @@ pub struct VfsFileStats<'l>
 	pub file_size: usize,
 }
 
-// TODO: Docs
+/// Interface that receives the results of a [VfsImplCallbacks::stat] call.
+///
+/// Since returning a `Result<VfsFileStats>` is not FFI-safe, and the
+/// [VfsFileStats] struct contains references to data it does not own, this FFI
+/// interface serves as the recipient of the stat results. Call
+/// [VfsStatRecipient::submit_stats] if the stat call completed successfully, or
+/// call [VfsStatRecipient::set_error] to provide an appropriate code
+/// if an error occurs.
 #[thin_trait_object(drop_abi = "C")]
 pub trait VfsStatRecipient
 {
-	fn submit_stats(&mut self, stats: &VfsFileStats) -> VfsFileRecipientResult;
+	/// Receives the `stats` resulting from the request.
+	///
+	/// If [VfsStatRecipient::set_error] was called earlier, calling this
+	/// function will clear the error.
+	fn submit_stats(&mut self, stats: &VfsFileStats);
+
+	/// Marks this stat request as having failed, with the provided `code`.
+	///
+	/// If [VfsStatRecipient::submit_stats] was called earlier, calling this
+	/// function will invalidate the result and the error will take precedence.
 	fn set_error(&mut self, code: VfsFileErrorCode);
 }

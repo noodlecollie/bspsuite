@@ -1,22 +1,19 @@
-use std::ffi::OsStr;
+use std::debug_assert_eq;
 use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::{debug_assert, debug_assert_eq, fs};
 
-use anyhow::{Result, bail, ensure};
+use anyhow::Result;
 use bspextifc::vfs_api::{
-	BoxedVfsFileRecipient, BoxedVfsStatRecipient, VfsFileErrorCode, VfsFileRecipient,
-	VfsFileRecipientResult, VfsFileStats, VfsInitResultCode, VfsStatRecipient,
+	BoxedVfsFileRecipient, BoxedVfsStatRecipient, VfsFileErrorCode, VfsFileRecipient, VfsFileStats,
+	VfsInitResultCode, VfsStatRecipient,
 };
 use bspffi::types::{XCBytes, XCStr};
-use filesize::PathExt;
 use lazy_static::lazy_static;
 use log::{error, warn};
 use vfs::error::VfsErrorKind;
-use vfs::impls::altroot::AltrootFS;
 use vfs::impls::physical::PhysicalFS;
-use vfs::{FileSystem, VfsError, VfsFileType, VfsMetadata, VfsPath};
+use vfs::{VfsError, VfsFileType, VfsPath};
 
 lazy_static! {
 	static ref static_vfs: Mutex<VfsRootContainer> = Mutex::new(VfsRootContainer::new());
@@ -152,11 +149,12 @@ impl VfsRoot
 				let parent_path: VfsPath = full_path.parent();
 				let parent_path_string: String = if full_path.is_root() || parent_path.is_root()
 				{
-					"/".to_owned()
+					"".to_owned()
 				}
 				else
 				{
-					parent_path.as_str().into()
+					// Trim off any root separator
+					parent_path.as_str().trim_start_matches('/').into()
 				};
 				let file_name: String = full_path.filename();
 
@@ -385,14 +383,7 @@ pub(super) extern "C" fn stat(path: &XCStr, recipient: &mut BoxedVfsStatRecipien
 
 	match result
 	{
-		Ok(stats) =>
-		{
-			if let VfsFileRecipientResult::AlreadyHasResult =
-				recipient.submit_stats(&VfsFileStats::from(&stats))
-			{
-				warn!("Unexpected result already set on stats recipient");
-			}
-		}
+		Ok(stats) => recipient.submit_stats(&VfsFileStats::from(&stats)),
 		Err(err) => recipient.set_error(err),
 	};
 }
@@ -409,14 +400,7 @@ pub(super) extern "C" fn load_file(path: &XCStr, recipient: &mut BoxedVfsFileRec
 
 	match result
 	{
-		Ok(bytes) =>
-		{
-			if let VfsFileRecipientResult::AlreadyHasResult =
-				recipient.submit_bytes(&XCBytes::from(bytes.as_slice()))
-			{
-				warn!("Unexpected result already set on file recipient");
-			}
-		}
+		Ok(bytes) => recipient.submit_bytes(&XCBytes::from(bytes.as_slice())),
 		Err(err) => recipient.set_error(err),
 	};
 }
@@ -427,6 +411,7 @@ mod tests
 	use std::assert_eq;
 
 	use super::*;
+	use std::fs;
 	use target_test_dir::with_test_dir;
 
 	#[test]
@@ -500,7 +485,7 @@ mod tests
 		assert_eq!(
 			root1.stat("file1").unwrap(),
 			FileStats {
-				parent_path: "/".to_owned(),
+				parent_path: "".to_owned(),
 				name: "file1".to_owned(),
 				is_directory: false,
 				file_size: 14
@@ -510,7 +495,7 @@ mod tests
 		assert_eq!(
 			root1.stat("file2").unwrap(),
 			FileStats {
-				parent_path: "/".to_owned(),
+				parent_path: "".to_owned(),
 				name: "file2".to_owned(),
 				is_directory: false,
 				file_size: 14
@@ -520,7 +505,7 @@ mod tests
 		assert_eq!(
 			root1.stat("subdir/file3").unwrap(),
 			FileStats {
-				parent_path: "/subdir".to_owned(),
+				parent_path: "subdir".to_owned(),
 				name: "file3".to_owned(),
 				is_directory: false,
 				file_size: 36
@@ -530,7 +515,7 @@ mod tests
 		assert_eq!(
 			root1.stat("").unwrap(),
 			FileStats {
-				parent_path: "/".to_owned(),
+				parent_path: "".to_owned(),
 				name: "".to_owned(),
 				is_directory: true,
 				file_size: 0
@@ -540,7 +525,7 @@ mod tests
 		assert_eq!(
 			root1.stat("subdir").unwrap(),
 			FileStats {
-				parent_path: "/".to_owned(),
+				parent_path: "".to_owned(),
 				name: "subdir".to_owned(),
 				is_directory: true,
 				file_size: 0
