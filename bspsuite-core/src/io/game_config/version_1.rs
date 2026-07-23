@@ -1,20 +1,36 @@
 use std::collections::HashSet;
+use std::io::{Read, Write};
 
 use crate::configs::{CompileTuningParametersConfig, GameConfig};
-use crate::io::helpers::{IOFmtSignature, IOFormat};
+use crate::io::TrimmedString;
+use crate::io::helpers::{IOFmtSignature, IOFormat, VersionedIOFormat};
+use anyhow::Result;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_valid::Validate;
 
 pub(super) const VERSION: u64 = 1;
 
-#[derive(Serialize, Deserialize, Debug)]
+pub struct GameConfigIOFormatV1;
+
+#[derive(Serialize, Deserialize, Debug, Validate)]
 pub struct V1File
 {
 	#[serde(flatten)]
 	signature: IOFmtSignature<V1File>,
+
+	#[validate(pattern = r"^\w+$")]
 	pub game_id: String,
-	pub game_name: String,
+
+	#[validate(min_length = 1)]
+	pub game_name: TrimmedString,
+
 	pub map_formats: HashSet<String>,
+
+	// This is essentially a set, but ordered
+	#[validate(unique_items)]
 	pub vfs_formats: Vec<String>,
+
 	pub default_compile_tuning_parameters: Option<V1TuningParams>,
 }
 
@@ -56,7 +72,7 @@ impl From<&GameConfig> for V1File
 		return Self {
 			signature: IOFmtSignature::new(),
 			game_id: value.game_id.clone(),
-			game_name: value.game_name.clone(),
+			game_name: TrimmedString::from(value.game_name.as_str()),
 			map_formats: value.map_formats.clone(),
 			vfs_formats: value.vfs_formats.clone(),
 			default_compile_tuning_parameters: value
@@ -90,7 +106,7 @@ impl From<V1File> for GameConfig
 	{
 		return Self {
 			game_id: value.game_id,
-			game_name: value.game_name,
+			game_name: value.game_name.into(),
 			map_formats: value.map_formats,
 			vfs_formats: value.vfs_formats,
 			default_compile_tuning_parameters: value
@@ -113,9 +129,43 @@ impl From<V1TuningParams> for CompileTuningParametersConfig
 	}
 }
 
+////////////////////////////////////////////////////////
+// VersionedIOFormat
+////////////////////////////////////////////////////////
+
+impl VersionedIOFormat for GameConfigIOFormatV1
+{
+	type InnerFormat = GameConfig;
+	type SerializableFormat = V1File;
+
+	fn serialize_impl<Writer, OutFmt>(mut writer: Writer, data: &OutFmt) -> Result<()>
+	where
+		Writer: Write,
+		OutFmt: Serialize,
+	{
+		let toml_string: String = toml::to_string(data)?;
+		writer.write_all(toml_string.as_bytes())?;
+		return Ok(());
+	}
+
+	fn deserialize_impl<Reader, InFmt>(mut reader: Reader) -> Result<InFmt>
+	where
+		Reader: Read,
+		InFmt: DeserializeOwned,
+	{
+		let mut toml_string: String = String::new();
+		reader.read_to_string(&mut toml_string)?;
+		let doc = toml::from_str(&toml_string)?;
+		return Ok(doc);
+	}
+}
+
 #[cfg(test)]
 mod tests
 {
+	use serde_json::json;
+	use serde_valid::toml::{FromTomlStr, ToTomlString};
+
 	use super::*;
 
 	#[test]
@@ -135,8 +185,8 @@ mod tests
 		};
 
 		let v1_file_out: V1File = V1File::from(&config);
-		let toml_string: String = toml::to_string(&v1_file_out).unwrap();
-		let v1_file_in: V1File = toml::from_str::<V1File>(&toml_string).unwrap();
+		let toml_string: String = v1_file_out.to_toml_string().unwrap();
+		let v1_file_in: V1File = V1File::from_toml_str(toml_string.as_str()).unwrap();
 		let recovered_config: GameConfig = v1_file_in.into();
 
 		assert_eq!(config, recovered_config);
@@ -154,8 +204,8 @@ mod tests
 		};
 
 		let v1_file_out: V1File = V1File::from(&config);
-		let toml_string: String = toml::to_string(&v1_file_out).unwrap();
-		let v1_file_in: V1File = toml::from_str::<V1File>(&toml_string).unwrap();
+		let toml_string: String = v1_file_out.to_toml_string().unwrap();
+		let v1_file_in: V1File = V1File::from_toml_str(toml_string.as_str()).unwrap();
 		let recovered_config: GameConfig = v1_file_in.into();
 
 		assert_eq!(config, recovered_config);
@@ -170,7 +220,7 @@ mod tests
 			map_formats = ["mapone", "maptwo"]
 			vfs_formats = ["directory"]"##;
 
-		let deserialized_data = toml::from_str::<V1File>(&toml_string);
+		let deserialized_data = V1File::from_toml_str(toml_string);
 		let error = deserialized_data.expect_err("Expected deserialization to fail");
 		let error_string: String = error.to_string();
 		let suffix: &str = "missing field `format`\n";
@@ -191,7 +241,7 @@ mod tests
 			map_formats = ["mapone", "maptwo"]
 			vfs_formats = ["directory"]"##;
 
-		let deserialized_data = toml::from_str::<V1File>(&toml_string);
+		let deserialized_data = V1File::from_toml_str(toml_string);
 		let error = deserialized_data.expect_err("Expected deserialization to fail");
 		let error_string: String = error.to_string();
 		let suffix: &str = "missing field `format`\n";
@@ -212,7 +262,7 @@ mod tests
 			map_formats = ["mapone", "maptwo"]
 			vfs_formats = ["directory"]"##;
 
-		let deserialized_data = toml::from_str::<V1File>(&toml_string);
+		let deserialized_data = V1File::from_toml_str(toml_string);
 		let error = deserialized_data.expect_err("Expected deserialization to fail");
 		let error_string: String = error.to_string();
 		let suffix: &str = "missing field `version`\n";
@@ -221,5 +271,38 @@ mod tests
 			error_string.ends_with(suffix),
 			"Error string:\n  \"{error_string}\"\nshould end with suffix\n  \"{suffix}\""
 		);
+	}
+
+	#[test]
+	fn deserialize_with_invalid_game_id()
+	{
+		{
+			let toml_string: &str = r##"
+				format = "gameconfig"
+				version = 1
+				game_id = "contains spaces"
+				game_name = "My Game"
+				map_formats = ["mapone", "maptwo"]
+				vfs_formats = ["directory"]"##;
+
+			let deserialized_data = V1File::from_toml_str(toml_string);
+			let error = deserialized_data.expect_err("Expected deserialization to fail");
+			let error_string: String = error.to_string();
+
+			assert_eq!(
+				error_string,
+				json!({
+					"errors": [],
+					"properties": {
+						"game_id": {
+							"errors": [
+								r#"The value must match the pattern of "^\w+$"."#
+							]
+						}
+					}
+				})
+				.to_string()
+			);
+		}
 	}
 }
