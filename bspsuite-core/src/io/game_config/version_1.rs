@@ -8,6 +8,7 @@ use anyhow::Result;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_valid::Validate;
+use serde_valid::toml::{FromTomlReader, ToTomlWriter};
 
 pub(super) const VERSION: u64 = 1;
 
@@ -138,25 +139,20 @@ impl VersionedIOFormat for GameConfigIOFormatV1
 	type InnerFormat = GameConfig;
 	type SerializableFormat = V1File;
 
-	fn serialize_impl<Writer, OutFmt>(mut writer: Writer, data: &OutFmt) -> Result<()>
+	fn serialize_impl<Writer>(writer: Writer, data: &Self::SerializableFormat) -> Result<()>
 	where
 		Writer: Write,
-		OutFmt: Serialize,
+		Self::SerializableFormat: Serialize,
 	{
-		let toml_string: String = toml::to_string(data)?;
-		writer.write_all(toml_string.as_bytes())?;
-		return Ok(());
+		return Ok(data.to_toml_writer(writer)?);
 	}
 
-	fn deserialize_impl<Reader, InFmt>(mut reader: Reader) -> Result<InFmt>
+	fn deserialize_impl<Reader>(reader: Reader) -> Result<Self::SerializableFormat>
 	where
 		Reader: Read,
-		InFmt: DeserializeOwned,
+		Self::SerializableFormat: DeserializeOwned,
 	{
-		let mut toml_string: String = String::new();
-		reader.read_to_string(&mut toml_string)?;
-		let doc = toml::from_str(&toml_string)?;
-		return Ok(doc);
+		return Ok(V1File::from_toml_reader(reader)?);
 	}
 }
 

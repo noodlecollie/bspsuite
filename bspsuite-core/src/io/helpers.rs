@@ -218,26 +218,22 @@ pub trait VersionedIOFormat
 		return Self::deserialize(in_file);
 	}
 
-	// Override the functions below to use a format other than JSON.
-	// These *would* use Self::SerializableFormat directly, but this produced some
-	// confusing and silly compiler error messages for some reason.
-
-	fn serialize_impl<Writer, OutFmt>(writer: Writer, data: &OutFmt) -> Result<()>
+	// JSON by default, but implementers can override this.
+	fn serialize_impl<Writer>(writer: Writer, data: &Self::SerializableFormat) -> Result<()>
 	where
 		Writer: Write,
-		OutFmt: Serialize,
+		Self::SerializableFormat: Serialize,
 	{
-		serde_json::to_writer::<Writer, OutFmt>(writer, data)?;
-		return Ok(());
+		return Ok(serde_json::to_writer(writer, data)?);
 	}
 
-	fn deserialize_impl<Reader, InFmt>(reader: Reader) -> Result<InFmt>
+	// JSON by default, but implementers can override this.
+	fn deserialize_impl<Reader>(reader: Reader) -> Result<Self::SerializableFormat>
 	where
 		Reader: Read,
-		InFmt: DeserializeOwned,
+		Self::SerializableFormat: DeserializeOwned,
 	{
-		let value: InFmt = serde_json::from_reader::<Reader, InFmt>(reader)?;
-		return Ok(value);
+		return Ok(serde_json::from_reader(reader)?);
 	}
 }
 

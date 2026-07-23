@@ -14,20 +14,20 @@ impl VersionedIOFormat for CompileTuningParametersConfigIOFormatV1
 	type InnerFormat = CompileTuningParametersConfig;
 	type SerializableFormat = version_1::V1File;
 
-	fn serialize_impl<Writer, OutFmt>(mut writer: Writer, data: &OutFmt) -> Result<()>
+	fn serialize_impl<Writer>(mut writer: Writer, data: &Self::SerializableFormat) -> Result<()>
 	where
 		Writer: Write,
-		OutFmt: Serialize,
+		Self::SerializableFormat: Serialize,
 	{
 		let toml_string: String = toml::to_string(data)?;
 		writer.write_all(toml_string.as_bytes())?;
 		return Ok(());
 	}
 
-	fn deserialize_impl<Reader, InFmt>(mut reader: Reader) -> Result<InFmt>
+	fn deserialize_impl<Reader>(mut reader: Reader) -> Result<Self::SerializableFormat>
 	where
 		Reader: Read,
-		InFmt: DeserializeOwned,
+		Self::SerializableFormat: DeserializeOwned,
 	{
 		let mut toml_string: String = String::new();
 		reader.read_to_string(&mut toml_string)?;
