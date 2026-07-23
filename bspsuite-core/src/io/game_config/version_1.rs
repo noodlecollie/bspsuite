@@ -1,9 +1,8 @@
-use std::collections::HashSet;
 use std::io::{Read, Write};
 
 use crate::configs::{CompileTuningParametersConfig, GameConfig};
-use crate::io::TrimmedString;
 use crate::io::helpers::{IOFmtSignature, IOFormat, VersionedIOFormat};
+use crate::io::{TrimmedString, validate_items_non_empty};
 use anyhow::Result;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -20,17 +19,25 @@ pub struct V1File
 	#[serde(flatten)]
 	signature: IOFmtSignature<V1File>,
 
-	#[validate(pattern = r"^\w+$")]
+	#[validate(
+		pattern = r"^\w+$",
+		message = "Game ID must be alphanumeric and non-empty"
+	)]
 	pub game_id: String,
 
-	#[validate(min_length = 1)]
+	#[validate(min_length = 1, message = "Game name cannot be empty")]
 	pub game_name: TrimmedString,
 
-	pub map_formats: HashSet<String>,
+	#[validate(min_items = 1, message = "Expected at least one map format")]
+	#[validate(unique_items, message = "Duplicate map formats are not allowed")]
+	#[validate(custom = validate_items_non_empty)]
+	pub map_formats: Vec<TrimmedString>,
 
-	// This is essentially a set, but ordered
-	#[validate(unique_items)]
-	pub vfs_formats: Vec<String>,
+	// This is essentially a set, but ordered.
+	#[validate(min_items = 1, message = "Expected at least one VFS format")]
+	#[validate(unique_items, message = "Duplicate VFS formats are not allowed")]
+	#[validate(custom = validate_items_non_empty)]
+	pub vfs_formats: Vec<TrimmedString>,
 
 	pub default_compile_tuning_parameters: Option<V1TuningParams>,
 }
@@ -74,8 +81,16 @@ impl From<&GameConfig> for V1File
 			signature: IOFmtSignature::new(),
 			game_id: value.game_id.clone(),
 			game_name: TrimmedString::from(value.game_name.as_str()),
-			map_formats: value.map_formats.clone(),
-			vfs_formats: value.vfs_formats.clone(),
+			map_formats: value
+				.map_formats
+				.iter()
+				.map(|s| s.as_str().into())
+				.collect(),
+			vfs_formats: value
+				.vfs_formats
+				.iter()
+				.map(|s| s.as_str().into())
+				.collect(),
 			default_compile_tuning_parameters: value
 				.default_compile_tuning_parameters
 				.as_ref()
@@ -108,8 +123,8 @@ impl From<V1File> for GameConfig
 		return Self {
 			game_id: value.game_id,
 			game_name: value.game_name.into(),
-			map_formats: value.map_formats,
-			vfs_formats: value.vfs_formats,
+			map_formats: value.map_formats.into_iter().map(|s| s.into()).collect(),
+			vfs_formats: value.vfs_formats.into_iter().map(|s| s.into()).collect(),
 			default_compile_tuning_parameters: value
 				.default_compile_tuning_parameters
 				.map(|v| v.into()),
@@ -170,7 +185,7 @@ mod tests
 		let config: GameConfig = GameConfig {
 			game_id: "my_game".to_owned(),
 			game_name: "My Game".to_owned(),
-			map_formats: HashSet::from(["mapone".to_owned(), "maptwo".to_owned()]),
+			map_formats: vec!["mapone".into(), "maptwo".into()],
 			vfs_formats: vec!["directory".to_owned()],
 			default_compile_tuning_parameters: Some(CompileTuningParametersConfig {
 				contact_epsilon: Some(1e-3),
@@ -194,7 +209,7 @@ mod tests
 		let config: GameConfig = GameConfig {
 			game_id: "my_game".to_owned(),
 			game_name: "My Game".to_owned(),
-			map_formats: HashSet::from(["mapone".to_owned(), "maptwo".to_owned()]),
+			map_formats: vec!["mapone".to_owned(), "maptwo".to_owned()],
 			vfs_formats: vec!["directory".to_owned()],
 			default_compile_tuning_parameters: None,
 		};
@@ -292,7 +307,278 @@ mod tests
 					"properties": {
 						"game_id": {
 							"errors": [
-								r#"The value must match the pattern of "^\w+$"."#
+								"Game ID must be alphanumeric and non-empty"
+							]
+						}
+					}
+				})
+				.to_string()
+			);
+		}
+
+		{
+			let toml_string: &str = r##"
+				format = "gameconfig"
+				version = 1
+				game_id = " startswithspace"
+				game_name = "My Game"
+				map_formats = ["mapone", "maptwo"]
+				vfs_formats = ["directory"]"##;
+
+			let deserialized_data = V1File::from_toml_str(toml_string);
+			let error = deserialized_data.expect_err("Expected deserialization to fail");
+			let error_string: String = error.to_string();
+
+			assert_eq!(
+				error_string,
+				json!({
+					"errors": [],
+					"properties": {
+						"game_id": {
+							"errors": [
+								"Game ID must be alphanumeric and non-empty"
+							]
+						}
+					}
+				})
+				.to_string()
+			);
+		}
+
+		{
+			let toml_string: &str = r##"
+				format = "gameconfig"
+				version = 1
+				game_id = ""
+				game_name = "My Game"
+				map_formats = ["mapone", "maptwo"]
+				vfs_formats = ["directory"]"##;
+
+			let deserialized_data = V1File::from_toml_str(toml_string);
+			let error = deserialized_data.expect_err("Expected deserialization to fail");
+			let error_string: String = error.to_string();
+
+			assert_eq!(
+				error_string,
+				json!({
+					"errors": [],
+					"properties": {
+						"game_id": {
+							"errors": [
+								"Game ID must be alphanumeric and non-empty"
+							]
+						}
+					}
+				})
+				.to_string()
+			);
+		}
+	}
+
+	#[test]
+	fn deserialize_with_invalid_game_name()
+	{
+		let toml_string: &str = r##"
+			format = "gameconfig"
+			version = 1
+			game_id = "my_game"
+			game_name = ""
+			map_formats = ["mapone", "maptwo"]
+			vfs_formats = ["directory"]"##;
+
+		let deserialized_data = V1File::from_toml_str(toml_string);
+		let error = deserialized_data.expect_err("Expected deserialization to fail");
+		let error_string: String = error.to_string();
+
+		assert_eq!(
+			error_string,
+			json!({
+				"errors": [],
+				"properties": {
+					"game_name": {
+						"errors": [
+							"Game name cannot be empty"
+						]
+					}
+				}
+			})
+			.to_string()
+		);
+	}
+
+	#[test]
+	fn deserialize_with_invalid_map_formats()
+	{
+		{
+			let toml_string: &str = r##"
+				format = "gameconfig"
+				version = 1
+				game_id = "my_game"
+				game_name = "My Game"
+				map_formats = []
+				vfs_formats = ["directory"]"##;
+
+			let deserialized_data = V1File::from_toml_str(toml_string);
+			let error = deserialized_data.expect_err("Expected deserialization to fail");
+			let error_string: String = error.to_string();
+
+			assert_eq!(
+				error_string,
+				json!({
+					"errors": [],
+					"properties": {
+						"map_formats": {
+							"errors": [
+								"Expected at least one map format"
+							]
+						}
+					}
+				})
+				.to_string()
+			);
+		}
+
+		{
+			let toml_string: &str = r##"
+				format = "gameconfig"
+				version = 1
+				game_id = "my_game"
+				game_name = "My Game"
+				map_formats = ["one", "one"]
+				vfs_formats = ["directory"]"##;
+
+			let deserialized_data = V1File::from_toml_str(toml_string);
+			let error = deserialized_data.expect_err("Expected deserialization to fail");
+			let error_string: String = error.to_string();
+
+			assert_eq!(
+				error_string,
+				json!({
+					"errors": [],
+					"properties": {
+						"map_formats": {
+							"errors": [
+								"Duplicate map formats are not allowed"
+							]
+						}
+					}
+				})
+				.to_string()
+			);
+		}
+
+		{
+			let toml_string: &str = r##"
+				format = "gameconfig"
+				version = 1
+				game_id = "my_game"
+				game_name = "My Game"
+				map_formats = ["one", "   "]
+				vfs_formats = ["directory"]"##;
+
+			let deserialized_data = V1File::from_toml_str(toml_string);
+			let error = deserialized_data.expect_err("Expected deserialization to fail");
+			let error_string: String = error.to_string();
+
+			assert_eq!(
+				error_string,
+				json!({
+					"errors": [],
+					"properties": {
+						"map_formats": {
+							"errors": [
+								"Index 1: The length of the value must be `>= 1`."
+							]
+						}
+					}
+				})
+				.to_string()
+			);
+		}
+	}
+
+	#[test]
+	fn deserialize_with_invalid_vfs_formats()
+	{
+		{
+			let toml_string: &str = r##"
+				format = "gameconfig"
+				version = 1
+				game_id = "my_game"
+				game_name = "My Game"
+				map_formats = ["map"]
+				vfs_formats = []"##;
+
+			let deserialized_data = V1File::from_toml_str(toml_string);
+			let error = deserialized_data.expect_err("Expected deserialization to fail");
+			let error_string: String = error.to_string();
+
+			assert_eq!(
+				error_string,
+				json!({
+					"errors": [],
+					"properties": {
+						"vfs_formats": {
+							"errors": [
+								"Expected at least one VFS format"
+							]
+						}
+					}
+				})
+				.to_string()
+			);
+		}
+
+		{
+			let toml_string: &str = r##"
+				format = "gameconfig"
+				version = 1
+				game_id = "my_game"
+				game_name = "My Game"
+				map_formats = ["map"]
+				vfs_formats = ["directory", "directory"]"##;
+
+			let deserialized_data = V1File::from_toml_str(toml_string);
+			let error = deserialized_data.expect_err("Expected deserialization to fail");
+			let error_string: String = error.to_string();
+
+			assert_eq!(
+				error_string,
+				json!({
+					"errors": [],
+					"properties": {
+						"vfs_formats": {
+							"errors": [
+								"Duplicate VFS formats are not allowed"
+							]
+						}
+					}
+				})
+				.to_string()
+			);
+		}
+
+		{
+			let toml_string: &str = r##"
+				format = "gameconfig"
+				version = 1
+				game_id = "my_game"
+				game_name = "My Game"
+				map_formats = ["map"]
+				vfs_formats = ["   ", "directory"]"##;
+
+			let deserialized_data = V1File::from_toml_str(toml_string);
+			let error = deserialized_data.expect_err("Expected deserialization to fail");
+			let error_string: String = error.to_string();
+
+			assert_eq!(
+				error_string,
+				json!({
+					"errors": [],
+					"properties": {
+						"vfs_formats": {
+							"errors": [
+								"Index 0: The length of the value must be `>= 1`."
 							]
 						}
 					}

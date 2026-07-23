@@ -1,7 +1,6 @@
 use crate::configs::CompileTuningParametersConfig;
 use crate::io::{GameConfigIO, VersionedIOFormat};
 use anyhow::{Context, Result, ensure};
-use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[derive(Debug, PartialEq)]
@@ -9,7 +8,7 @@ pub struct GameConfig
 {
 	pub game_id: String,
 	pub game_name: String,
-	pub map_formats: HashSet<String>,
+	pub map_formats: Vec<String>,
 	pub vfs_formats: Vec<String>,
 
 	pub default_compile_tuning_parameters: Option<CompileTuningParametersConfig>,

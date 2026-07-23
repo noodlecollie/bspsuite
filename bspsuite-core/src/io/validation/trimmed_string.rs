@@ -4,7 +4,7 @@ use serde::de::Deserialize;
 use serde::ser::Serialize;
 use serde_valid::ValidateMinLength;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TrimmedString
 {
 	inner: String,
