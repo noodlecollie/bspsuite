@@ -40,7 +40,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 	let extensions: ExtensionList = ctx.toolchain.find_extensions();
 	extension_routines::register_all_formats(&extensions);
 
-	let map_format_result: Result<extension_routines::ExtensionAndSupportedFormat> =
+	let map_format: extension_routines::ExtensionAndSupportedFormat =
 		extension_routines::choose_extension_to_parse_map(
 			&extensions,
 			ctx.input_path_metadata.full_path.as_path(),
@@ -50,9 +50,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 				.map(|fmt| fmt.as_str())
 				.collect(),
 			&ctx.map_format_override.as_ref().map(|s| s.as_str()),
-		);
-
-	let map_format: extension_routines::ExtensionAndSupportedFormat = map_format_result
+		)
 		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err))?;
 
 	debug!(

@@ -37,6 +37,9 @@ pub enum Subcommand
 
 	/// Compile a map from a source file.
 	Compile(CompileCommandArgs),
+
+	/// Print information about a particular game resource.
+	Resinfo(ResinfoCommandArgs),
 }
 
 #[derive(clap::Args)]
@@ -75,4 +78,22 @@ pub struct ExtinfoCommandArgs
 	/// extensions.
 	#[arg()]
 	pub extension: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct ResinfoCommandArgs
+{
+	/// Name of the game to use. Should correspond to a subdirectory
+	/// under the compiler toolchain's 'games' directory.
+	#[arg(short, long)]
+	pub game: String,
+
+	/// Resource filesystem roots. These can be directories or package files,
+	/// depending on what the game supports.
+	#[arg(short, long, required = true)]
+	pub vfs_roots: Vec<String>,
+
+	/// Resource path to display information about.
+	#[arg()]
+	pub resource_path: String,
 }

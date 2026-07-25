@@ -19,8 +19,9 @@ fn main()
 	let subcommand: &cli::Subcommand = &parsed_args.command;
 	let result_code: cmds::ResultCode = match subcommand
 	{
-		cli::Subcommand::Extinfo(args) => run_info_command(&args),
+		cli::Subcommand::Extinfo(args) => run_extinfo_command(&parsed_args, &args),
 		cli::Subcommand::Compile(args) => run_compile_command(&parsed_args, &args),
+		cli::Subcommand::Resinfo(args) => run_resinfo_command(&parsed_args, &args),
 	};
 
 	match result_code
@@ -35,10 +36,12 @@ fn main()
 	std::process::exit(result_code as i32);
 }
 
-fn run_info_command(args: &cli::ExtinfoCommandArgs) -> cmds::ResultCode
+fn run_extinfo_command(base_args: &cli::Cli, args: &cli::ExtinfoCommandArgs) -> cmds::ResultCode
 {
 	let args: cmds::ExtinfoArgs = cmds::ExtinfoArgs {
-		base: cmds::BaseArgs::default(),
+		base: cmds::BaseArgs {
+			toolchain_root: base_args.toolchain_root.clone(),
+		},
 		extension_name: args.extension.clone(),
 	};
 
@@ -59,6 +62,20 @@ fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> 
 	};
 
 	return cmds::bspcore_run_compile(&args);
+}
+
+fn run_resinfo_command(base_args: &cli::Cli, args: &cli::ResinfoCommandArgs) -> cmds::ResultCode
+{
+	let args: cmds::ResinfoArgs = cmds::ResinfoArgs {
+		base: cmds::BaseArgs {
+			toolchain_root: base_args.toolchain_root.clone(),
+		},
+		game: args.game.clone(),
+		vfs_roots: args.vfs_roots.clone(),
+		resource_path: args.resource_path.clone(),
+	};
+
+	return cmds::bspcore_run_resinfo(&args);
 }
 
 fn init_logger(parsed_args: &cli::Cli)
