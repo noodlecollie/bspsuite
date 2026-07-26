@@ -26,7 +26,7 @@ pub struct ApiEndpoints
 {
 	pub map_format_api: map_format_api_impl::Endpoint,
 	pub resource_format_api: resource_format_api_impl::Endpoint,
-	pub vfs_api: Option<vfs_api_impl::Endpoint>,
+	pub vfs_api: vfs_api_impl::Endpoint,
 }
 
 impl Default for ApiEndpoints
@@ -36,7 +36,7 @@ impl Default for ApiEndpoints
 		return Self {
 			map_format_api: map_format_api_impl::Endpoint::new(None),
 			resource_format_api: resource_format_api_impl::Endpoint::new(None),
-			vfs_api: None,
+			vfs_api: vfs_api_impl::Endpoint::new(None),
 		};
 	}
 }
@@ -220,7 +220,7 @@ impl Extension
 			resource_format_api: resource_format_api_impl::Endpoint::new(
 				callbacks.resource_format_callbacks.take(),
 			),
-			vfs_api: Some(vfs_api_impl::Endpoint::new(callbacks.vfs_callbacks.take())),
+			vfs_api: vfs_api_impl::Endpoint::new(callbacks.vfs_callbacks.take()),
 		};
 
 		self.api_endpoints = api_endpoints;

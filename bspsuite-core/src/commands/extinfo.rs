@@ -56,7 +56,7 @@ fn extension_info(ext_ref: &ExtensionRef) -> Result<()>
 	let name: String = extension.get_name().to_string();
 	let path: PathBuf = extension.get_path().into();
 
-	extension_routines::register_all_formats_for_ext(extension.deref_mut())?;
+	extension_routines::register_all_formats_for_ext(extension.deref_mut());
 
 	let vfs_types: Vec<String> = get_vfs_types(extension.deref_mut());
 	let resource_formats: HashMap<String, Vec<String>> =
@@ -85,25 +85,21 @@ fn extension_info(ext_ref: &ExtensionRef) -> Result<()>
 	Ok(())
 }
 
-fn get_vfs_types(extension: &mut Extension) -> Vec<String>
+fn get_vfs_types(extension: &Extension) -> Vec<String>
 {
 	return extension
-		.get_api_endpoints_mut()
+		.get_api_endpoints()
 		.vfs_api
-		.as_ref()
-		.map(|api| {
-			api.get_supported_vfs_types()
-				.into_iter()
-				.map(|str| str.to_owned())
-				.collect()
-		})
-		.unwrap_or_else(|| Vec::new());
+		.get_supported_vfs_types()
+		.into_iter()
+		.map(|str| str.to_owned())
+		.collect();
 }
 
-fn get_map_formats(extension: &mut Extension) -> Vec<String>
+fn get_map_formats(extension: &Extension) -> Vec<String>
 {
 	return extension
-		.get_api_endpoints_mut()
+		.get_api_endpoints()
 		.map_format_api
 		.supported_formats()
 		.into_iter()
@@ -125,12 +121,12 @@ fn get_map_formats(extension: &mut Extension) -> Vec<String>
 		.collect();
 }
 
-fn get_resource_formats(extension: &mut Extension) -> HashMap<String, Vec<String>>
+fn get_resource_formats(extension: &Extension) -> HashMap<String, Vec<String>>
 {
 	let mut formats_map: HashMap<String, Vec<String>> = HashMap::new();
 
 	let image_formats: Vec<String> = extension
-		.get_api_endpoints_mut()
+		.get_api_endpoints()
 		.resource_format_api
 		.get_supported_image_format_defs()
 		.iter()
