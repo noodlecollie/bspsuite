@@ -24,7 +24,7 @@ pub fn register_all_formats(list: &ExtensionList)
 pub fn register_all_formats_for_ext(extension: &mut Extension) -> Result<()>
 {
 	register_vfs_for_ext(extension)?;
-	register_map_formats_for_ext(extension)?;
+	register_map_formats_for_ext(extension);
 	register_resource_formats_for_ext(extension)?;
 
 	Ok(())
@@ -34,20 +34,16 @@ pub fn register_map_formats(list: &ExtensionList)
 {
 	return list.for_each_or_warn("Registering map formats", |ext_ref| {
 		let mut ext_mut_ref = ext_ref.get_extension_mut()?;
-		register_map_formats_for_ext(&mut ext_mut_ref)
+		register_map_formats_for_ext(&mut ext_mut_ref);
+		Ok(())
 	});
 }
 
-pub fn register_map_formats_for_ext(extension: &mut Extension) -> Result<()>
+pub fn register_map_formats_for_ext(extension: &mut Extension)
 {
 	let ext_name: String = extension.get_name().into();
 	let api_endpoints = extension.get_api_endpoints_mut();
-	if let Some(map_format_api) = &mut api_endpoints.map_format_api
-	{
-		map_format_api.register_map_formats(&ext_name);
-	}
-
-	Ok(())
+	api_endpoints.map_format_api.register_map_formats(&ext_name);
 }
 
 pub fn register_resource_formats(list: &ExtensionList)
@@ -125,11 +121,7 @@ pub fn parse_map(
 		.with_context(|| "Failed to acquire mutable reference to extension")
 		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;
 
-	let map_format_api: &map_format_api::Endpoint = ext_mut_ref
-		.get_api_endpoints()
-		.map_format_api
-		.as_ref()
-		.expect("Expected to be able to get map format API endpoint to parse map");
+	let map_format_api: &map_format_api::Endpoint = &ext_mut_ref.get_api_endpoints().map_format_api;
 
 	return map_format_api
 		.load_if_supported(&parse_using.format_name, |def| {
@@ -321,12 +313,10 @@ fn extension_supports_format(extension: &ExtensionRef, format_name: &str) -> boo
 		.get_extension()
 		.expect("Could not get non-mutable reference to extension");
 
-	let map_format_api: Option<&map_format_api::Endpoint> =
-		ext_ref.get_api_endpoints().map_format_api.as_ref();
-
-	return map_format_api
-		.map(|api| api.supports_loading_format(format_name))
-		.unwrap_or(false);
+	return ext_ref
+		.get_api_endpoints()
+		.map_format_api
+		.supports_loading_format(format_name);
 }
 
 // Expects that no extension is being mutably accessed.
@@ -340,16 +330,9 @@ fn all_allowed_map_format_names_that_extension_supports_for_file_extension(
 		.get_extension()
 		.expect("Could not get non-mutable reference to extension");
 
-	let map_format_api: Option<&map_format_api::Endpoint> =
-		ext_ref.get_api_endpoints().map_format_api.as_ref();
-
-	if map_format_api.is_none()
-	{
-		return Vec::new();
-	}
-
-	return map_format_api
-		.unwrap()
+	return ext_ref
+		.get_api_endpoints()
+		.map_format_api
 		.supported_formats_for_file_extension(file_extension, allowed_formats);
 }
 
@@ -362,18 +345,14 @@ fn all_supported_map_formats(list: &ExtensionList) -> Vec<String>
 			.get_extension()
 			.expect("Could not get non-mutable reference to extension");
 
-		let map_format_api: Option<&map_format_api::Endpoint> =
-			ext_ref.get_api_endpoints().map_format_api.as_ref();
-
-		if let Some(endpoint) = map_format_api
-		{
-			endpoint
-				.supported_format_names()
-				.into_iter()
-				.for_each(|fmt| {
-					formats.insert(fmt);
-				});
-		}
+		ext_ref
+			.get_api_endpoints()
+			.map_format_api
+			.supported_format_names()
+			.into_iter()
+			.for_each(|fmt| {
+				formats.insert(fmt);
+			});
 	});
 
 	return formats.into_iter().collect();
@@ -391,12 +370,12 @@ fn all_supported_map_format_description_strings(list: &ExtensionList) -> Vec<Str
 			.get_extension()
 			.expect("Could not get non-mutable reference to extension");
 
-		let map_format_api: Option<&map_format_api::Endpoint> =
-			ext_ref.get_api_endpoints().map_format_api.as_ref();
-
-		if let Some(endpoint) = map_format_api
-		{
-			endpoint.supported_formats().into_iter().for_each(|spec| {
+		ext_ref
+			.get_api_endpoints()
+			.map_format_api
+			.supported_formats()
+			.into_iter()
+			.for_each(|spec| {
 				if !format_to_exts.contains_key(&spec.format_name)
 				{
 					format_to_exts.insert(spec.format_name.clone(), HashSet::new());
@@ -409,7 +388,6 @@ fn all_supported_map_format_description_strings(list: &ExtensionList) -> Vec<Str
 					exts_hash.insert(ext);
 				});
 			});
-		}
 	});
 
 	return format_to_exts

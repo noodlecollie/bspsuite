@@ -102,31 +102,27 @@ fn get_vfs_types(extension: &mut Extension) -> Vec<String>
 
 fn get_map_formats(extension: &mut Extension) -> Vec<String>
 {
-	if let Some(map_format_api) = &mut extension.get_api_endpoints_mut().map_format_api
-	{
-		return map_format_api
-			.supported_formats()
-			.into_iter()
-			.map(|spec| {
-				if !spec.associated_file_extensions.is_empty()
-				{
-					format!(
-						"{} (.{})",
-						spec.format_name,
-						spec.associated_file_extensions.join(", .")
-					)
-				}
-				else
-				{
-					spec.format_name.to_string()
-				}
-			})
-			.collect();
-	}
-	else
-	{
-		return Vec::new();
-	}
+	return extension
+		.get_api_endpoints_mut()
+		.map_format_api
+		.supported_formats()
+		.into_iter()
+		.map(|spec| -> String {
+			if !spec.associated_file_extensions.is_empty()
+			{
+				format!(
+					"{} (.{})",
+					spec.format_name,
+					spec.associated_file_extensions.join(", .")
+				)
+				.into()
+			}
+			else
+			{
+				spec.format_name.to_string()
+			}
+		})
+		.collect();
 }
 
 fn get_resource_formats(extension: &mut Extension) -> HashMap<String, Vec<String>>
@@ -139,10 +135,10 @@ fn get_resource_formats(extension: &mut Extension) -> HashMap<String, Vec<String
 		image_formats = resource_format_api
 			.get_supported_image_format_defs()
 			.iter()
-			.map(|(name, def)| {
+			.map(|(name, def)| -> String {
 				if !def.file_extensions.is_empty()
 				{
-					format!("{name} (.{})", def.file_extensions.join(", ."))
+					format!("{name} (.{})", def.file_extensions.join(", .")).into()
 				}
 				else
 				{

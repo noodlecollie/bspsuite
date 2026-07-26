@@ -24,7 +24,7 @@ use libloading::os::windows::Symbol as UnsafeSymbol;
 
 pub struct ApiEndpoints
 {
-	pub map_format_api: Option<map_format_api_impl::Endpoint>,
+	pub map_format_api: map_format_api_impl::Endpoint,
 	pub resource_format_api: Option<resource_format_api_impl::Endpoint>,
 	pub vfs_api: Option<vfs_api_impl::Endpoint>,
 }
@@ -34,7 +34,7 @@ impl Default for ApiEndpoints
 	fn default() -> Self
 	{
 		return Self {
-			map_format_api: None,
+			map_format_api: map_format_api_impl::Endpoint::new(None),
 			resource_format_api: None,
 			vfs_api: None,
 		};
@@ -214,9 +214,9 @@ impl Extension
 		let callbacks: ExportedApis = self.probe_and_return_callbacks()?;
 
 		let api_endpoints: ApiEndpoints = ApiEndpoints {
-			map_format_api: Some(map_format_api_impl::Endpoint::new(
+			map_format_api: map_format_api_impl::Endpoint::new(
 				callbacks.map_format_callbacks.take(),
-			)),
+			),
 			resource_format_api: Some(resource_format_api_impl::Endpoint::new(
 				callbacks.resource_format_callbacks.take(),
 			)),
