@@ -1,9 +1,9 @@
-use anyhow::{Context, Result};
 use std::fs;
 use std::path::PathBuf;
 use std::slice::Iter;
 
 use crate::extensions::extension::{Extension, ExtensionRef};
+use anyhow::{Context, Result, ensure};
 use log::{debug, error, warn};
 
 pub struct ExtensionList
@@ -43,6 +43,54 @@ impl ExtensionList
 		return self.extensions.iter().find(|ext| ext.get_name() == name);
 	}
 
+	pub fn for_each_ref_or_warn<F>(&self, op_desc: &str, mut f: F)
+	where
+		F: FnMut(&Extension) -> Result<()>,
+	{
+		self.for_each_or_warn(op_desc, |extension_ref| {
+			extension_ref
+				.get_extension()
+				.with_context(|| "Failed to get reference to extension")
+				.and_then(|ext_ref| f(&ext_ref))
+		});
+	}
+
+	pub fn for_each_mut_ref_or_warn<F>(&self, op_desc: &str, mut f: F)
+	where
+		F: FnMut(&mut Extension) -> Result<()>,
+	{
+		self.for_each_or_warn(op_desc, |extension_ref| {
+			extension_ref
+				.get_extension_mut()
+				.with_context(|| "Failed to get mutable reference to extension")
+				.and_then(|mut ext_ref| f(&mut ext_ref))
+		});
+	}
+
+	pub fn for_each_ref_or_error<F>(&self, op_desc: &str, mut f: F) -> Result<()>
+	where
+		F: FnMut(&Extension) -> Result<()>,
+	{
+		self.for_each_or_error(op_desc, |extension_ref| {
+			extension_ref
+				.get_extension()
+				.with_context(|| "Failed to get reference to extension")
+				.and_then(|ext_ref| f(&ext_ref))
+		})
+	}
+
+	pub fn for_each_mut_ref_or_error<F>(&self, op_desc: &str, mut f: F) -> Result<()>
+	where
+		F: FnMut(&mut Extension) -> Result<()>,
+	{
+		self.for_each_or_error(op_desc, |extension_ref| {
+			extension_ref
+				.get_extension_mut()
+				.with_context(|| "Failed to get mutable reference to extension")
+				.and_then(|mut ext_ref| f(&mut ext_ref))
+		})
+	}
+
 	pub fn for_each_or_warn<F>(&self, op_desc: &str, mut f: F)
 	where
 		F: FnMut(&ExtensionRef) -> Result<()>,
@@ -56,17 +104,27 @@ impl ExtensionList
 		});
 	}
 
-	pub fn for_each_or_error<F>(&self, op_desc: &str, mut f: F)
+	pub fn for_each_or_error<F>(&self, op_desc: &str, mut f: F) -> Result<()>
 	where
 		F: FnMut(&ExtensionRef) -> Result<()>,
 	{
-		self.iter().for_each(|ext_ref| {
-			if let Err(err) = f(ext_ref)
-			{
-				let ext_name: &str = ext_ref.get_name();
-				error!("{op_desc} failed for extension {ext_name}. {err}");
-			}
+		let num_failures: usize = self.iter().fold(0, |fail_count, ext_ref| {
+			fail_count
+				+ f(ext_ref).map(|_| 0).unwrap_or_else(|err| {
+					error!(
+						"{op_desc} failed for extension {}. {err}",
+						ext_ref.get_name()
+					);
+					1
+				})
 		});
+
+		ensure!(
+			num_failures == 0,
+			format!("{op_desc} failed for {num_failures} extensions")
+		);
+
+		return Ok(());
 	}
 
 	fn load_extensions_from(&mut self, toolchain_root: &PathBuf)

@@ -30,9 +30,8 @@ pub fn register_all_formats_for_ext(extension: &mut Extension)
 
 pub fn register_map_formats(list: &ExtensionList)
 {
-	return list.for_each_or_warn("Registering map formats", |ext_ref| {
-		let mut ext_mut_ref = ext_ref.get_extension_mut()?;
-		register_map_formats_for_ext(&mut ext_mut_ref);
+	return list.for_each_mut_ref_or_warn("Registering map formats", |ext_ref| {
+		register_map_formats_for_ext(ext_ref);
 		Ok(())
 	});
 }
@@ -46,9 +45,8 @@ pub fn register_map_formats_for_ext(extension: &mut Extension)
 
 pub fn register_resource_formats(list: &ExtensionList)
 {
-	return list.for_each_or_warn("Registering resource formats", |ext_ref| {
-		let mut ext_mut_ref = ext_ref.get_extension_mut()?;
-		register_resource_formats_for_ext(&mut ext_mut_ref);
+	return list.for_each_mut_ref_or_warn("Registering resource formats", |ext_ref| {
+		register_resource_formats_for_ext(ext_ref);
 		Ok(())
 	});
 }
@@ -64,9 +62,8 @@ pub fn register_resource_formats_for_ext(extension: &mut Extension)
 
 pub fn register_vfs(list: &ExtensionList)
 {
-	return list.for_each_or_warn("Registering VFS implementations", |ext_ref| {
-		let mut ext_mut_ref = ext_ref.get_extension_mut()?;
-		register_vfs_for_ext(&mut ext_mut_ref);
+	return list.for_each_mut_ref_or_warn("Registering VFS implementations", |ext_ref| {
+		register_vfs_for_ext(ext_ref);
 		Ok(())
 	});
 }
