@@ -78,13 +78,13 @@ impl<'l> VfsApi for VfsApiImpl<'l>
 
 pub struct Endpoint
 {
-	inner: VfsApiCallbacks,
+	inner: Option<VfsApiCallbacks>,
 	vfs_impls: HashMap<String, (VfsImplCallbacks, Vec<String>)>,
 }
 
 impl Endpoint
 {
-	pub fn new(callbacks: VfsApiCallbacks) -> Self
+	pub fn new(callbacks: Option<VfsApiCallbacks>) -> Self
 	{
 		return Self {
 			inner: callbacks,
@@ -92,19 +92,25 @@ impl Endpoint
 		};
 	}
 
-	pub fn register_vfs_impls(&mut self, extension_name: &str)
+	pub fn register_vfs_impls(&mut self, extension_name: &str) -> bool
 	{
-		let mut impls: FileFormatList<VfsImplCallbacks> =
-			FileFormatList::new(extension_name.into(), "VFS type".into());
+		self.inner
+			.as_ref()
+			.map(|callbacks| {
+				let mut impls: FileFormatList<VfsImplCallbacks> =
+					FileFormatList::new(extension_name.into(), "VFS type".into());
 
-		{
-			let mut api_impl: BoxedVfsApi =
-				BoxedVfsApi::new(VfsApiImpl::new(extension_name, &mut impls));
+				{
+					let mut api_impl: BoxedVfsApi =
+						BoxedVfsApi::new(VfsApiImpl::new(extension_name, &mut impls));
 
-			(self.inner.register_vfs_support)(&mut api_impl);
-		}
+					(callbacks.register_vfs_support)(&mut api_impl);
+				}
 
-		self.vfs_impls = impls.collect();
+				self.vfs_impls = impls.collect();
+				true
+			})
+			.unwrap_or(false)
 	}
 
 	pub fn get_registered_vfs_records(&self) -> Vec<(&str, &Vec<String>)>

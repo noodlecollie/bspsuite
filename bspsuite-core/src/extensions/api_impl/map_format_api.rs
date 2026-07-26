@@ -54,13 +54,13 @@ pub struct MapFormatDefinition
 
 pub struct Endpoint
 {
-	inner: MapFormatApiCallbacks,
+	inner: Option<MapFormatApiCallbacks>,
 	map_formats: HashMap<String, MapFormatDefinition>,
 }
 
 impl Endpoint
 {
-	pub fn new(callbacks: MapFormatApiCallbacks) -> Self
+	pub fn new(callbacks: Option<MapFormatApiCallbacks>) -> Self
 	{
 		return Self {
 			inner: callbacks,
@@ -68,31 +68,38 @@ impl Endpoint
 		};
 	}
 
-	pub fn register_map_formats(&mut self, extension_name: &str)
+	pub fn register_map_formats(&mut self, extension_name: &str) -> bool
 	{
-		let mut formats: FileFormatList<ParseMapFn> =
-			FileFormatList::new(extension_name.into(), "map format".into());
+		self.inner
+			.as_ref()
+			.map(|callbacks| {
+				let mut formats: FileFormatList<ParseMapFn> =
+					FileFormatList::new(extension_name.into(), "map format".into());
 
-		{
-			let mut api_impl: BoxedMapFormatApi =
-				BoxedMapFormatApi::new(MapFormatApiImpl::new(extension_name, &mut formats));
+				{
+					let mut api_impl: BoxedMapFormatApi =
+						BoxedMapFormatApi::new(MapFormatApiImpl::new(extension_name, &mut formats));
 
-			(self.inner.register_map_formats)(&mut api_impl);
-		}
+					(callbacks.register_map_formats)(&mut api_impl);
+				}
 
-		self.map_formats = formats
-			.collect()
-			.into_iter()
-			.map(|(key, value)| {
-				(
-					key,
-					MapFormatDefinition {
-						file_extensions: value.1,
-						parse_fn: value.0,
-					},
-				)
+				self.map_formats = formats
+					.collect()
+					.into_iter()
+					.map(|(key, value)| {
+						(
+							key,
+							MapFormatDefinition {
+								file_extensions: value.1,
+								parse_fn: value.0,
+							},
+						)
+					})
+					.collect();
+
+				true
 			})
-			.collect();
+			.unwrap_or(false)
 	}
 }
 

@@ -27,7 +27,7 @@ struct ResourceFormatApiImpl<'l>
 
 pub struct Endpoint
 {
-	inner: ResourceFormatApiCallbacks,
+	inner: Option<ResourceFormatApiCallbacks>,
 	image_formats: HashMap<String, ImageFormatDefinition>,
 }
 
@@ -72,7 +72,7 @@ impl<'l> ResourceFormatApi for ResourceFormatApiImpl<'l>
 
 impl Endpoint
 {
-	pub fn new(callbacks: ResourceFormatApiCallbacks) -> Self
+	pub fn new(callbacks: Option<ResourceFormatApiCallbacks>) -> Self
 	{
 		return Self {
 			inner: callbacks,
@@ -80,33 +80,39 @@ impl Endpoint
 		};
 	}
 
-	pub fn register_resource_formats(&mut self, extension_name: &str)
+	pub fn register_resource_formats(&mut self, extension_name: &str) -> bool
 	{
-		let mut formats: ResourceFormatsCollector =
-			ResourceFormatsCollector::new(extension_name.into());
+		self.inner
+			.as_ref()
+			.map(|callbacks| {
+				let mut formats: ResourceFormatsCollector =
+					ResourceFormatsCollector::new(extension_name.into());
 
-		{
-			let mut api_impl: BoxedResourceFormatApi = BoxedResourceFormatApi::new(
-				ResourceFormatApiImpl::new(extension_name, &mut formats),
-			);
+				{
+					let mut api_impl: BoxedResourceFormatApi = BoxedResourceFormatApi::new(
+						ResourceFormatApiImpl::new(extension_name, &mut formats),
+					);
 
-			(self.inner.register_resource_formats)(&mut api_impl);
-		}
+					(callbacks.register_resource_formats)(&mut api_impl);
+				}
 
-		self.image_formats = formats
-			.image_formats
-			.collect()
-			.into_iter()
-			.map(|(key, value)| {
-				(
-					key,
-					ImageFormatDefinition {
-						file_extensions: value.1,
-						load_fn: value.0,
-					},
-				)
+				self.image_formats = formats
+					.image_formats
+					.collect()
+					.into_iter()
+					.map(|(key, value)| {
+						(
+							key,
+							ImageFormatDefinition {
+								file_extensions: value.1,
+								load_fn: value.0,
+							},
+						)
+					})
+					.collect();
+				true
 			})
-			.collect();
+			.unwrap_or(false)
 	}
 
 	pub fn supports_image_format(&self, format_name: &str) -> bool

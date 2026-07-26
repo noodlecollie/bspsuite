@@ -214,18 +214,13 @@ impl Extension
 		let callbacks: ExportedApis = self.probe_and_return_callbacks()?;
 
 		let api_endpoints: ApiEndpoints = ApiEndpoints {
-			map_format_api: callbacks
-				.map_format_callbacks
-				.take()
-				.map(|cb| map_format_api_impl::Endpoint::new(cb)),
-			resource_format_api: callbacks
-				.resource_format_callbacks
-				.take()
-				.map(|cb| resource_format_api_impl::Endpoint::new(cb)),
-			vfs_api: callbacks
-				.vfs_callbacks
-				.take()
-				.map(|cb| vfs_api_impl::Endpoint::new(cb)),
+			map_format_api: Some(map_format_api_impl::Endpoint::new(
+				callbacks.map_format_callbacks.take(),
+			)),
+			resource_format_api: Some(resource_format_api_impl::Endpoint::new(
+				callbacks.resource_format_callbacks.take(),
+			)),
+			vfs_api: Some(vfs_api_impl::Endpoint::new(callbacks.vfs_callbacks.take())),
 		};
 
 		self.api_endpoints = api_endpoints;
