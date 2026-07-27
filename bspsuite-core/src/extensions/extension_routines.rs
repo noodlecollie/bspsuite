@@ -14,6 +14,19 @@ pub struct ExtensionAndSupportedFormat
 	pub format_name: String,
 }
 
+// TODO: We need a better way of organising this. Ideally, we should have a
+// process that looks like this:
+// - Find all extensions.
+// - Probe each extension and retain the ones that succeed.
+// - Call registration functions for all APIs over all extensions that listed
+//   support for them, and collect the results so that they're contained within
+//   one object per API, instead of one object per extension.
+// - Return a struct that holds all extensions, and all API results with tables
+//   that link to the relevant extensions.
+// Format registration would then be required in order to create the API results
+// objects. This would avoid the case where we create a new API, implement it in
+// an extension, but forget to add it to this function below, and so nothing
+// works.
 pub fn register_all_formats(list: &ExtensionList)
 {
 	register_vfs(list);
