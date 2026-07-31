@@ -6,6 +6,15 @@ pub(crate) struct FormatSpec
 	pub associated_file_extensions: Vec<String>,
 }
 
+pub(crate) trait FormatLoaderApi
+{
+	/// If an extension has indicated support for this API, calls the extension
+	/// to register its supported formats, and returns true.
+	/// If the extension has not indicated suppport for this API, does nothing
+	/// and returns false.
+	fn register_supported_formats(&mut self, extension_name: &str) -> bool;
+}
+
 pub(crate) trait FormatLoader<LoaderInterface>
 {
 	type LoaderOutput;

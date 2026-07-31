@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::extensions::FileFormatList;
+use crate::extensions::{FileFormatList, FormatLoaderApi};
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::anyhow;
 use bspextifc::resource_format_api::{
@@ -80,41 +80,6 @@ impl Endpoint
 		};
 	}
 
-	pub fn register_resource_formats(&mut self, extension_name: &str) -> bool
-	{
-		self.inner
-			.as_ref()
-			.map(|callbacks| {
-				let mut formats: ResourceFormatsCollector =
-					ResourceFormatsCollector::new(extension_name.into());
-
-				{
-					let mut api_impl: BoxedResourceFormatApi = BoxedResourceFormatApi::new(
-						ResourceFormatApiImpl::new(extension_name, &mut formats),
-					);
-
-					(callbacks.register_resource_formats)(&mut api_impl);
-				}
-
-				self.image_formats = formats
-					.image_formats
-					.collect()
-					.into_iter()
-					.map(|(key, value)| {
-						(
-							key,
-							ImageFormatDefinition {
-								file_extensions: value.1,
-								load_fn: value.0,
-							},
-						)
-					})
-					.collect();
-				true
-			})
-			.unwrap_or(false)
-	}
-
 	pub fn supports_image_format(&self, format_name: &str) -> bool
 	{
 		return self.image_formats.contains_key(format_name);
@@ -159,6 +124,44 @@ impl Endpoint
 			.iter()
 			.map(|(key, val)| (key.as_str(), val))
 			.collect();
+	}
+}
+
+impl FormatLoaderApi for Endpoint
+{
+	fn register_supported_formats(&mut self, extension_name: &str) -> bool
+	{
+		self.inner
+			.as_ref()
+			.map(|callbacks| {
+				let mut formats: ResourceFormatsCollector =
+					ResourceFormatsCollector::new(extension_name.into());
+
+				{
+					let mut api_impl: BoxedResourceFormatApi = BoxedResourceFormatApi::new(
+						ResourceFormatApiImpl::new(extension_name, &mut formats),
+					);
+
+					(callbacks.register_resource_formats)(&mut api_impl);
+				}
+
+				self.image_formats = formats
+					.image_formats
+					.collect()
+					.into_iter()
+					.map(|(key, value)| {
+						(
+							key,
+							ImageFormatDefinition {
+								file_extensions: value.1,
+								load_fn: value.0,
+							},
+						)
+					})
+					.collect();
+				true
+			})
+			.unwrap_or(false)
 	}
 }
 

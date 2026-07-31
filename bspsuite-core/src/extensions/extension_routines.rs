@@ -53,7 +53,9 @@ pub fn register_map_formats_for_ext(extension: &mut Extension)
 {
 	let ext_name: String = extension.get_name().into();
 	let api_endpoints = extension.get_api_endpoints_mut();
-	api_endpoints.map_format_api.register_map_formats(&ext_name);
+	api_endpoints
+		.map_format_api
+		.register_supported_formats(&ext_name);
 }
 
 pub fn register_resource_formats(list: &ExtensionList)
@@ -70,7 +72,7 @@ pub fn register_resource_formats_for_ext(extension: &mut Extension)
 	let api_endpoints = extension.get_api_endpoints_mut();
 	api_endpoints
 		.resource_format_api
-		.register_resource_formats(&ext_name);
+		.register_supported_formats(&ext_name);
 }
 
 pub fn register_vfs(list: &ExtensionList)
@@ -85,7 +87,7 @@ pub fn register_vfs_for_ext(extension: &mut Extension)
 {
 	let ext_name: String = extension.get_name().into();
 	let api_endpoints = extension.get_api_endpoints_mut();
-	api_endpoints.vfs_api.register_vfs_impls(&ext_name);
+	api_endpoints.vfs_api.register_supported_formats(&ext_name);
 }
 
 pub fn choose_extension_to_parse_map(

@@ -14,21 +14,25 @@ pub use apis::{ApiInfo, log_api, map_format_api, probe_api, resource_format_api,
 #[repr(C)]
 pub struct ExtensionInfo
 {
+	pub magic: u32,
 	pub ffi_version: u64,
 	pub probe_api_version: usize,
 	pub probe_fn: probe_api::ProbeExtensionFn,
 }
 
-/// Name of the library symbol that exposes the extension's interface
-/// information.
-pub const SYMBOL_EXTENSION_INFO: &[u8] = b"bspsuite_ext_info";
-
 /// Name of the library symbol that exposes the version of the extension
 /// information struct.
 pub const SYMBOL_EXTENSION_INFO_VERSION: &[u8] = b"bspsuite_ext_info_version";
 
+/// Name of the library symbol that exposes the extension's interface
+/// information.
+pub const SYMBOL_EXTENSION_INFO: &[u8] = b"bspsuite_ext_info";
+
 /// Type used to report the version of the extension info struct.
 pub type ExtensionInfoVersionType = u64;
+
+/// Value expected to be first in the [ExtensionInfo] struct.
+pub const EXTENSION_INFO_MAGIC: u32 = 0xB595C173;
 
 /// The version of the extension info struct that we expect to read.
 pub const EXTENSION_INFO_VERSION: ExtensionInfoVersionType = 1;
@@ -61,6 +65,7 @@ macro_rules! implement_extension_info {
 		#[allow(non_upper_case_globals)]
 		#[unsafe(no_mangle)]
 		pub static bspsuite_ext_info: $crate::ExtensionInfo = $crate::ExtensionInfo {
+			magic: $crate::EXTENSION_INFO_MAGIC,
 			ffi_version: $crate::FFI_VERSION,
 			probe_api_version: $crate::probe_api::API_VERSION,
 			probe_fn: $probe,

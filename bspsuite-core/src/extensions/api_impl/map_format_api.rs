@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::extensions::FileFormatList;
-use crate::extensions::{FormatLoader, FormatSpec};
+use crate::extensions::{FormatLoader, FormatLoaderApi, FormatSpec};
 use anyhow::Result;
 use anyhow::anyhow;
 use bspextifc::builders::map_source_builder::{BuilderError, Entity};
@@ -67,8 +67,21 @@ impl Endpoint
 			map_formats: HashMap::new(),
 		};
 	}
+}
 
-	pub fn register_map_formats(&mut self, extension_name: &str) -> bool
+impl MapFormatDefinition
+{
+	pub fn parse_map(&self, data: &str) -> Result<Vec<Entity>, BuilderError>
+	{
+		return MapSourceBuilder::run(|mut builder| {
+			(self.parse_fn)(&XCStr::new(data), &mut builder);
+		});
+	}
+}
+
+impl FormatLoaderApi for Endpoint
+{
+	fn register_supported_formats(&mut self, extension_name: &str) -> bool
 	{
 		self.inner
 			.as_ref()
@@ -100,16 +113,6 @@ impl Endpoint
 				true
 			})
 			.unwrap_or(false)
-	}
-}
-
-impl MapFormatDefinition
-{
-	pub fn parse_map(&self, data: &str) -> Result<Vec<Entity>, BuilderError>
-	{
-		return MapSourceBuilder::run(|mut builder| {
-			(self.parse_fn)(&XCStr::new(data), &mut builder);
-		});
 	}
 }
 

@@ -199,10 +199,13 @@ impl<T> CallbacksContainer<T>
 		self.callbacks = Some(callbacks);
 		return Ok(());
 	}
+}
 
-	pub fn take(self) -> Option<T>
+impl<T> From<CallbacksContainer<T>> for Option<T>
+{
+	fn from(value: CallbacksContainer<T>) -> Self
 	{
-		return self.callbacks;
+		return value.callbacks;
 	}
 }
 

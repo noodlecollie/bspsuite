@@ -215,12 +215,12 @@ impl Extension
 
 		let api_endpoints: ApiEndpoints = ApiEndpoints {
 			map_format_api: map_format_api_impl::Endpoint::new(
-				callbacks.map_format_callbacks.take(),
+				callbacks.map_format_callbacks.into(),
 			),
 			resource_format_api: resource_format_api_impl::Endpoint::new(
-				callbacks.resource_format_callbacks.take(),
+				callbacks.resource_format_callbacks.into(),
 			),
-			vfs_api: vfs_api_impl::Endpoint::new(callbacks.vfs_callbacks.take()),
+			vfs_api: vfs_api_impl::Endpoint::new(callbacks.vfs_callbacks.into()),
 		};
 
 		self.api_endpoints = api_endpoints;

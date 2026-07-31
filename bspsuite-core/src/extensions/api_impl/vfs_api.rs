@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::extensions::FileFormatList;
+use crate::extensions::{FileFormatList, FormatLoaderApi};
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::{Result, anyhow, ensure};
 use bspextifc::vfs_api::{
@@ -92,7 +92,29 @@ impl Endpoint
 		};
 	}
 
-	pub fn register_vfs_impls(&mut self, extension_name: &str) -> bool
+	pub fn get_registered_vfs_records(&self) -> Vec<(&str, &Vec<String>)>
+	{
+		return self
+			.vfs_impls
+			.iter()
+			.map(|(key, value)| (key.as_str(), &value.1))
+			.collect();
+	}
+
+	pub fn get_supported_vfs_types(&self) -> Vec<&str>
+	{
+		return self.vfs_impls.keys().map(|key| key.as_str()).collect();
+	}
+
+	pub fn get_vfs_root_file_extensions(&self, vfs_type: &str) -> Option<&Vec<String>>
+	{
+		return self.vfs_impls.get(vfs_type).map(|item| &item.1);
+	}
+}
+
+impl FormatLoaderApi for Endpoint
+{
+	fn register_supported_formats(&mut self, extension_name: &str) -> bool
 	{
 		self.inner
 			.as_ref()
@@ -111,25 +133,6 @@ impl Endpoint
 				true
 			})
 			.unwrap_or(false)
-	}
-
-	pub fn get_registered_vfs_records(&self) -> Vec<(&str, &Vec<String>)>
-	{
-		return self
-			.vfs_impls
-			.iter()
-			.map(|(key, value)| (key.as_str(), &value.1))
-			.collect();
-	}
-
-	pub fn get_supported_vfs_types(&self) -> Vec<&str>
-	{
-		return self.vfs_impls.keys().map(|key| key.as_str()).collect();
-	}
-
-	pub fn get_vfs_root_file_extensions(&self, vfs_type: &str) -> Option<&Vec<String>>
-	{
-		return self.vfs_impls.get(vfs_type).map(|item| &item.1);
 	}
 }
 
