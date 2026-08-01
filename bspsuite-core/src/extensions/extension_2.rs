@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use bspextifc::probe_api;
+use bspextifc::resource_format_api::LoadImageFn;
 use bspextifc::{
 	EXTENSION_INFO_MAGIC, EXTENSION_INFO_VERSION, FFI_VERSION, SYMBOL_EXTENSION_INFO,
 	SYMBOL_EXTENSION_INFO_VERSION,
@@ -15,6 +16,7 @@ use crate::extensions::api_impl::map_format_api_impl::{
 	Endpoint as MapFormatApiEndpoint, MapFormatDefinition,
 };
 use crate::extensions::api_impl::resource_format_api_impl::Endpoint as ResourceFormatApiEndpoint;
+use crate::extensions::api_impl::vfs_api::VfsInitialiser;
 use crate::extensions::api_impl::vfs_api_impl::Endpoint as VfsApiEndpoint;
 use crate::extensions::api_impl::{ExportedApis, ProbeApiImpl};
 use crate::extensions::{FormatLoader, FormatLoaderApi, FormatSupportQuery};
@@ -49,6 +51,8 @@ pub struct ExtensionCollection
 {
 	extensions: HashMap<String, Extension>,
 	map_formats: ApiImplCollection<MapFormatDefinition, MapFormatApiEndpoint>,
+	image_formats: ApiImplCollection<LoadImageFn, ResourceFormatApiEndpoint>,
+	vfs_formats: ApiImplCollection<VfsInitialiser, VfsApiEndpoint>,
 }
 
 /// Helper struct that holds Rcs to all implementations of a particular
@@ -277,6 +281,12 @@ impl ExtensionCollection
 		return Self {
 			map_formats: ApiImplCollection::new(&extensions, |data| {
 				data.api_endpoints.map_format_api.clone()
+			}),
+			image_formats: ApiImplCollection::new(&extensions, |data| {
+				data.api_endpoints.resource_format_api.clone()
+			}),
+			vfs_formats: ApiImplCollection::new(&extensions, |data| {
+				data.api_endpoints.vfs_api.clone()
 			}),
 			extensions,
 		};
