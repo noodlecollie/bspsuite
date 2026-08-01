@@ -10,8 +10,10 @@ set -ex
 cp -f "/home/$USER/.gitconfig" "$HOME/.gitconfig" && chmod 444 "$HOME/.gitconfig"
 mkdir -p "$HOME/.ssh" && cp -rf /home/$USER/.ssh/id_* "$HOME/.ssh/" && chmod 755 "$HOME/.ssh/"
 
-rustup default 1.90
+rustup show active-toolchain
 
-# For correct formatting (see comments in rustfmt.toml)
-rustup toolchain install nightly
-rustup default stable
+if [ $? -ne 0]; then
+	# For correct formatting (see comments in rustfmt.toml)
+	rustup toolchain install nightly
+	rustup default stable
+fi
