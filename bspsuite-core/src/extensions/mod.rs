@@ -1,7 +1,7 @@
 pub use extension::{ApiEndpoints, Extension, ExtensionRef};
 pub use extension_list::ExtensionList;
 
-pub(crate) use format_loader::{FormatLoader, FormatLoaderApi, FormatSpec};
+pub(crate) use format_loader::{FormatLoader, FormatLoaderApi, FormatSpec, FormatSupportQuery};
 pub(crate) mod extension_routines;
 
 use file_format_list::FileFormatList;

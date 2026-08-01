@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use anyhow;
 
 pub(crate) struct FormatSpec
@@ -76,10 +78,22 @@ pub(crate) trait FormatLoader<LoaderInterface>
 			.supported_formats()
 			.iter()
 			.filter(|spec| {
-				format_whitelist.contains(&spec.format_name.as_ref())
+				(format_whitelist.is_empty()
+					|| format_whitelist.contains(&spec.format_name.as_ref()))
 					&& spec.associated_file_extensions.contains(&file_extension)
 			})
 			.map(|spec| spec.format_name.clone())
 			.collect();
 	}
+}
+
+pub(crate) trait FormatSupportQuery<ApiImpl>
+{
+	/// Returns a vector of implementers which support loading the specified
+	/// format.
+	fn implementers_supporting_format(&self, format_name: &str) -> Vec<Rc<ApiImpl>>;
+
+	/// Returns a vector of possible file formats that the given file extension
+	/// may apply to.
+	fn format_for_file_extension(&self, file_extension: &str) -> Vec<String>;
 }

@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::extensions::api_impl::map_format_api;
+use crate::extensions::format_loader::FormatLoaderApi;
 use crate::extensions::{Extension, ExtensionList, ExtensionRef, FormatLoader};
 use crate::{CompilerError, CompilerErrorCode};
 use anyhow::{Context, Result, anyhow, bail};

@@ -1,8 +1,8 @@
-use libloading::{Library, Symbol};
 use std::collections::HashMap;
 use std::fs;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use bspextifc::probe_api;
 use bspextifc::{
@@ -11,12 +11,15 @@ use bspextifc::{
 };
 use bspextifc::{ExtensionInfo, ExtensionInfoVersionType};
 
-use crate::extensions::FormatLoaderApi;
-use crate::extensions::api_impl::map_format_api_impl::Endpoint as MapFormatApiEndpoint;
+use crate::extensions::api_impl::map_format_api_impl::{
+	Endpoint as MapFormatApiEndpoint, MapFormatDefinition,
+};
 use crate::extensions::api_impl::resource_format_api_impl::Endpoint as ResourceFormatApiEndpoint;
 use crate::extensions::api_impl::vfs_api_impl::Endpoint as VfsApiEndpoint;
 use crate::extensions::api_impl::{ExportedApis, ProbeApiImpl};
+use crate::extensions::{FormatLoader, FormatLoaderApi, FormatSupportQuery};
 use anyhow::{Context, Result, bail, ensure};
+use libloading::{Library, Symbol};
 use log::{debug, trace, warn};
 use self_cell::self_cell;
 use target_lexicon::{HOST, OperatingSystem};
@@ -45,42 +48,101 @@ pub const fn library_prefix_for_platform() -> &'static str
 pub struct ExtensionCollection
 {
 	extensions: HashMap<String, Extension>,
+	map_formats: ApiImplCollection<MapFormatDefinition, MapFormatApiEndpoint>,
+}
+
+/// Helper struct that holds Rcs to all implementations of a particular
+/// FormatLoader API, across all loaded extensions.
+struct ApiImplCollection<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
+{
+	marker: PhantomData<LoaderInterface>,
+	implementers: Vec<Rc<ApiImpl>>,
+}
+
+impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
+	ApiImplCollection<LoaderInterface, ApiImpl>
+{
+	pub fn new<F: Fn(&ExtensionData) -> Rc<ApiImpl>>(
+		extensions: &HashMap<String, Extension>,
+		query_fn: F,
+	) -> Self
+	{
+		return Self {
+			marker: PhantomData,
+			implementers: extensions
+				.iter()
+				.map(|(_, extension)| {
+					extension
+						.library_and_data
+						.with_dependent(|_, data| query_fn(data))
+				})
+				.collect(),
+		};
+	}
+}
+
+impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatSupportQuery<ApiImpl>
+	for ApiImplCollection<LoaderInterface, ApiImpl>
+{
+	fn implementers_supporting_format(&self, format_name: &str) -> Vec<Rc<ApiImpl>>
+	{
+		return self
+			.implementers
+			.iter()
+			.filter_map(|api_impl| {
+				api_impl
+					.supports_loading_format(format_name)
+					.then_some(api_impl.clone())
+			})
+			.collect();
+	}
+
+	fn format_for_file_extension(&self, file_extension: &str) -> Vec<String>
+	{
+		let mut out: Vec<String> = Vec::new();
+
+		self.implementers.iter().for_each(|api_impl| {
+			out.extend(api_impl.supported_formats_for_file_extension(file_extension, &Vec::new()))
+		});
+
+		return out;
+	}
 }
 
 /// Struct that holds API callbacks and other info that an extension has
 /// provided. The struct's lifetime is bound by that of the extension's shared
 /// library.
-pub struct ExtensionApis<'l>
+struct ExtensionApis<'l>
 {
 	marker: PhantomData<&'l Library>,
 
-	pub map_format_api: MapFormatApiEndpoint,
-	pub resource_format_api: ResourceFormatApiEndpoint,
-	pub vfs_api: VfsApiEndpoint,
+	pub map_format_api: Rc<MapFormatApiEndpoint>,
+	pub resource_format_api: Rc<ResourceFormatApiEndpoint>,
+	pub vfs_api: Rc<VfsApiEndpoint>,
 }
 
 struct Extension
 {
 	name: String,
 	path: PathBuf,
-	library_and_symbols: SharedLibrary,
-}
-
-struct SharedLibrarySymbols<'l>
-{
-	extension_info: Symbol<'l, ExtensionInfo>,
-	api_endpoints: ExtensionApis<'l>,
+	library_and_data: LibraryAndData,
 }
 
 self_cell!(
-	struct SharedLibrary
+	struct LibraryAndData
 	{
 		owner: Library,
 
 		#[covariant]
-		dependent: SharedLibrarySymbols,
+		dependent: ExtensionData,
 	}
 );
+
+struct ExtensionData<'l>
+{
+	extension_info: Symbol<'l, ExtensionInfo>,
+	api_endpoints: ExtensionApis<'l>,
+}
 
 /// Helper for registering formats for a loader. When this helper is unwrapped
 /// by calling register_and_consume(), it ensures that the format loader asks
@@ -92,10 +154,10 @@ struct FormatRegisterHelper<Container: FormatLoaderApi>(Container);
 
 impl<Container: FormatLoaderApi> FormatRegisterHelper<Container>
 {
-	pub fn register_and_consume(mut self, extension_name: &str) -> Container
+	pub fn register_and_consume(mut self, extension_name: &str) -> Rc<Container>
 	{
 		self.0.register_supported_formats(extension_name);
-		return self.0;
+		return Rc::new(self.0);
 	}
 }
 
@@ -152,9 +214,9 @@ impl<'l> Default for ExtensionApis<'l>
 	{
 		return Self {
 			marker: PhantomData,
-			map_format_api: MapFormatApiEndpoint::new(None),
-			resource_format_api: ResourceFormatApiEndpoint::new(None),
-			vfs_api: VfsApiEndpoint::new(None),
+			map_format_api: Rc::new(MapFormatApiEndpoint::new(None)),
+			resource_format_api: Rc::new(ResourceFormatApiEndpoint::new(None)),
+			vfs_api: Rc::new(VfsApiEndpoint::new(None)),
 		};
 	}
 }
@@ -191,9 +253,9 @@ impl ExtensionCollection
 			.into_iter()
 			.map(|mut extension| -> Result<Extension> {
 				extension
-					.library_and_symbols
-					.with_dependent_mut(|_, symbols| -> Result<()> {
-						ExtensionCollection::probe(&extension.name, symbols)
+					.library_and_data
+					.with_dependent_mut(|_, data| -> Result<()> {
+						ExtensionCollection::probe(&extension.name, data)
 					})?;
 
 				Ok(extension)
@@ -207,9 +269,17 @@ impl ExtensionCollection
 			.map(|extension| (extension.name.clone(), extension))
 			.collect();
 
-		return Ok(Self {
-			extensions: hash_map,
-		});
+		return Ok(ExtensionCollection::build_from_extensions(hash_map));
+	}
+
+	fn build_from_extensions(extensions: HashMap<String, Extension>) -> Self
+	{
+		return Self {
+			map_formats: ApiImplCollection::new(&extensions, |data| {
+				data.api_endpoints.map_format_api.clone()
+			}),
+			extensions,
+		};
 	}
 
 	fn find_extensions(root: &PathBuf) -> Result<Vec<PathBuf>>
@@ -253,7 +323,7 @@ impl ExtensionCollection
 			.collect();
 	}
 
-	fn probe(name: &str, symbols: &mut SharedLibrarySymbols) -> Result<()>
+	fn probe(name: &str, data: &mut ExtensionData) -> Result<()>
 	{
 		// The first step probes the extension for what it supports.
 		// The extension can call register_X_api() to indicate that it supports this
@@ -266,7 +336,7 @@ impl ExtensionCollection
 					probe_api::BoxedProbeApi::new(ProbeApiImpl::new(name, &mut exported_apis));
 
 				let probe_result: probe_api::ProbeResult =
-					(symbols.extension_info.probe_fn)(&mut probe);
+					(data.extension_info.probe_fn)(&mut probe);
 
 				if let probe_api::ProbeResult::Failure = probe_result
 				{
@@ -281,7 +351,7 @@ impl ExtensionCollection
 		// supports. For the map format API, for example, this would involve asking
 		// the extension which map formats it supports, and storing the callback
 		// provided for each format.
-		symbols.api_endpoints = unregistered_endpoints.register_and_transform(name);
+		data.api_endpoints = unregistered_endpoints.register_and_transform(name);
 		return Ok(());
 	}
 
@@ -330,7 +400,7 @@ impl Extension
 			"Expected extension info version {EXTENSION_INFO_VERSION} but got version {extension_info_version}"
 		);
 
-		let shared_library: SharedLibrary = SharedLibrary::try_new(library, |lib_ref| {
+		let shared_library: LibraryAndData = LibraryAndData::try_new(library, |lib_ref| {
 			// SAFETY: Again, it is up to the library to implement this symbol properly, and
 			// we have no way of enforcing this. However, if the magic in the struct is
 			// garbage and does not match what is expected, the loading process will fail.
@@ -367,7 +437,7 @@ impl Extension
 
 			// We return this from the closure, and it's added into the overall
 			// SharedLibrary struct instance.
-			Ok(SharedLibrarySymbols {
+			Ok(ExtensionData {
 				extension_info: extension_info_symbol,
 				api_endpoints: ExtensionApis::default(),
 			})
@@ -378,7 +448,7 @@ impl Extension
 		let extension: Self = Self {
 			name: name,
 			path: path.clone(),
-			library_and_symbols: shared_library,
+			library_and_data: shared_library,
 		};
 
 		debug!(
