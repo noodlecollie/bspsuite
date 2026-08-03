@@ -78,15 +78,17 @@ impl<'l> VfsApi for VfsApiImpl<'l>
 
 pub struct Endpoint
 {
+	ext_name: String,
 	inner: Option<VfsApiCallbacks>,
 	vfs_impls: HashMap<String, (VfsImplCallbacks, Vec<String>)>,
 }
 
 impl Endpoint
 {
-	pub fn new(callbacks: Option<VfsApiCallbacks>) -> Self
+	pub fn new(extension_name: String, callbacks: Option<VfsApiCallbacks>) -> Self
 	{
 		return Self {
+			ext_name: extension_name,
 			inner: callbacks,
 			vfs_impls: HashMap::new(),
 		};
@@ -140,6 +142,11 @@ impl FormatLoaderApi for Endpoint
 impl FormatLoader<VfsInitialiser> for Endpoint
 {
 	type LoaderOutput = VfsInitResultCode;
+
+	fn extension_name(&self) -> &str
+	{
+		return &self.ext_name;
+	}
 
 	fn supported_formats(&self) -> Vec<FormatSpec>
 	{

@@ -54,15 +54,17 @@ pub struct MapFormatDefinition
 
 pub struct Endpoint
 {
+	ext_name: String,
 	inner: Option<MapFormatApiCallbacks>,
 	map_formats: HashMap<String, MapFormatDefinition>,
 }
 
 impl Endpoint
 {
-	pub fn new(callbacks: Option<MapFormatApiCallbacks>) -> Self
+	pub fn new(extension_name: String, callbacks: Option<MapFormatApiCallbacks>) -> Self
 	{
 		return Self {
+			ext_name: extension_name,
 			inner: callbacks,
 			map_formats: HashMap::new(),
 		};
@@ -119,6 +121,11 @@ impl FormatLoaderApi for Endpoint
 impl FormatLoader<MapFormatDefinition> for Endpoint
 {
 	type LoaderOutput = Vec<Entity>;
+
+	fn extension_name(&self) -> &str
+	{
+		return &self.ext_name;
+	}
 
 	fn supported_formats(&self) -> Vec<FormatSpec>
 	{

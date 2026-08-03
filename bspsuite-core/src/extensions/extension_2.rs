@@ -1,4 +1,33 @@
-use std::collections::HashMap;
+//! Module for loading extensions and managing the features they present to the
+//! rest of the crate.
+//!
+//! A BSPSuite extension is a shared library that registers interest in certain
+//! APIs that the main compiler library offers. These APIs are mainly to do
+//! things like load files of different formats.
+//!
+//! From the compiler's point of view, we want to know whether any extension
+//! supports loading a particular file format, and if there is an extension that
+//! supports it, we want to call a funtion to load the file.
+//!
+//! The [ExtensionCollection] struct is set up to deal with loading extensions,
+//! and with exposing the different file format APIs they implement. The
+//! process is as follows:
+//!
+//! * The `extensions` directory for the provided toolchain is scanned for
+//!   shared libraries that might be BSPSuite extensions.
+//! * For each library that is found, its interface is queried for
+//!   compatibility.
+//! * Compatible extensions are "probed", meaning the compiler library asks each
+//!   extension to register for each API that it wants to use.
+//! * Each of the APIs that the extension requests is initialised for that
+//!   extension. This is the step in which an extension will, for example,
+//!   register loader callbacks for file formats that it supports.
+//! * Once all extensions have been probed and their APIs initialised, the
+//!   extension collection builds lists of all the APIs across all loaded
+//!   extensions, to allow a loader callback for a particular file format to be
+//!   looked up easily.
+
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
@@ -20,7 +49,8 @@ use crate::extensions::api_impl::vfs_api::VfsInitialiser;
 use crate::extensions::api_impl::vfs_api_impl::Endpoint as VfsApiEndpoint;
 use crate::extensions::api_impl::{ExportedApis, ProbeApiImpl};
 use crate::extensions::{FormatLoader, FormatLoaderApi, FormatSupportQuery};
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, anyhow, bail, ensure};
+use bspextifc::builders::map_source_builder::Entity;
 use libloading::{Library, Symbol};
 use log::{debug, trace, warn};
 use self_cell::self_cell;
@@ -46,18 +76,39 @@ pub const fn library_prefix_for_platform() -> &'static str
 	};
 }
 
+pub(crate) type MapFormatImplCollection =
+	ApiImplCollection<MapFormatDefinition, MapFormatApiEndpoint>;
+
+pub(crate) type ResourceFormatImplCollection =
+	ApiImplCollection<LoadImageFn, ResourceFormatApiEndpoint>;
+
+pub(crate) type VfsFormatImplCollection = ApiImplCollection<VfsInitialiser, VfsApiEndpoint>;
+
 /// Struct to hold all extensions found for the current toolchain.
-pub struct ExtensionCollection
+pub(crate) struct ExtensionCollection
 {
 	extensions: HashMap<String, Extension>,
-	map_formats: ApiImplCollection<MapFormatDefinition, MapFormatApiEndpoint>,
-	image_formats: ApiImplCollection<LoadImageFn, ResourceFormatApiEndpoint>,
-	vfs_formats: ApiImplCollection<VfsInitialiser, VfsApiEndpoint>,
+	map_formats: MapFormatImplCollection,
+	image_formats: ResourceFormatImplCollection,
+	vfs_formats: VfsFormatImplCollection,
+}
+
+pub(crate) struct Extension
+{
+	name: String,
+	path: PathBuf,
+	library_and_data: LibraryAndData,
+}
+
+pub(crate) struct ExtensionData<'l>
+{
+	extension_info: Symbol<'l, ExtensionInfo>,
+	api_endpoints: ExtensionApis<'l>,
 }
 
 /// Helper struct that holds Rcs to all implementations of a particular
 /// FormatLoader API, across all loaded extensions.
-struct ApiImplCollection<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
+pub(crate) struct ApiImplCollection<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
 {
 	marker: PhantomData<LoaderInterface>,
 	implementers: Vec<Rc<ApiImpl>>,
@@ -101,15 +152,179 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatSupportQuery
 			.collect();
 	}
 
-	fn format_for_file_extension(&self, file_extension: &str) -> Vec<String>
+	fn implementers_supporting_file_extension(
+		&self,
+		file_extension: &str,
+		format_whitelist: &Option<&[&str]>,
+	) -> Vec<(Rc<ApiImpl>, Vec<String>)>
 	{
-		let mut out: Vec<String> = Vec::new();
+		return self
+			.implementers
+			.iter()
+			.filter_map(|api_impl| {
+				let formats =
+					api_impl.supported_formats_for_file_extension(file_extension, format_whitelist);
+				(!formats.is_empty()).then(|| (api_impl.clone(), formats))
+			})
+			.collect();
+	}
 
-		self.implementers.iter().for_each(|api_impl| {
-			out.extend(api_impl.supported_formats_for_file_extension(file_extension, &Vec::new()))
+	fn all_supported_formats(&self) -> Vec<String>
+	{
+		let mut format_set: HashSet<String> = HashSet::new();
+
+		self.implementers.iter().for_each(|endpoint| {
+			endpoint.supported_format_names().iter().for_each(|name| {
+				format_set.insert(name.clone());
+			})
 		});
 
-		return out;
+		return format_set.into_iter().collect();
+	}
+
+	fn all_supported_format_extensions(&self) -> HashMap<String, HashSet<String>>
+	{
+		let mut format_to_exts: HashMap<String, HashSet<String>> = HashMap::new();
+
+		self.implementers.iter().map(|endpoint| {
+			endpoint.supported_formats().into_iter().for_each(|spec| {
+				if !format_to_exts.contains_key(&spec.format_name)
+				{
+					format_to_exts.insert(spec.format_name.clone(), HashSet::new());
+				}
+
+				let exts_hash: &mut HashSet<String> =
+					format_to_exts.get_mut(&spec.format_name).unwrap();
+
+				spec.associated_file_extensions.into_iter().for_each(|ext| {
+					exts_hash.insert(ext);
+				});
+			});
+		});
+
+		return format_to_exts;
+	}
+}
+
+// TODO: Refactor this file to relocate these bits
+impl MapFormatImplCollection
+{
+	pub fn parse_map(
+		&self,
+		map_path: &Path,
+		input_data: &str,
+		allowed_formats: &Option<&[&str]>,
+		map_format_override: &Option<&str>,
+	) -> Result<Vec<Entity>>
+	{
+		if let Some(override_format) = map_format_override
+			&& let Some(formats) = allowed_formats
+			&& !formats.contains(override_format)
+		{
+			bail!(
+				"Map format {override_format} was not contained within list of allowed formats: {}",
+				formats.join(", ")
+			);
+		}
+
+		let endpoint: Rc<MapFormatApiEndpoint> = match map_format_override
+		{
+			Some(override_format) => self.get_impl_for_format(*override_format),
+			None => self.get_impl_from_file_extension(map_path, allowed_formats),
+		}?;
+
+		todo!();
+	}
+
+	fn get_impl_for_format(&self, format: &str) -> Result<Rc<MapFormatApiEndpoint>>
+	{
+		let implementers: Vec<Rc<MapFormatApiEndpoint>> =
+			self.implementers_supporting_format(format);
+
+		if implementers.len() != 1
+		{
+			// TODO: Support better disambiguation in this case.
+			if implementers.len() > 1
+			{
+				let matches_str: String = implementers
+					.iter()
+					.map(|endpoint| endpoint.extension_name())
+					.collect::<Vec<&str>>()
+					.join(", ");
+
+				bail!(
+					"Map format {format} supported by more than compiler extension: \
+					{matches_str}. Unable to deduce which one to use."
+				);
+			}
+			else
+			{
+				let indent: &'static str = "    ";
+
+				bail!(
+					"No compiler extensions supported map format {format}.\n\
+					{indent}Formats supported by compiler: {}",
+					self.all_supported_formats().join(", "),
+				);
+			}
+		}
+
+		return Ok(implementers[0].clone());
+	}
+
+	fn get_impl_from_file_extension(
+		&self,
+		map_path: &Path,
+		allowed_formats: &Option<&[&str]>,
+	) -> Result<Rc<MapFormatApiEndpoint>>
+	{
+		let map_ext: &str = map_path
+			.extension()
+			.and_then(|ext_str| ext_str.to_str())
+			.ok_or_else(|| anyhow!("Failed to deduce extension from map path"))?;
+
+		let implementers: Vec<(Rc<MapFormatApiEndpoint>, Vec<String>)> =
+			self.implementers_supporting_file_extension(map_ext, allowed_formats);
+
+		if implementers.len() != 1
+		{
+			// TODO: Support better disambiguation in this case.
+			if implementers.len() > 1
+			{
+				let matches_str: String = implementers
+					.iter()
+					.map(|(endpoint, formats)| {
+						format!(
+							"{} (format {})",
+							endpoint.extension_name(),
+							formats.join(", ")
+						)
+					})
+					.collect::<Vec<String>>()
+					.join(", ");
+
+				bail!(
+					"Input map file extension .{map_ext} supported by more than one compiler extension: \
+						{matches_str}. Unable to deduce which one to use."
+				);
+			}
+			else
+			{
+				let indent: &'static str = "    ";
+
+				bail!(
+					"No compiler extensions recognised input map file with extension .{map_ext}\n\
+						{indent}Formats allowed for game: {}\n\
+						{indent}Formats supported by compiler: {}",
+					allowed_formats
+						.map(|list| list.join(", "))
+						.unwrap_or("any".to_owned()),
+					self.all_supported_format_extensions_desc()
+				);
+			}
+		}
+
+		return Ok(implementers[0].0.clone());
 	}
 }
 
@@ -125,11 +340,20 @@ struct ExtensionApis<'l>
 	pub vfs_api: Rc<VfsApiEndpoint>,
 }
 
-struct Extension
+impl<'l> ExtensionApis<'l>
 {
-	name: String,
-	path: PathBuf,
-	library_and_data: LibraryAndData,
+	pub fn construct_empty(extension_name: &str) -> Self
+	{
+		return Self {
+			marker: PhantomData,
+			map_format_api: Rc::new(MapFormatApiEndpoint::new(extension_name.into(), None)),
+			resource_format_api: Rc::new(ResourceFormatApiEndpoint::new(
+				extension_name.into(),
+				None,
+			)),
+			vfs_api: Rc::new(VfsApiEndpoint::new(extension_name.into(), None)),
+		};
+	}
 }
 
 self_cell!(
@@ -141,12 +365,6 @@ self_cell!(
 		dependent: ExtensionData,
 	}
 );
-
-struct ExtensionData<'l>
-{
-	extension_info: Symbol<'l, ExtensionInfo>,
-	api_endpoints: ExtensionApis<'l>,
-}
 
 /// Helper for registering formats for a loader. When this helper is unwrapped
 /// by calling register_and_consume(), it ensures that the format loader asks
@@ -172,6 +390,7 @@ struct UnregisteredApiEndpoints<'l>
 {
 	marker: PhantomData<&'l Library>,
 
+	ext_name: String,
 	pub map_format_api: FormatRegisterHelper<MapFormatApiEndpoint>,
 	pub resource_format_api: FormatRegisterHelper<ResourceFormatApiEndpoint>,
 	pub vfs_api: FormatRegisterHelper<VfsApiEndpoint>,
@@ -190,37 +409,28 @@ impl<'l> UnregisteredApiEndpoints<'l>
 			vfs_api: self.vfs_api.register_and_consume(extension_name),
 		};
 	}
-}
 
-impl<'l> From<ExportedApis> for UnregisteredApiEndpoints<'l>
-{
-	fn from(value: ExportedApis) -> Self
+	pub fn from_exported_apis(extension_name: &str, apis: ExportedApis) -> Self
 	{
 		return Self {
 			marker: PhantomData,
 
+			ext_name: extension_name.into(),
+
 			map_format_api: FormatRegisterHelper(MapFormatApiEndpoint::new(
-				value.map_format_callbacks.into(),
+				extension_name.into(),
+				apis.map_format_callbacks.into(),
 			)),
 
 			resource_format_api: FormatRegisterHelper(ResourceFormatApiEndpoint::new(
-				value.resource_format_callbacks.into(),
+				extension_name.into(),
+				apis.resource_format_callbacks.into(),
 			)),
 
-			vfs_api: FormatRegisterHelper(VfsApiEndpoint::new(value.vfs_callbacks.into())),
-		};
-	}
-}
-
-impl<'l> Default for ExtensionApis<'l>
-{
-	fn default() -> Self
-	{
-		return Self {
-			marker: PhantomData,
-			map_format_api: Rc::new(MapFormatApiEndpoint::new(None)),
-			resource_format_api: Rc::new(ResourceFormatApiEndpoint::new(None)),
-			vfs_api: Rc::new(VfsApiEndpoint::new(None)),
+			vfs_api: FormatRegisterHelper(VfsApiEndpoint::new(
+				extension_name.into(),
+				apis.vfs_callbacks.into(),
+			)),
 		};
 	}
 }
@@ -354,7 +564,7 @@ impl ExtensionCollection
 				}
 			}
 
-			exported_apis.into()
+			UnregisteredApiEndpoints::from_exported_apis(name, exported_apis)
 		};
 
 		// The second step sets up each API that the extension has indicated it
@@ -389,6 +599,8 @@ impl Extension
 {
 	fn load(path: &PathBuf) -> Result<Extension>
 	{
+		let name: String = Extension::compute_library_name(path.as_path());
+
 		// SAFETY: It is up to the library to be well-behaved when running init and
 		// shutdown routines. There's not much we can do to guarantee that from this
 		// side.
@@ -449,11 +661,9 @@ impl Extension
 			// SharedLibrary struct instance.
 			Ok(ExtensionData {
 				extension_info: extension_info_symbol,
-				api_endpoints: ExtensionApis::default(),
+				api_endpoints: ExtensionApis::construct_empty(&name),
 			})
 		})?;
-
-		let name: String = Extension::compute_library_name(path.as_path());
 
 		let extension: Self = Self {
 			name: name,

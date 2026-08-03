@@ -94,7 +94,7 @@ pub fn register_vfs_for_ext(extension: &mut Extension)
 pub fn choose_extension_to_parse_map(
 	list: &ExtensionList,
 	input_file: &Path,
-	allowed_formats: &Vec<&str>,
+	allowed_formats: &[&str],
 	map_format_override: &Option<&str>,
 ) -> Result<ExtensionAndSupportedFormat>
 {
@@ -143,7 +143,7 @@ pub fn parse_map(
 fn choose_extension_to_parse_map_based_on_file_extension(
 	list: &ExtensionList,
 	input_file: &Path,
-	allowed_formats: &Vec<&str>,
+	allowed_formats: &[&str],
 ) -> Result<ExtensionAndSupportedFormat>
 {
 	let input_ext: Option<&str> = input_file
@@ -204,7 +204,7 @@ fn choose_extension_to_parse_map_based_on_file_extension(
 
 fn choose_extension_to_parse_map_based_on_format_name(
 	list: &ExtensionList,
-	allowed_formats: &Vec<&str>,
+	allowed_formats: &[&str],
 	map_format: &str,
 ) -> Result<ExtensionAndSupportedFormat>
 {
@@ -250,7 +250,7 @@ fn choose_extension_to_parse_map_based_on_format_name(
 fn find_extensions_supporting_map_source_file_extension<'l>(
 	list: &'l ExtensionList,
 	file_extension: &str,
-	allowed_formats: &Vec<&str>,
+	allowed_formats: &[&str],
 ) -> Vec<(&'l ExtensionRef, String)>
 {
 	let extension_supported_formats: Vec<(&'l ExtensionRef, Vec<String>)> = list
@@ -300,7 +300,7 @@ fn find_extensions_supporting_map_source_file_extension<'l>(
 fn find_extensions_supporting_format<'l>(
 	list: &'l ExtensionList,
 	format_name: &str,
-	allowed_formats: &Vec<&str>,
+	allowed_formats: &[&str],
 ) -> Vec<&'l ExtensionRef>
 {
 	return list
@@ -328,7 +328,7 @@ fn extension_supports_format(extension: &ExtensionRef, format_name: &str) -> boo
 fn all_allowed_map_format_names_that_extension_supports_for_file_extension(
 	extension: &ExtensionRef,
 	file_extension: &str,
-	allowed_formats: &Vec<&str>,
+	allowed_formats: &[&str],
 ) -> Vec<String>
 {
 	let ext_ref = extension
@@ -338,7 +338,7 @@ fn all_allowed_map_format_names_that_extension_supports_for_file_extension(
 	return ext_ref
 		.get_api_endpoints()
 		.map_format_api
-		.supported_formats_for_file_extension(file_extension, allowed_formats);
+		.supported_formats_for_file_extension(file_extension, &Some(allowed_formats));
 }
 
 fn all_supported_map_formats(list: &ExtensionList) -> Vec<String>

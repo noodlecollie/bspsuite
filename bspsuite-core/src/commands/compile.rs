@@ -48,7 +48,8 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 				.map_formats
 				.iter()
 				.map(|fmt| fmt.as_str())
-				.collect(),
+				.collect::<Vec<&str>>()
+				.as_slice(),
 			&ctx.map_format_override.as_ref().map(|s| s.as_str()),
 		)
 		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err))?;

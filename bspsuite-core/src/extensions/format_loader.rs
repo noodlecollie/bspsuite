@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use anyhow;
@@ -20,6 +21,9 @@ pub(crate) trait FormatLoaderApi
 pub(crate) trait FormatLoader<LoaderInterface>
 {
 	type LoaderOutput;
+
+	/// Returns the name of the extension that is linked to this loader.
+	fn extension_name(&self) -> &str;
 
 	/// Returns a list of all supported formats, along with the file extensions
 	/// they are associated with.
@@ -67,7 +71,7 @@ pub(crate) trait FormatLoader<LoaderInterface>
 	fn supported_formats_for_file_extension(
 		&self,
 		file_extension: &str,
-		format_whitelist: &Vec<&str>,
+		format_whitelist: &Option<&[&str]>,
 	) -> Vec<String>
 	{
 		// An annoying workaround to the fact that we can't call .contains(&str) on a
@@ -78,9 +82,11 @@ pub(crate) trait FormatLoader<LoaderInterface>
 			.supported_formats()
 			.iter()
 			.filter(|spec| {
-				(format_whitelist.is_empty()
-					|| format_whitelist.contains(&spec.format_name.as_ref()))
-					&& spec.associated_file_extensions.contains(&file_extension)
+				let in_whitelist: bool = format_whitelist
+					.map(|list| list.contains(&spec.format_name.as_ref()))
+					.unwrap_or(true);
+
+				in_whitelist && spec.associated_file_extensions.contains(&file_extension)
 			})
 			.map(|spec| spec.format_name.clone())
 			.collect();
@@ -93,7 +99,37 @@ pub(crate) trait FormatSupportQuery<ApiImpl>
 	/// format.
 	fn implementers_supporting_format(&self, format_name: &str) -> Vec<Rc<ApiImpl>>;
 
-	/// Returns a vector of possible file formats that the given file extension
-	/// may apply to.
-	fn format_for_file_extension(&self, file_extension: &str) -> Vec<String>;
+	/// Returns a vector of implementers which support loading the specified
+	/// file extension in a format that is present in the whitelist. The first
+	/// item in each tuple is the implementer, and the second item is the
+	/// formats that the file extension is mapped to.
+	fn implementers_supporting_file_extension(
+		&self,
+		file_extension: &str,
+		format_whitelist: &Option<&[&str]>,
+	) -> Vec<(Rc<ApiImpl>, Vec<String>)>;
+
+	/// Returns a vector of all format names supported by any implementer.
+	fn all_supported_formats(&self) -> Vec<String>;
+
+	/// Returns all supported formats, and all their associated file
+	/// extensions across all compiler extensions.
+	fn all_supported_format_extensions(&self) -> HashMap<String, HashSet<String>>;
+
+	/// Returns a string listing all supported format names with their
+	/// associated file extensions.
+	fn all_supported_format_extensions_desc(&self) -> String
+	{
+		return self
+			.all_supported_format_extensions()
+			.into_iter()
+			.map(|(format, exts)| {
+				format!(
+					"{format} (.{})",
+					exts.into_iter().collect::<Vec<String>>().join(", .")
+				)
+			})
+			.collect::<Vec<String>>()
+			.join("; ");
+	}
 }

@@ -29,14 +29,17 @@ pub struct ApiEndpoints
 	pub vfs_api: vfs_api_impl::Endpoint,
 }
 
-impl Default for ApiEndpoints
+impl ApiEndpoints
 {
-	fn default() -> Self
+	pub fn construct_empty(extension_name: &str) -> Self
 	{
 		return Self {
-			map_format_api: map_format_api_impl::Endpoint::new(None),
-			resource_format_api: resource_format_api_impl::Endpoint::new(None),
-			vfs_api: vfs_api_impl::Endpoint::new(None),
+			map_format_api: map_format_api_impl::Endpoint::new(extension_name.into(), None),
+			resource_format_api: resource_format_api_impl::Endpoint::new(
+				extension_name.into(),
+				None,
+			),
+			vfs_api: vfs_api_impl::Endpoint::new(extension_name.into(), None),
 		};
 	}
 }
@@ -173,11 +176,11 @@ impl Extension
 			Extension::compute_library_name(path.file_stem().unwrap().to_str().unwrap());
 
 		let extension: Self = Self {
-			name: name,
 			path: path.clone(),
 			library: library,
 			extension_info: extension_info_symbol,
-			api_endpoints: ApiEndpoints::default(),
+			api_endpoints: ApiEndpoints::construct_empty(&name),
+			name: name,
 		};
 
 		debug!(
@@ -215,12 +218,14 @@ impl Extension
 
 		let api_endpoints: ApiEndpoints = ApiEndpoints {
 			map_format_api: map_format_api_impl::Endpoint::new(
+				self.name.clone(),
 				callbacks.map_format_callbacks.into(),
 			),
 			resource_format_api: resource_format_api_impl::Endpoint::new(
+				self.name.clone(),
 				callbacks.resource_format_callbacks.into(),
 			),
-			vfs_api: vfs_api_impl::Endpoint::new(callbacks.vfs_callbacks.into()),
+			vfs_api: vfs_api_impl::Endpoint::new(self.name.clone(), callbacks.vfs_callbacks.into()),
 		};
 
 		self.api_endpoints = api_endpoints;

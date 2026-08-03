@@ -27,6 +27,7 @@ struct ResourceFormatApiImpl<'l>
 
 pub struct Endpoint
 {
+	ext_name: String,
 	inner: Option<ResourceFormatApiCallbacks>,
 	image_formats: HashMap<String, ImageFormatDefinition>,
 }
@@ -72,9 +73,10 @@ impl<'l> ResourceFormatApi for ResourceFormatApiImpl<'l>
 
 impl Endpoint
 {
-	pub fn new(callbacks: Option<ResourceFormatApiCallbacks>) -> Self
+	pub fn new(extension_name: String, callbacks: Option<ResourceFormatApiCallbacks>) -> Self
 	{
 		return Self {
+			ext_name: extension_name,
 			inner: callbacks,
 			image_formats: HashMap::new(),
 		};
@@ -168,6 +170,11 @@ impl FormatLoaderApi for Endpoint
 impl FormatLoader<LoadImageFn> for Endpoint
 {
 	type LoaderOutput = ();
+
+	fn extension_name(&self) -> &str
+	{
+		return &self.ext_name;
+	}
 
 	fn supported_formats(&self) -> Vec<FormatSpec>
 	{
