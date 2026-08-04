@@ -132,4 +132,29 @@ pub(crate) trait FormatSupportQuery<ApiImpl>
 			.collect::<Vec<String>>()
 			.join("; ");
 	}
+
+	/// Returns a vector of implementers which support loading the specified
+	/// file extension in a format that is present in the whitelist. This is
+	/// similar to
+	/// [FormatSupportQuery<ApiImpl>::implementers_supporting_file_extension],
+	/// except that each item in the vector corresponds to a single format.
+	fn all_formats_for_file_extension(
+		&self,
+		file_extension: &str,
+		format_whitelist: &Option<&[&str]>,
+	) -> Vec<(Rc<ApiImpl>, String)>
+	{
+		let mut out: Vec<(Rc<ApiImpl>, String)> = Vec::new();
+
+		self.implementers_supporting_file_extension(file_extension, format_whitelist)
+			.into_iter()
+			.for_each(|tuple| {
+				tuple
+					.1
+					.into_iter()
+					.for_each(|format| out.push((tuple.0.clone(), format)));
+			});
+
+		return out;
+	}
 }

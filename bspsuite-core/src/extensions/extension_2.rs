@@ -49,6 +49,7 @@ use crate::extensions::api_impl::vfs_api::VfsInitialiser;
 use crate::extensions::api_impl::vfs_api_impl::Endpoint as VfsApiEndpoint;
 use crate::extensions::api_impl::{ExportedApis, ProbeApiImpl};
 use crate::extensions::{FormatLoader, FormatLoaderApi, FormatSupportQuery};
+use crate::{CompilerError, CompilerErrorCode};
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use bspextifc::builders::map_source_builder::Entity;
 use libloading::{Library, Symbol};
@@ -186,7 +187,7 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatSupportQuery
 	{
 		let mut format_to_exts: HashMap<String, HashSet<String>> = HashMap::new();
 
-		self.implementers.iter().map(|endpoint| {
+		self.implementers.iter().for_each(|endpoint| {
 			endpoint.supported_formats().into_iter().for_each(|spec| {
 				if !format_to_exts.contains_key(&spec.format_name)
 				{
@@ -215,25 +216,42 @@ impl MapFormatImplCollection
 		input_data: &str,
 		allowed_formats: &Option<&[&str]>,
 		map_format_override: &Option<&str>,
-	) -> Result<Vec<Entity>>
+	) -> Result<Vec<Entity>, CompilerError>
 	{
 		if let Some(override_format) = map_format_override
 			&& let Some(formats) = allowed_formats
 			&& !formats.contains(override_format)
 		{
-			bail!(
-				"Map format {override_format} was not contained within list of allowed formats: {}",
-				formats.join(", ")
-			);
+			return Err(CompilerError::from_anyhow(
+				CompilerErrorCode::ArgumentError,
+				anyhow!(
+					"Map format {override_format} was not contained within list of allowed formats: {}",
+					formats.join(", ")
+				),
+			));
 		}
 
-		let endpoint: Rc<MapFormatApiEndpoint> = match map_format_override
+		let (endpoint, use_format): (Rc<MapFormatApiEndpoint>, String) = match map_format_override
 		{
-			Some(override_format) => self.get_impl_for_format(*override_format),
-			None => self.get_impl_from_file_extension(map_path, allowed_formats),
-		}?;
+			Some(override_format) => (
+				self.get_impl_for_format(*override_format).map_err(|err| {
+					CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err)
+				})?,
+				(*override_format).to_owned(),
+			),
+			None => self
+				.get_impl_with_format_from_file_extension(map_path, allowed_formats)
+				.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err))?,
+		};
 
-		todo!();
+		return endpoint
+			.load_if_supported(&use_format, |def| Ok(def.parse_map(input_data)?))
+			.map_err(|err| {
+				CompilerError::from_anyhow(
+					CompilerErrorCode::IoError,
+					anyhow!("Failed to parse map {}. {err}", map_path.display()),
+				)
+			});
 	}
 
 	fn get_impl_for_format(&self, format: &str) -> Result<Rc<MapFormatApiEndpoint>>
@@ -272,19 +290,19 @@ impl MapFormatImplCollection
 		return Ok(implementers[0].clone());
 	}
 
-	fn get_impl_from_file_extension(
+	fn get_impl_with_format_from_file_extension(
 		&self,
 		map_path: &Path,
 		allowed_formats: &Option<&[&str]>,
-	) -> Result<Rc<MapFormatApiEndpoint>>
+	) -> Result<(Rc<MapFormatApiEndpoint>, String)>
 	{
 		let map_ext: &str = map_path
 			.extension()
 			.and_then(|ext_str| ext_str.to_str())
 			.ok_or_else(|| anyhow!("Failed to deduce extension from map path"))?;
 
-		let implementers: Vec<(Rc<MapFormatApiEndpoint>, Vec<String>)> =
-			self.implementers_supporting_file_extension(map_ext, allowed_formats);
+		let implementers: Vec<(Rc<MapFormatApiEndpoint>, String)> =
+			self.all_formats_for_file_extension(map_ext, allowed_formats);
 
 		if implementers.len() != 1
 		{
@@ -293,12 +311,8 @@ impl MapFormatImplCollection
 			{
 				let matches_str: String = implementers
 					.iter()
-					.map(|(endpoint, formats)| {
-						format!(
-							"{} (format {})",
-							endpoint.extension_name(),
-							formats.join(", ")
-						)
+					.map(|(endpoint, format)| {
+						format!("{} (format {format})", endpoint.extension_name(),)
 					})
 					.collect::<Vec<String>>()
 					.join(", ");
@@ -324,7 +338,7 @@ impl MapFormatImplCollection
 			}
 		}
 
-		return Ok(implementers[0].0.clone());
+		return Ok(implementers[0].clone());
 	}
 }
 
