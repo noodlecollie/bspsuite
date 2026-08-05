@@ -6,9 +6,7 @@ use log::info;
 
 use crate::commands::utils::wrap_residual_errors;
 use crate::commands::{BaseArgs, ResultCode};
-use crate::extensions::{
-	Extension2, ExtensionCollection, ExtensionList, FormatLoader, FormatSupportQuery,
-};
+use crate::extensions::{Extension2, ExtensionCollection, FormatLoader, FormatSupportQuery};
 use crate::toolchain::Toolchain;
 use crate::{CompilerError, CompilerErrorCode};
 
@@ -148,7 +146,7 @@ fn get_resource_formats(
 fn list_extensions(toolchain: &Toolchain)
 {
 	let extensions: &ExtensionCollection = toolchain.extensions();
-	let ext_dir: PathBuf = ExtensionList::extensions_directory(toolchain.root_path());
+	let ext_dir: PathBuf = ExtensionCollection::extensions_directory(toolchain.root_path());
 	info!("Extensions found in {}:", ext_dir.display());
 
 	if extensions.num_extensions() < 1
