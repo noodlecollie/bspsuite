@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::extensions::ExtensionFileFormatCollection;
-use crate::extensions::{FormatLoader, FormatLoaderApi, FormatSpec};
+use crate::extensions::{FormatLoader, FormatLoaderEndpoint, FormatSpec};
 use anyhow::Result;
 use anyhow::anyhow;
 use bspextifc::builders::map_source_builder::{BuilderError, Entity};
@@ -84,19 +84,19 @@ impl MapFormatDefinition
 	}
 }
 
-impl FormatLoaderApi for MapFormatApiEndpoint
+impl FormatLoaderEndpoint for MapFormatApiEndpoint
 {
-	fn register_supported_formats(&mut self, extension_name: &str) -> bool
+	fn register_supported_formats(&mut self) -> bool
 	{
 		self.inner
 			.as_ref()
 			.map(|callbacks| {
 				let mut formats: ExtensionFileFormatCollection<ParseMapFn> =
-					ExtensionFileFormatCollection::new(extension_name.into(), "map format".into());
+					ExtensionFileFormatCollection::new(self.ext_name.clone(), "map format".into());
 
 				{
 					let mut api_impl: MapFormatApiProvider = MapFormatApiProvider::new(
-						MapFormatApiImpl::new(extension_name, &mut formats),
+						MapFormatApiImpl::new(&self.ext_name, &mut formats),
 					);
 
 					(callbacks.register_map_formats)(&mut api_impl);

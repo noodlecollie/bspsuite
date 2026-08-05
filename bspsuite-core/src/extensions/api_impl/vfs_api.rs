@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::extensions::{ExtensionFileFormatCollection, FormatLoaderApi};
+use crate::extensions::{ExtensionFileFormatCollection, FormatLoaderEndpoint};
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::{Result, anyhow, ensure};
 use bspextifc::vfs_api::{
@@ -117,19 +117,19 @@ impl VfsApiEndpoint
 	}
 }
 
-impl FormatLoaderApi for VfsApiEndpoint
+impl FormatLoaderEndpoint for VfsApiEndpoint
 {
-	fn register_supported_formats(&mut self, extension_name: &str) -> bool
+	fn register_supported_formats(&mut self) -> bool
 	{
 		self.inner
 			.as_ref()
 			.map(|callbacks| {
 				let mut impls: ExtensionFileFormatCollection<VfsImplCallbacks> =
-					ExtensionFileFormatCollection::new(extension_name.into(), "VFS type".into());
+					ExtensionFileFormatCollection::new(self.ext_name.clone(), "VFS type".into());
 
 				{
 					let mut api_impl: VfsApiProvider =
-						VfsApiProvider::new(VfsApiImpl::new(extension_name, &mut impls));
+						VfsApiProvider::new(VfsApiImpl::new(&self.ext_name, &mut impls));
 
 					(callbacks.register_vfs_support)(&mut api_impl);
 				}

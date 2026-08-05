@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::extensions::{ExtensionFileFormatCollection, FormatLoaderApi};
+use crate::extensions::{ExtensionFileFormatCollection, FormatLoaderEndpoint};
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::anyhow;
 use bspextifc::resource_format_api::{
@@ -132,19 +132,19 @@ impl ResourceFormatApiEndpoint
 	}
 }
 
-impl FormatLoaderApi for ResourceFormatApiEndpoint
+impl FormatLoaderEndpoint for ResourceFormatApiEndpoint
 {
-	fn register_supported_formats(&mut self, extension_name: &str) -> bool
+	fn register_supported_formats(&mut self) -> bool
 	{
 		self.inner
 			.as_ref()
 			.map(|callbacks| {
 				let mut formats: ResourceFormatsCollector =
-					ResourceFormatsCollector::new(extension_name.into());
+					ResourceFormatsCollector::new(&self.ext_name);
 
 				{
 					let mut api_impl: ResourceFormatApiProvider = ResourceFormatApiProvider::new(
-						ResourceFormatApiImpl::new(extension_name, &mut formats),
+						ResourceFormatApiImpl::new(&self.ext_name, &mut formats),
 					);
 
 					(callbacks.register_resource_formats)(&mut api_impl);

@@ -48,7 +48,7 @@ use crate::extensions::api_impl::resource_format_api_impl::ResourceFormatApiEndp
 use crate::extensions::api_impl::vfs_api::VfsInitialiser;
 use crate::extensions::api_impl::vfs_api_impl::VfsApiEndpoint;
 use crate::extensions::api_impl::{ProbeApiImpl, ProbeRegistrationResults};
-use crate::extensions::{FormatLoader, FormatLoaderApi, FormatSupportQuery};
+use crate::extensions::{FormatLoader, FormatLoaderEndpoint, FormatSupportQuery};
 use crate::{CompilerError, CompilerErrorCode};
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use bspextifc::builders::map_source_builder::Entity;
@@ -406,14 +406,16 @@ self_cell!(
 /// end up with one big function where all formats are registered, and a
 /// developer could forget to add a new format loader to this list - in order to
 /// get at the container, format registration must be run.
-struct FormatRegisterHelper<Container: FormatLoaderApi>(Container);
+struct FormatRegisterHelper<Container: FormatLoaderEndpoint>(Container);
 
-impl<Container: FormatLoaderApi> FormatRegisterHelper<Container>
+/// Transforms the struct into a reference-counted container by registering the
+/// supported formats for the container.
+impl<Container: FormatLoaderEndpoint> From<FormatRegisterHelper<Container>> for Rc<Container>
 {
-	pub fn register_and_consume(mut self, extension_name: &str) -> Rc<Container>
+	fn from(mut value: FormatRegisterHelper<Container>) -> Self
 	{
-		self.0.register_supported_formats(extension_name);
-		return Rc::new(self.0);
+		value.0.register_supported_formats();
+		return Rc::new(value.0);
 	}
 }
 
@@ -432,18 +434,6 @@ struct UnregisteredApiEndpoints<'l>
 
 impl<'l> UnregisteredApiEndpoints<'l>
 {
-	pub fn register_and_transform(self, extension_name: &str) -> ExtensionApis<'l>
-	{
-		return ExtensionApis {
-			marker: PhantomData,
-			map_format_api: self.map_format_api.register_and_consume(extension_name),
-			resource_format_api: self
-				.resource_format_api
-				.register_and_consume(extension_name),
-			vfs_api: self.vfs_api.register_and_consume(extension_name),
-		};
-	}
-
 	pub fn from_exported_apis(extension_name: &str, apis: ProbeRegistrationResults) -> Self
 	{
 		return Self {
@@ -465,6 +455,21 @@ impl<'l> UnregisteredApiEndpoints<'l>
 				extension_name.into(),
 				apis.vfs_callbacks.into(),
 			)),
+		};
+	}
+}
+
+/// Transforms [UnregisteredApiEndpoints] into [ExtensionApis] by registering
+/// each API in turn.
+impl<'l> From<UnregisteredApiEndpoints<'l>> for ExtensionApis<'l>
+{
+	fn from(value: UnregisteredApiEndpoints<'l>) -> Self
+	{
+		return Self {
+			marker: PhantomData,
+			map_format_api: value.map_format_api.into(),
+			resource_format_api: value.resource_format_api.into(),
+			vfs_api: value.vfs_api.into(),
 		};
 	}
 }
@@ -635,7 +640,7 @@ impl ExtensionCollection
 		// supports. For the map format API, for example, this would involve asking
 		// the extension which map formats it supports, and storing the callback
 		// provided for each format.
-		data.api_endpoints = unregistered_endpoints.register_and_transform(name);
+		data.api_endpoints = unregistered_endpoints.into();
 		return Ok(());
 	}
 

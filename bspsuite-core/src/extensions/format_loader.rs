@@ -3,19 +3,23 @@ use std::rc::Rc;
 
 use anyhow;
 
+/// Convenience struct to map a file format name to a list of associated file
+/// extensions.
 pub(crate) struct FormatSpec
 {
 	pub format_name: String,
 	pub associated_file_extensions: Vec<String>,
 }
 
-pub(crate) trait FormatLoaderApi
+/// Trait to facilitate invoking file format registration for a particular
+/// extension.
+pub(crate) trait FormatLoaderEndpoint
 {
 	/// If an extension has indicated support for this API, calls the extension
 	/// to register its supported formats, and returns true.
 	/// If the extension has not indicated suppport for this API, does nothing
 	/// and returns false.
-	fn register_supported_formats(&mut self, extension_name: &str) -> bool;
+	fn register_supported_formats(&mut self) -> bool;
 }
 
 pub(crate) trait FormatLoader<LoaderInterface>
