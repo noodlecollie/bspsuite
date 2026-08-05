@@ -5,8 +5,8 @@ use std::sync::Mutex;
 
 use anyhow::Result;
 use bspextifc::vfs_api::{
-	BoxedVfsFileRecipient, BoxedVfsStatRecipient, VfsFileErrorCode, VfsFileRecipient, VfsFileStats,
-	VfsInitResultCode, VfsStatRecipient,
+	VfsFileErrorCode, VfsFileRecipient, VfsFileRecipientProvider, VfsFileStats, VfsInitResultCode,
+	VfsStatRecipient, VfsStatRecipientProvider,
 };
 use bspffi::types::{XCBytes, XCStr};
 use lazy_static::lazy_static;
@@ -371,7 +371,7 @@ pub(super) extern "C" fn is_directory(path: &XCStr) -> bool
 	);
 }
 
-pub(super) extern "C" fn stat(path: &XCStr, recipient: &mut BoxedVfsStatRecipient)
+pub(super) extern "C" fn stat(path: &XCStr, recipient: &mut VfsStatRecipientProvider)
 {
 	let result: Result<FileStats, VfsFileErrorCode> = static_vfs.lock().map_or_else(
 		|err| {
@@ -388,7 +388,7 @@ pub(super) extern "C" fn stat(path: &XCStr, recipient: &mut BoxedVfsStatRecipien
 	};
 }
 
-pub(super) extern "C" fn load_file(path: &XCStr, recipient: &mut BoxedVfsFileRecipient)
+pub(super) extern "C" fn load_file(path: &XCStr, recipient: &mut VfsFileRecipientProvider)
 {
 	let result: Result<Vec<u8>, VfsFileErrorCode> = static_vfs.lock().map_or_else(
 		|err| {

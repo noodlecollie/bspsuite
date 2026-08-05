@@ -3,8 +3,8 @@ use bspffi::types::{XCBytes, XCSlice, XCStr};
 use thin_trait_object::thin_trait_object;
 
 pub const API_INFO: ApiInfo = ApiInfo::new("ResourceFormatApi", 1);
-pub type RegisterResourceFormatsFn = extern "C" fn(&mut BoxedResourceFormatApi);
-pub type LoadImageFn = extern "C" fn(&XCStr, &mut BoxedImageConstructorApi);
+pub type RegisterResourceFormatsFn = extern "C" fn(&mut ResourceFormatApiProvider);
+pub type LoadImageFn = extern "C" fn(&XCStr, &mut ImageConstructorApiProvider);
 
 #[repr(C)]
 pub enum ImagePixelFormat
@@ -19,7 +19,7 @@ pub struct ResourceFormatApiCallbacks
 }
 
 // TODO: Docs
-#[thin_trait_object(drop_abi = "C")]
+#[thin_trait_object(drop_abi = "C", trait_object(pub ResourceFormatApiProvider))]
 pub trait ResourceFormatApi
 {
 	fn register_image_format(
@@ -31,7 +31,7 @@ pub trait ResourceFormatApi
 }
 
 // TODO: Docs
-#[thin_trait_object(drop_abi = "C")]
+#[thin_trait_object(drop_abi = "C", trait_object(pub ImageConstructorApiProvider))]
 pub trait ImageConstructorApi
 {
 	fn submit(&mut self, width: u32, height: u32, pixel_format: ImagePixelFormat, data: &XCBytes);

@@ -9,7 +9,7 @@ mod vfs_impl;
 implement_extension_info!(probe);
 implement_extension_logger!(ExtensionLogger);
 
-extern "C" fn probe(api: &mut probe_api::BoxedProbeApi) -> probe_api::ProbeResult
+extern "C" fn probe(api: &mut probe_api::ProbeApiProvider) -> probe_api::ProbeResult
 {
 	if !set_up_logger(api)
 	{
@@ -26,7 +26,7 @@ extern "C" fn probe(api: &mut probe_api::BoxedProbeApi) -> probe_api::ProbeResul
 	return probe_api::ProbeResult::Success;
 }
 
-fn set_up_logger(api: &mut probe_api::BoxedProbeApi) -> bool
+fn set_up_logger(api: &mut probe_api::ProbeApiProvider) -> bool
 {
 	return api
 		.request_log_api(log_api::API_INFO.version)

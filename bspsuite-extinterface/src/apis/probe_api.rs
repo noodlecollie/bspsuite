@@ -7,7 +7,7 @@ use std::result::Result;
 use thin_trait_object::thin_trait_object;
 
 pub const API_VERSION: usize = 1;
-pub type ProbeExtensionFn = extern "C" fn(&mut BoxedProbeApi) -> ProbeResult;
+pub type ProbeExtensionFn = extern "C" fn(&mut ProbeApiProvider) -> ProbeResult;
 
 /// Enum representing a failure to provide a requested API to the caller
 /// extension.
@@ -34,7 +34,7 @@ pub enum ProbeResult
 }
 
 // TODO: Docs
-#[thin_trait_object(drop_abi = "C")]
+#[thin_trait_object(drop_abi = "C", trait_object(pub ProbeApiProvider))]
 pub trait ProbeApi
 {
 	fn request_log_api(&mut self, requested_version: u64) -> Result<LogApi, RequestError>;

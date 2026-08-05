@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use bspextifc::builders::map_source_builder::{BuilderError, Entity};
 use bspextifc::map_format_api::{MapFormatApi, MapFormatApiCallbacks, ParseMapFn};
 use bspextifc::{
-	builders::map_source_builder::MapSourceBuilder, map_format_api::BoxedMapFormatApi,
+	builders::map_source_builder::MapSourceBuilder, map_format_api::MapFormatApiProvider,
 };
 use bspffi::types::{XCSlice, XCStr};
 
@@ -92,8 +92,9 @@ impl FormatLoaderApi for Endpoint
 					FileFormatList::new(extension_name.into(), "map format".into());
 
 				{
-					let mut api_impl: BoxedMapFormatApi =
-						BoxedMapFormatApi::new(MapFormatApiImpl::new(extension_name, &mut formats));
+					let mut api_impl: MapFormatApiProvider = MapFormatApiProvider::new(
+						MapFormatApiImpl::new(extension_name, &mut formats),
+					);
 
 					(callbacks.register_map_formats)(&mut api_impl);
 				}

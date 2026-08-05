@@ -9,7 +9,7 @@ pub const API_INFO: ApiInfo = ApiInfo::new("VfsApi", 1);
 /// Extension function to be called when the compiler is querying for
 /// supported VFSes. The extension should use the provided boxed [VfsApi]
 /// interface to tell the compiler about the VFSes it supports.
-pub type RegisterVfsSupportFn = extern "C" fn(&mut BoxedVfsApi);
+pub type RegisterVfsSupportFn = extern "C" fn(&mut VfsApiProvider);
 
 /// Callbacks implemented by this extension when requesting access to the VFS
 /// API.
@@ -22,7 +22,7 @@ pub struct VfsApiCallbacks
 }
 
 /// API used to register an extension's support for a VFS.
-#[thin_trait_object(drop_abi = "C")]
+#[thin_trait_object(drop_abi = "C", trait_object(pub VfsApiProvider))]
 pub trait VfsApi
 {
 	/// Registers support for a FVS under a given `name`. This name may be used
@@ -74,12 +74,12 @@ pub struct VfsImplCallbacks
 	/// Provides stats about the file or directory at the given path. The stats
 	/// should be submitted to the recipient, or an error code provided if the
 	/// operation fails.
-	pub stat: extern "C" fn(path: &XCStr, recipient: &mut BoxedVfsStatRecipient),
+	pub stat: extern "C" fn(path: &XCStr, recipient: &mut VfsStatRecipientProvider),
 
 	/// Loads all of the data from the file at the given path. The data should
 	/// be submitted to the recipient, or an error code provided if the
 	/// operation fails.
-	pub load_file: extern "C" fn(path: &XCStr, recipient: &mut BoxedVfsFileRecipient),
+	pub load_file: extern "C" fn(path: &XCStr, recipient: &mut VfsFileRecipientProvider),
 }
 
 /// Code representing the result of initialising a VFS.
@@ -126,7 +126,7 @@ pub enum VfsFileErrorCode
 /// [VfsFileRecipient::submit_bytes] if the file was loaded successfully, or
 /// call [VfsFileRecipient::set_error] to provide an appropriate code
 /// if an error occurs.
-#[thin_trait_object(drop_abi = "C")]
+#[thin_trait_object(drop_abi = "C", trait_object(pub VfsFileRecipientProvider))]
 pub trait VfsFileRecipient
 {
 	/// Receives the `bytes` loaded from the file. The extension retains
@@ -172,7 +172,7 @@ pub struct VfsFileStats<'l>
 /// [VfsStatRecipient::submit_stats] if the stat call completed successfully, or
 /// call [VfsStatRecipient::set_error] to provide an appropriate code
 /// if an error occurs.
-#[thin_trait_object(drop_abi = "C")]
+#[thin_trait_object(drop_abi = "C", trait_object(pub VfsStatRecipientProvider))]
 pub trait VfsStatRecipient
 {
 	/// Receives the `stats` resulting from the request.

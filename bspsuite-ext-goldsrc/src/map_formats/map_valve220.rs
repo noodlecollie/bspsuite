@@ -1,4 +1,4 @@
-use bspextifc::builders::map_source_builder::{BoxedMapSourceBuilderApi, MapSourceBuilderApi};
+use bspextifc::builders::map_source_builder::{MapSourceBuilderApi, MapSourceBuilderApiProvider};
 use bspextifc::types::{DPlane3, DVec2, DVec3, LineCounter, ParseError, ParseResult};
 use bspffi::types::XCStr;
 use logos::Logos;
@@ -145,7 +145,7 @@ enum MaterialNameContext
 	String(String),
 }
 
-pub extern "C" fn parse(data: &XCStr, builder: &mut BoxedMapSourceBuilderApi)
+pub extern "C" fn parse(data: &XCStr, builder: &mut MapSourceBuilderApiProvider)
 {
 	if let Err(err) = parse_map(data.as_str(), builder)
 	{

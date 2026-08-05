@@ -1,4 +1,4 @@
-use bspextifc::map_format_api::{BoxedMapFormatApi, MapFormatApi, MapFormatApiCallbacks};
+use bspextifc::map_format_api::{MapFormatApi, MapFormatApiCallbacks, MapFormatApiProvider};
 use bspffi::types::XCStr;
 mod map_valve220;
 
@@ -12,7 +12,7 @@ pub fn create_callbacks() -> MapFormatApiCallbacks
 	};
 }
 
-pub extern "C" fn register_map_formats(api: &mut BoxedMapFormatApi)
+pub extern "C" fn register_map_formats(api: &mut MapFormatApiProvider)
 {
 	api.register_map_format(
 		&"valve220".into(),

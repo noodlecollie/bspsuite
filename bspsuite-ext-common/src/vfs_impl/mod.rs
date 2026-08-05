@@ -1,4 +1,4 @@
-use bspextifc::vfs_api::{BoxedVfsApi, VfsApi, VfsApiCallbacks, VfsImplCallbacks};
+use bspextifc::vfs_api::{VfsApi, VfsApiCallbacks, VfsApiProvider, VfsImplCallbacks};
 use bspffi::types::{XCOption, XCStr};
 
 mod directory_vfs;
@@ -10,7 +10,7 @@ pub fn create_callbacks() -> VfsApiCallbacks
 	};
 }
 
-pub extern "C" fn register_vfs_support(api: &mut BoxedVfsApi)
+pub extern "C" fn register_vfs_support(api: &mut VfsApiProvider)
 {
 	api.register_vfs(
 		&XCStr::from("directory"),

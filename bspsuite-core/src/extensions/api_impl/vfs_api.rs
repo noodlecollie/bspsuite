@@ -5,7 +5,7 @@ use crate::extensions::{FileFormatList, FormatLoaderApi};
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::{Result, anyhow, ensure};
 use bspextifc::vfs_api::{
-	BoxedVfsApi, VfsApi, VfsApiCallbacks, VfsImplCallbacks, VfsInitResultCode,
+	VfsApi, VfsApiCallbacks, VfsApiProvider, VfsImplCallbacks, VfsInitResultCode,
 };
 use bspffi::types::{XCOption, XCSlice, XCStr};
 
@@ -125,8 +125,8 @@ impl FormatLoaderApi for Endpoint
 					FileFormatList::new(extension_name.into(), "VFS type".into());
 
 				{
-					let mut api_impl: BoxedVfsApi =
-						BoxedVfsApi::new(VfsApiImpl::new(extension_name, &mut impls));
+					let mut api_impl: VfsApiProvider =
+						VfsApiProvider::new(VfsApiImpl::new(extension_name, &mut impls));
 
 					(callbacks.register_vfs_support)(&mut api_impl);
 				}

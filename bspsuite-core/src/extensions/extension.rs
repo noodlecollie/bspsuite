@@ -618,8 +618,8 @@ impl ExtensionCollection
 			let mut exported_apis: ExportedApis = ExportedApis::new();
 
 			{
-				let mut probe: probe_api::BoxedProbeApi =
-					probe_api::BoxedProbeApi::new(ProbeApiImpl::new(name, &mut exported_apis));
+				let mut probe: probe_api::ProbeApiProvider =
+					probe_api::ProbeApiProvider::new(ProbeApiImpl::new(name, &mut exported_apis));
 
 				let probe_result: probe_api::ProbeResult =
 					(data.extension_info.probe_fn)(&mut probe);

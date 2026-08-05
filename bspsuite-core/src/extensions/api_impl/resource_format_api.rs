@@ -4,7 +4,7 @@ use crate::extensions::{FileFormatList, FormatLoaderApi};
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::anyhow;
 use bspextifc::resource_format_api::{
-	BoxedResourceFormatApi, LoadImageFn, ResourceFormatApi, ResourceFormatApiCallbacks,
+	LoadImageFn, ResourceFormatApi, ResourceFormatApiCallbacks, ResourceFormatApiProvider,
 };
 use bspffi::types::{XCSlice, XCStr};
 
@@ -140,7 +140,7 @@ impl FormatLoaderApi for Endpoint
 					ResourceFormatsCollector::new(extension_name.into());
 
 				{
-					let mut api_impl: BoxedResourceFormatApi = BoxedResourceFormatApi::new(
+					let mut api_impl: ResourceFormatApiProvider = ResourceFormatApiProvider::new(
 						ResourceFormatApiImpl::new(extension_name, &mut formats),
 					);
 
