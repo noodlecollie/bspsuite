@@ -10,4 +10,4 @@ pub use map_format_api as map_format_api_impl;
 pub use resource_format_api as resource_format_api_impl;
 pub use vfs_api as vfs_api_impl;
 
-pub(crate) use probe_api::{ExportedApis, ProbeApiImpl};
+pub(crate) use probe_api::{ProbeApiImpl, ProbeRegistrationResults};

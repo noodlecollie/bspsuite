@@ -43,13 +43,11 @@ use bspextifc::{
 };
 use bspextifc::{ExtensionInfo, ExtensionInfoVersionType};
 
-use crate::extensions::api_impl::map_format_api_impl::{
-	Endpoint as MapFormatApiEndpoint, MapFormatDefinition,
-};
-use crate::extensions::api_impl::resource_format_api_impl::Endpoint as ResourceFormatApiEndpoint;
+use crate::extensions::api_impl::map_format_api_impl::{MapFormatApiEndpoint, MapFormatDefinition};
+use crate::extensions::api_impl::resource_format_api_impl::ResourceFormatApiEndpoint;
 use crate::extensions::api_impl::vfs_api::VfsInitialiser;
-use crate::extensions::api_impl::vfs_api_impl::Endpoint as VfsApiEndpoint;
-use crate::extensions::api_impl::{ExportedApis, ProbeApiImpl};
+use crate::extensions::api_impl::vfs_api_impl::VfsApiEndpoint;
+use crate::extensions::api_impl::{ProbeApiImpl, ProbeRegistrationResults};
 use crate::extensions::{FormatLoader, FormatLoaderApi, FormatSupportQuery};
 use crate::{CompilerError, CompilerErrorCode};
 use anyhow::{Context, Result, anyhow, bail, ensure};
@@ -446,7 +444,7 @@ impl<'l> UnregisteredApiEndpoints<'l>
 		};
 	}
 
-	pub fn from_exported_apis(extension_name: &str, apis: ExportedApis) -> Self
+	pub fn from_exported_apis(extension_name: &str, apis: ProbeRegistrationResults) -> Self
 	{
 		return Self {
 			marker: PhantomData,
@@ -615,7 +613,7 @@ impl ExtensionCollection
 		// The extension can call register_X_api() to indicate that it supports this
 		// API.
 		let unregistered_endpoints: UnregisteredApiEndpoints = {
-			let mut exported_apis: ExportedApis = ExportedApis::new();
+			let mut exported_apis: ProbeRegistrationResults = ProbeRegistrationResults::new();
 
 			{
 				let mut probe: probe_api::ProbeApiProvider =

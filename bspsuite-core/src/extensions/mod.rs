@@ -1,9 +1,9 @@
 pub(crate) use extension::{Extension, ExtensionCollection};
 pub(crate) use format_loader::{FormatLoader, FormatLoaderApi, FormatSpec, FormatSupportQuery};
 
-use file_format_list::FileFormatList;
+use file_format_collection::ExtensionFileFormatCollection;
 
 mod api_impl;
 mod extension;
-mod file_format_list;
+mod file_format_collection;
 mod format_loader;

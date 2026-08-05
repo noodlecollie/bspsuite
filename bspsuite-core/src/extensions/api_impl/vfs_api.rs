@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::extensions::{FileFormatList, FormatLoaderApi};
+use crate::extensions::{ExtensionFileFormatCollection, FormatLoaderApi};
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::{Result, anyhow, ensure};
 use bspextifc::vfs_api::{
@@ -44,12 +44,15 @@ impl VfsInstance
 struct VfsApiImpl<'l>
 {
 	extension_name: String,
-	vfs_impls: &'l mut FileFormatList<VfsImplCallbacks>,
+	vfs_impls: &'l mut ExtensionFileFormatCollection<VfsImplCallbacks>,
 }
 
 impl<'l> VfsApiImpl<'l>
 {
-	pub fn new(extension_name: &str, vfs_impls: &'l mut FileFormatList<VfsImplCallbacks>) -> Self
+	pub fn new(
+		extension_name: &str,
+		vfs_impls: &'l mut ExtensionFileFormatCollection<VfsImplCallbacks>,
+	) -> Self
 	{
 		return Self {
 			extension_name: extension_name.into(),
@@ -76,14 +79,14 @@ impl<'l> VfsApi for VfsApiImpl<'l>
 	}
 }
 
-pub struct Endpoint
+pub struct VfsApiEndpoint
 {
 	ext_name: String,
 	inner: Option<VfsApiCallbacks>,
 	vfs_impls: HashMap<String, (VfsImplCallbacks, Vec<String>)>,
 }
 
-impl Endpoint
+impl VfsApiEndpoint
 {
 	pub fn new(extension_name: String, callbacks: Option<VfsApiCallbacks>) -> Self
 	{
@@ -114,15 +117,15 @@ impl Endpoint
 	}
 }
 
-impl FormatLoaderApi for Endpoint
+impl FormatLoaderApi for VfsApiEndpoint
 {
 	fn register_supported_formats(&mut self, extension_name: &str) -> bool
 	{
 		self.inner
 			.as_ref()
 			.map(|callbacks| {
-				let mut impls: FileFormatList<VfsImplCallbacks> =
-					FileFormatList::new(extension_name.into(), "VFS type".into());
+				let mut impls: ExtensionFileFormatCollection<VfsImplCallbacks> =
+					ExtensionFileFormatCollection::new(extension_name.into(), "VFS type".into());
 
 				{
 					let mut api_impl: VfsApiProvider =
@@ -139,7 +142,7 @@ impl FormatLoaderApi for Endpoint
 }
 
 // The "format" here is the package type that may be used as a VFS root.
-impl FormatLoader<VfsInitialiser> for Endpoint
+impl FormatLoader<VfsInitialiser> for VfsApiEndpoint
 {
 	type LoaderOutput = VfsInitResultCode;
 

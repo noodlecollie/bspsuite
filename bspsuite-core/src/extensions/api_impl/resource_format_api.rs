@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::extensions::{FileFormatList, FormatLoaderApi};
+use crate::extensions::{ExtensionFileFormatCollection, FormatLoaderApi};
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::anyhow;
 use bspextifc::resource_format_api::{
@@ -16,7 +16,7 @@ pub struct ImageFormatDefinition
 
 struct ResourceFormatsCollector
 {
-	image_formats: FileFormatList<LoadImageFn>,
+	image_formats: ExtensionFileFormatCollection<LoadImageFn>,
 }
 
 struct ResourceFormatApiImpl<'l>
@@ -25,7 +25,7 @@ struct ResourceFormatApiImpl<'l>
 	formats: &'l mut ResourceFormatsCollector,
 }
 
-pub struct Endpoint
+pub struct ResourceFormatApiEndpoint
 {
 	ext_name: String,
 	inner: Option<ResourceFormatApiCallbacks>,
@@ -48,7 +48,10 @@ impl ResourceFormatsCollector
 	pub fn new(extension_name: &str) -> Self
 	{
 		return Self {
-			image_formats: FileFormatList::new(extension_name.into(), "image format".into()),
+			image_formats: ExtensionFileFormatCollection::new(
+				extension_name.into(),
+				"image format".into(),
+			),
 		};
 	}
 }
@@ -71,7 +74,7 @@ impl<'l> ResourceFormatApi for ResourceFormatApiImpl<'l>
 	}
 }
 
-impl Endpoint
+impl ResourceFormatApiEndpoint
 {
 	pub fn new(extension_name: String, callbacks: Option<ResourceFormatApiCallbacks>) -> Self
 	{
@@ -129,7 +132,7 @@ impl Endpoint
 	}
 }
 
-impl FormatLoaderApi for Endpoint
+impl FormatLoaderApi for ResourceFormatApiEndpoint
 {
 	fn register_supported_formats(&mut self, extension_name: &str) -> bool
 	{
@@ -167,7 +170,7 @@ impl FormatLoaderApi for Endpoint
 	}
 }
 
-impl FormatLoader<LoadImageFn> for Endpoint
+impl FormatLoader<LoadImageFn> for ResourceFormatApiEndpoint
 {
 	type LoaderOutput = ();
 

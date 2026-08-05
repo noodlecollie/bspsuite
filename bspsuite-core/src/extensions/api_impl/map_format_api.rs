@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::extensions::FileFormatList;
+use crate::extensions::ExtensionFileFormatCollection;
 use crate::extensions::{FormatLoader, FormatLoaderApi, FormatSpec};
 use anyhow::Result;
 use anyhow::anyhow;
@@ -14,12 +14,15 @@ use bspffi::types::{XCSlice, XCStr};
 struct MapFormatApiImpl<'l>
 {
 	extension_name: String,
-	formats: &'l mut FileFormatList<ParseMapFn>,
+	formats: &'l mut ExtensionFileFormatCollection<ParseMapFn>,
 }
 
 impl<'l> MapFormatApiImpl<'l>
 {
-	pub fn new(extension_name: &str, formats: &'l mut FileFormatList<ParseMapFn>) -> Self
+	pub fn new(
+		extension_name: &str,
+		formats: &'l mut ExtensionFileFormatCollection<ParseMapFn>,
+	) -> Self
 	{
 		return Self {
 			extension_name: extension_name.to_owned(),
@@ -52,14 +55,14 @@ pub struct MapFormatDefinition
 	pub parse_fn: ParseMapFn,
 }
 
-pub struct Endpoint
+pub struct MapFormatApiEndpoint
 {
 	ext_name: String,
 	inner: Option<MapFormatApiCallbacks>,
 	map_formats: HashMap<String, MapFormatDefinition>,
 }
 
-impl Endpoint
+impl MapFormatApiEndpoint
 {
 	pub fn new(extension_name: String, callbacks: Option<MapFormatApiCallbacks>) -> Self
 	{
@@ -81,15 +84,15 @@ impl MapFormatDefinition
 	}
 }
 
-impl FormatLoaderApi for Endpoint
+impl FormatLoaderApi for MapFormatApiEndpoint
 {
 	fn register_supported_formats(&mut self, extension_name: &str) -> bool
 	{
 		self.inner
 			.as_ref()
 			.map(|callbacks| {
-				let mut formats: FileFormatList<ParseMapFn> =
-					FileFormatList::new(extension_name.into(), "map format".into());
+				let mut formats: ExtensionFileFormatCollection<ParseMapFn> =
+					ExtensionFileFormatCollection::new(extension_name.into(), "map format".into());
 
 				{
 					let mut api_impl: MapFormatApiProvider = MapFormatApiProvider::new(
@@ -119,7 +122,7 @@ impl FormatLoaderApi for Endpoint
 	}
 }
 
-impl FormatLoader<MapFormatDefinition> for Endpoint
+impl FormatLoader<MapFormatDefinition> for MapFormatApiEndpoint
 {
 	type LoaderOutput = Vec<Entity>;
 

@@ -13,12 +13,12 @@ use log::{error, trace};
 pub(crate) struct ProbeApiImpl<'l>
 {
 	extension_name: XCStr<'l>,
-	apis: &'l mut ExportedApis,
+	apis: &'l mut ProbeRegistrationResults,
 }
 
 impl<'l> ProbeApiImpl<'l>
 {
-	pub fn new(extension_name: &'l str, apis: &'l mut ExportedApis) -> Self
+	pub fn new(extension_name: &'l str, apis: &'l mut ProbeRegistrationResults) -> Self
 	{
 		return Self {
 			extension_name: XCStr::from(extension_name),
@@ -31,7 +31,7 @@ impl<'l> ProbeApi for ProbeApiImpl<'l>
 {
 	fn request_log_api(&mut self, requested_version: u64) -> Result<LogApi, RequestError>
 	{
-		return ExportedApis::request_get_api(
+		return ProbeRegistrationResults::request_get_api(
 			self.extension_name.as_str(),
 			&mut self.apis.log_api,
 			requested_version,
@@ -44,7 +44,7 @@ impl<'l> ProbeApi for ProbeApiImpl<'l>
 		callbacks: MapFormatApiCallbacks,
 	) -> Result<(), RequestError>
 	{
-		return ExportedApis::request_set_callbacks(
+		return ProbeRegistrationResults::request_set_callbacks(
 			self.extension_name.as_str(),
 			&mut self.apis.map_format_callbacks,
 			requested_version,
@@ -58,7 +58,7 @@ impl<'l> ProbeApi for ProbeApiImpl<'l>
 		callbacks: ResourceFormatApiCallbacks,
 	) -> Result<(), RequestError>
 	{
-		return ExportedApis::request_set_callbacks(
+		return ProbeRegistrationResults::request_set_callbacks(
 			self.extension_name.as_str(),
 			&mut self.apis.resource_format_callbacks,
 			requested_version,
@@ -72,7 +72,7 @@ impl<'l> ProbeApi for ProbeApiImpl<'l>
 		callbacks: VfsApiCallbacks,
 	) -> Result<(), RequestError>
 	{
-		return ExportedApis::request_set_callbacks(
+		return ProbeRegistrationResults::request_set_callbacks(
 			self.extension_name.as_str(),
 			&mut self.apis.vfs_callbacks,
 			requested_version,
@@ -81,7 +81,7 @@ impl<'l> ProbeApi for ProbeApiImpl<'l>
 	}
 }
 
-pub(crate) struct ExportedApis
+pub(crate) struct ProbeRegistrationResults
 {
 	pub log_api: ApiProvider<LogApi>,
 	pub map_format_callbacks: CallbacksContainer<MapFormatApiCallbacks>,
@@ -89,7 +89,7 @@ pub(crate) struct ExportedApis
 	pub vfs_callbacks: CallbacksContainer<VfsApiCallbacks>,
 }
 
-impl ExportedApis
+impl ProbeRegistrationResults
 {
 	pub fn new() -> Self
 	{
@@ -209,7 +209,7 @@ impl<T> From<CallbacksContainer<T>> for Option<T>
 	}
 }
 
-impl ExportedApis
+impl ProbeRegistrationResults
 {
 	pub fn request_get_api<T>(
 		extension_name: &str,
@@ -219,7 +219,7 @@ impl ExportedApis
 	where
 		T: Clone,
 	{
-		return ExportedApis::process_result(
+		return ProbeRegistrationResults::process_result(
 			extension_name,
 			provider.get_name().as_str(),
 			provider.get_version(),
@@ -234,7 +234,7 @@ impl ExportedApis
 		callbacks: T,
 	) -> Result<(), RequestError>
 	{
-		return ExportedApis::process_result(
+		return ProbeRegistrationResults::process_result(
 			extension_name,
 			container.get_name().as_str(),
 			container.get_version(),

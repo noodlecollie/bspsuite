@@ -5,14 +5,14 @@ use itertools::Itertools;
 use log;
 use log::{debug, warn};
 
-pub(super) struct FileFormatList<Handler>
+pub(super) struct ExtensionFileFormatCollection<Handler>
 {
 	extension_name: String,
 	format_desc: String,
 	formats: HashMap<String, (Handler, Vec<String>)>,
 }
 
-impl<Handler> FileFormatList<Handler>
+impl<Handler> ExtensionFileFormatCollection<Handler>
 {
 	pub fn new(extension_name: String, format_desc: String) -> Self
 	{
