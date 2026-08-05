@@ -6,7 +6,7 @@ use log::info;
 
 use crate::commands::utils::wrap_residual_errors;
 use crate::commands::{BaseArgs, ResultCode};
-use crate::extensions::{Extension, ExtensionCollection, FormatLoader, FormatSupportQuery};
+use crate::extensions::{Extension, ExtensionCollection, FormatCollector, FormatLoader};
 use crate::toolchain::Toolchain;
 use crate::{CompilerError, CompilerErrorCode};
 
@@ -80,7 +80,7 @@ fn get_vfs_types(extensions: &ExtensionCollection, name: &str) -> Vec<String>
 {
 	return extensions
 		.vfs_formats()
-		.implementer_from_extension(name)
+		.endpoint_from_extension(name)
 		.unwrap()
 		.get_supported_vfs_types()
 		.into_iter()
@@ -92,7 +92,7 @@ fn get_map_formats(extensions: &ExtensionCollection, name: &str) -> Vec<String>
 {
 	return extensions
 		.map_formats()
-		.implementer_from_extension(name)
+		.endpoint_from_extension(name)
 		.unwrap()
 		.supported_formats()
 		.into_iter()
@@ -123,7 +123,7 @@ fn get_resource_formats(
 
 	let image_formats: Vec<String> = extensions
 		.image_formats()
-		.implementer_from_extension(name)
+		.endpoint_from_extension(name)
 		.unwrap()
 		.get_supported_image_format_defs()
 		.iter()

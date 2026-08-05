@@ -1,5 +1,5 @@
 pub(crate) use extension::{Extension, ExtensionCollection};
-pub(crate) use format_loader::{FormatLoader, FormatLoaderEndpoint, FormatSpec, FormatSupportQuery};
+pub(crate) use format_loader::{FormatCollector, FormatLoader, FormatLoaderEndpoint, FormatSpec};
 
 use file_format_collection::ExtensionFileFormatCollection;
 

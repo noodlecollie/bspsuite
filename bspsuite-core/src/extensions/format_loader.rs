@@ -118,25 +118,25 @@ pub(crate) trait FormatLoader<LoaderInterface>
 // TODO: Make a helper type to hold the varying data types that we get back from
 // these functions, and then add helper functions to this type to convert it to
 // strings/lists of strings
-pub(crate) trait FormatSupportQuery<ApiImpl>
+pub(crate) trait FormatCollector<ApiEndpoint>
 {
-	/// Returns a vector of implementers which support loading the specified
+	/// Returns a vector of endpoints which support loading the specified
 	/// format.
-	fn implementers_supporting_format(&self, format_name: &str) -> Vec<Rc<ApiImpl>>;
+	fn endpoints_supporting_format(&self, format_name: &str) -> Vec<Rc<ApiEndpoint>>;
 
-	/// Returns a vector of implementers which support loading the specified
+	/// Returns a vector of endpoints which support loading the specified
 	/// file extension in a format that is present in the whitelist. The first
-	/// item in each tuple is the implementer, and the second item is the
+	/// item in each tuple is the endpoint, and the second item is the
 	/// formats that the file extension is mapped to.
-	fn implementers_supporting_file_extension(
+	fn endpoints_supporting_file_extension(
 		&self,
 		file_extension: &str,
 		format_whitelist: &Option<&[&str]>,
-	) -> Vec<(Rc<ApiImpl>, Vec<String>)>;
+	) -> Vec<(Rc<ApiEndpoint>, Vec<String>)>;
 
-	/// Returns the API implementation struct that belongs to the given
-	/// extension, or None if there is no extension with this name.
-	fn implementer_from_extension(&self, extension_name: &str) -> Option<Rc<ApiImpl>>;
+	/// Returns the API endpoint that belongs to the given extension, or None if
+	/// there is no extension with this name.
+	fn endpoint_from_extension(&self, extension_name: &str) -> Option<Rc<ApiEndpoint>>;
 
 	/// Returns a vector of all format names supported by any implementer.
 	fn all_supported_formats(&self) -> Vec<String>;
@@ -162,20 +162,20 @@ pub(crate) trait FormatSupportQuery<ApiImpl>
 			.join("; ");
 	}
 
-	/// Returns a vector of implementers which support loading the specified
+	/// Returns a vector of endpoints which support loading the specified
 	/// file extension in a format that is present in the whitelist. This is
 	/// similar to
-	/// [FormatSupportQuery<ApiImpl>::implementers_supporting_file_extension],
+	/// [FormatSupportQuery<ApiImpl>::endpoints_supporting_file_extension],
 	/// except that each item in the vector corresponds to a single format.
 	fn all_formats_for_file_extension(
 		&self,
 		file_extension: &str,
 		format_whitelist: &Option<&[&str]>,
-	) -> Vec<(Rc<ApiImpl>, String)>
+	) -> Vec<(Rc<ApiEndpoint>, String)>
 	{
-		let mut out: Vec<(Rc<ApiImpl>, String)> = Vec::new();
+		let mut out: Vec<(Rc<ApiEndpoint>, String)> = Vec::new();
 
-		self.implementers_supporting_file_extension(file_extension, format_whitelist)
+		self.endpoints_supporting_file_extension(file_extension, format_whitelist)
 			.into_iter()
 			.for_each(|tuple| {
 				tuple

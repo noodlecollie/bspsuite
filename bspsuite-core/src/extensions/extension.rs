@@ -48,7 +48,7 @@ use crate::extensions::api_impl::resource_format_api_impl::ResourceFormatApiEndp
 use crate::extensions::api_impl::vfs_api::VfsInitialiser;
 use crate::extensions::api_impl::vfs_api_impl::VfsApiEndpoint;
 use crate::extensions::api_impl::{ProbeApiImpl, ProbeRegistrationResults};
-use crate::extensions::{FormatLoader, FormatLoaderEndpoint, FormatSupportQuery};
+use crate::extensions::{FormatCollector, FormatLoader, FormatLoaderEndpoint};
 use crate::{CompilerError, CompilerErrorCode};
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use bspextifc::builders::map_source_builder::Entity;
@@ -82,13 +82,11 @@ pub const fn library_prefix_for_platform() -> &'static str
 	};
 }
 
-pub(crate) type MapFormatImplCollection =
-	ApiImplCollection<MapFormatDefinition, MapFormatApiEndpoint>;
+pub(crate) type MapFormatImplCollection = ApiCollector<MapFormatDefinition, MapFormatApiEndpoint>;
 
-pub(crate) type ResourceFormatImplCollection =
-	ApiImplCollection<LoadImageFn, ResourceFormatApiEndpoint>;
+pub(crate) type ResourceFormatImplCollection = ApiCollector<LoadImageFn, ResourceFormatApiEndpoint>;
 
-pub(crate) type VfsFormatImplCollection = ApiImplCollection<VfsInitialiser, VfsApiEndpoint>;
+pub(crate) type VfsFormatImplCollection = ApiCollector<VfsInitialiser, VfsApiEndpoint>;
 
 /// Struct to hold all extensions found for the current toolchain, along with
 /// convenience maps referencing all the constructed API endpoints.
@@ -120,14 +118,13 @@ pub(crate) struct ExtensionData<'l>
 
 /// Helper struct that holds Rcs to all implementations of a particular
 /// [FormatLoader] API, across all loaded extensions.
-pub(crate) struct ApiImplCollection<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
+pub(crate) struct ApiCollector<LoaderInterface, ApiEndpoint: FormatLoader<LoaderInterface>>
 {
 	marker: PhantomData<LoaderInterface>,
-	implementers: Vec<Rc<ApiImpl>>,
+	endpoints: Vec<Rc<ApiEndpoint>>,
 }
 
-impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
-	ApiImplCollection<LoaderInterface, ApiImpl>
+impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> ApiCollector<LoaderInterface, ApiImpl>
 {
 	pub fn new<F: Fn(&ExtensionData) -> Rc<ApiImpl>>(
 		extensions: &HashMap<String, Extension>,
@@ -136,7 +133,7 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
 	{
 		return Self {
 			marker: PhantomData,
-			implementers: extensions
+			endpoints: extensions
 				.iter()
 				.map(|(_, extension)| {
 					extension
@@ -148,13 +145,13 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
 	}
 }
 
-impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatSupportQuery<ApiImpl>
-	for ApiImplCollection<LoaderInterface, ApiImpl>
+impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatCollector<ApiImpl>
+	for ApiCollector<LoaderInterface, ApiImpl>
 {
-	fn implementers_supporting_format(&self, format_name: &str) -> Vec<Rc<ApiImpl>>
+	fn endpoints_supporting_format(&self, format_name: &str) -> Vec<Rc<ApiImpl>>
 	{
 		return self
-			.implementers
+			.endpoints
 			.iter()
 			.filter_map(|api_impl| {
 				api_impl
@@ -164,14 +161,14 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatSupportQuery
 			.collect();
 	}
 
-	fn implementers_supporting_file_extension(
+	fn endpoints_supporting_file_extension(
 		&self,
 		file_extension: &str,
 		format_whitelist: &Option<&[&str]>,
 	) -> Vec<(Rc<ApiImpl>, Vec<String>)>
 	{
 		return self
-			.implementers
+			.endpoints
 			.iter()
 			.filter_map(|api_impl| {
 				let formats =
@@ -181,10 +178,10 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatSupportQuery
 			.collect();
 	}
 
-	fn implementer_from_extension(&self, extension_name: &str) -> Option<Rc<ApiImpl>>
+	fn endpoint_from_extension(&self, extension_name: &str) -> Option<Rc<ApiImpl>>
 	{
 		return self
-			.implementers
+			.endpoints
 			.iter()
 			.find(|api_impl| api_impl.extension_name() == extension_name)
 			.map(|rc| rc.clone());
@@ -194,7 +191,7 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatSupportQuery
 	{
 		let mut format_set: HashSet<String> = HashSet::new();
 
-		self.implementers.iter().for_each(|endpoint| {
+		self.endpoints.iter().for_each(|endpoint| {
 			endpoint.supported_format_names().iter().for_each(|name| {
 				format_set.insert(name.clone());
 			})
@@ -207,7 +204,7 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatSupportQuery
 	{
 		let mut format_to_exts: HashMap<String, HashSet<String>> = HashMap::new();
 
-		self.implementers.iter().for_each(|endpoint| {
+		self.endpoints.iter().for_each(|endpoint| {
 			endpoint.supported_formats().into_iter().for_each(|spec| {
 				if !format_to_exts.contains_key(&spec.format_name)
 				{
@@ -276,8 +273,7 @@ impl MapFormatImplCollection
 
 	fn get_impl_for_format(&self, format: &str) -> Result<Rc<MapFormatApiEndpoint>>
 	{
-		let implementers: Vec<Rc<MapFormatApiEndpoint>> =
-			self.implementers_supporting_format(format);
+		let implementers: Vec<Rc<MapFormatApiEndpoint>> = self.endpoints_supporting_format(format);
 
 		if implementers.len() != 1
 		{
@@ -558,15 +554,13 @@ impl ExtensionCollection
 	fn build_from_extensions(extensions: HashMap<String, Extension>) -> Self
 	{
 		return Self {
-			map_formats: ApiImplCollection::new(&extensions, |data| {
+			map_formats: ApiCollector::new(&extensions, |data| {
 				data.api_endpoints.map_format_api.clone()
 			}),
-			image_formats: ApiImplCollection::new(&extensions, |data| {
+			image_formats: ApiCollector::new(&extensions, |data| {
 				data.api_endpoints.resource_format_api.clone()
 			}),
-			vfs_formats: ApiImplCollection::new(&extensions, |data| {
-				data.api_endpoints.vfs_api.clone()
-			}),
+			vfs_formats: ApiCollector::new(&extensions, |data| data.api_endpoints.vfs_api.clone()),
 			extensions,
 		};
 	}
