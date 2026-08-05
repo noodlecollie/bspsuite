@@ -6,7 +6,7 @@ use log::info;
 
 use crate::commands::utils::wrap_residual_errors;
 use crate::commands::{BaseArgs, ResultCode};
-use crate::extensions::{Extension2, ExtensionCollection, FormatLoader, FormatSupportQuery};
+use crate::extensions::{Extension, ExtensionCollection, FormatLoader, FormatSupportQuery};
 use crate::toolchain::Toolchain;
 use crate::{CompilerError, CompilerErrorCode};
 
@@ -45,7 +45,7 @@ fn run_extinfo(args: &ExtinfoArgs) -> Result<(), CompilerError>
 	};
 }
 
-fn extension_info(extensions: &ExtensionCollection, extension: &Extension2) -> Result<()>
+fn extension_info(extensions: &ExtensionCollection, extension: &Extension) -> Result<()>
 {
 	let name: &str = extension.name();
 	let path: &Path = extension.path();

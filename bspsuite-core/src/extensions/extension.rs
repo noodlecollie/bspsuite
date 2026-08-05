@@ -19,13 +19,14 @@
 //!   compatibility.
 //! * Compatible extensions are "probed", meaning the compiler library asks each
 //!   extension to register for each API that it wants to use.
-//! * Each of the APIs that the extension requests is initialised for that
-//!   extension. This is the step in which an extension will, for example,
-//!   register loader callbacks for file formats that it supports.
+//! * Each of the required APIs is initialised for that extension. This is the
+//!   step in which an extension will, for example, register loader callbacks
+//!   for file formats that it supports.
 //! * Once all extensions have been probed and their APIs initialised, the
 //!   extension collection builds lists of all the APIs across all loaded
 //!   extensions, to allow a loader callback for a particular file format to be
-//!   looked up easily.
+//!   looked up easily. This behaviour is implemented using the
+//!   [ApiImplCollection] helper struct.
 
 use std::collections::hash_map::Values;
 use std::collections::{HashMap, HashSet};
@@ -58,6 +59,9 @@ use log::{debug, trace, warn};
 use self_cell::self_cell;
 use target_lexicon::{HOST, OperatingSystem};
 
+/// Returns the file extension used by libraries on the current platform,
+/// without the leading full stop. On Windows this is `"dll"`, and on Linux this
+/// is `"so"`.
 pub const fn library_extension_for_platform() -> &'static str
 {
 	return match HOST.operating_system
@@ -68,6 +72,8 @@ pub const fn library_extension_for_platform() -> &'static str
 	};
 }
 
+/// Returns the naming prefix used by libraries on the current platform. On
+/// Windows there is no prefix, and on Linux the prefix is `"lib"`.
 pub const fn library_prefix_for_platform() -> &'static str
 {
 	return match HOST.operating_system
@@ -86,30 +92,36 @@ pub(crate) type ResourceFormatImplCollection =
 
 pub(crate) type VfsFormatImplCollection = ApiImplCollection<VfsInitialiser, VfsApiEndpoint>;
 
-/// Struct to hold all extensions found for the current toolchain.
+/// Struct to hold all extensions found for the current toolchain, along with
+/// convenience maps referencing all the constructed API endpoints.
 pub(crate) struct ExtensionCollection
 {
-	extensions: HashMap<String, Extension2>,
+	extensions: HashMap<String, Extension>,
+
 	map_formats: MapFormatImplCollection,
 	image_formats: ResourceFormatImplCollection,
 	vfs_formats: VfsFormatImplCollection,
 }
 
-pub(crate) struct Extension2
+/// Struct representing a loaded extension library.
+pub(crate) struct Extension
 {
 	name: String,
 	path: PathBuf,
 	library_and_data: LibraryAndData,
 }
 
+/// Struct holding all data that belongs to a specific extension.
 pub(crate) struct ExtensionData<'l>
 {
+	marker: PhantomData<&'l Library>,
+
 	extension_info: ExtensionInfo,
 	api_endpoints: ExtensionApis<'l>,
 }
 
 /// Helper struct that holds Rcs to all implementations of a particular
-/// FormatLoader API, across all loaded extensions.
+/// [FormatLoader] API, across all loaded extensions.
 pub(crate) struct ApiImplCollection<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
 {
 	marker: PhantomData<LoaderInterface>,
@@ -120,7 +132,7 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
 	ApiImplCollection<LoaderInterface, ApiImpl>
 {
 	pub fn new<F: Fn(&ExtensionData) -> Rc<ApiImpl>>(
-		extensions: &HashMap<String, Extension2>,
+		extensions: &HashMap<String, Extension>,
 		query_fn: F,
 	) -> Self
 	{
@@ -481,7 +493,7 @@ impl ExtensionCollection
 		return &self.vfs_formats;
 	}
 
-	pub fn extensions_iter(&self) -> Values<'_, String, Extension2>
+	pub fn extensions_iter(&self) -> Values<'_, String, Extension>
 	{
 		return self.extensions.values();
 	}
@@ -491,7 +503,7 @@ impl ExtensionCollection
 		return self.extensions.len();
 	}
 
-	pub fn get_extension(&self, name: &str) -> Option<&Extension2>
+	pub fn get_extension(&self, name: &str) -> Option<&Extension>
 	{
 		return self.extensions.get(name);
 	}
@@ -510,16 +522,16 @@ impl ExtensionCollection
 		);
 
 		// Do the initial load and filter out the extensions that failed.
-		let extensions: Vec<Extension2> =
+		let extensions: Vec<Extension> =
 			ExtensionCollection::load_extension_libraries(&extension_paths)
 				.into_iter()
 				.filter_map(ExtensionCollection::log_and_prune_errors)
 				.collect();
 
 		// Then probe each extension so that we know all the APIs they register for.
-		let extensions: Vec<Extension2> = extensions
+		let extensions: Vec<Extension> = extensions
 			.into_iter()
-			.map(|mut extension| -> Result<Extension2> {
+			.map(|mut extension| -> Result<Extension> {
 				extension
 					.library_and_data
 					.with_dependent_mut(|_, data| -> Result<()> {
@@ -532,7 +544,7 @@ impl ExtensionCollection
 			.collect();
 
 		// Finally, set up a hash map by name for each extension.
-		let hash_map: HashMap<String, Extension2> = extensions
+		let hash_map: HashMap<String, Extension> = extensions
 			.into_iter()
 			.map(|extension| (extension.name.clone(), extension))
 			.collect();
@@ -540,7 +552,7 @@ impl ExtensionCollection
 		return Ok(ExtensionCollection::build_from_extensions(hash_map));
 	}
 
-	fn build_from_extensions(extensions: HashMap<String, Extension2>) -> Self
+	fn build_from_extensions(extensions: HashMap<String, Extension>) -> Self
 	{
 		return Self {
 			map_formats: ApiImplCollection::new(&extensions, |data| {
@@ -585,12 +597,12 @@ impl ExtensionCollection
 		return Ok(paths_for_file_ext);
 	}
 
-	fn load_extension_libraries(paths: &Vec<PathBuf>) -> Vec<Result<Extension2>>
+	fn load_extension_libraries(paths: &Vec<PathBuf>) -> Vec<Result<Extension>>
 	{
 		return paths
 			.iter()
 			.map(|path| {
-				Extension2::load(path).map_err(|err| {
+				Extension::load(path).map_err(|err| {
 					err.context(format!("Failed to load extension {}", path.display()))
 				})
 			})
@@ -649,7 +661,7 @@ impl ExtensionCollection
 	}
 }
 
-impl Extension2
+impl Extension
 {
 	pub fn name(&self) -> &str
 	{
@@ -661,9 +673,9 @@ impl Extension2
 		return self.path.as_path();
 	}
 
-	fn load(path: &PathBuf) -> Result<Extension2>
+	fn load(path: &PathBuf) -> Result<Extension>
 	{
-		let name: String = Extension2::compute_library_name(path.as_path());
+		let name: String = Extension::compute_library_name(path.as_path());
 
 		// SAFETY: It is up to the library to be well-behaved when running init and
 		// shutdown routines. There's not much we can do to guarantee that from this
@@ -739,6 +751,8 @@ impl Extension2
 			// We return this from the closure, and it's added into the overall
 			// SharedLibrary struct instance.
 			Ok(ExtensionData {
+				marker: PhantomData,
+
 				// Manually copy this struct, so that we don't rely on how clone() may be
 				// implemented for it.
 				extension_info: ExtensionInfo {
