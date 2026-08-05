@@ -18,9 +18,7 @@ pub mod io;
 pub mod math;
 pub mod model;
 
-pub use compile_context::CompileContext;
 pub use compiler_error::{CompilerError, CompilerErrorCode};
-pub use toolchain::Toolchain;
 
 mod compile_context;
 mod compiler_error;

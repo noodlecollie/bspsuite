@@ -3,6 +3,7 @@ pub use extension_list::ExtensionList;
 
 pub(crate) use format_loader::{FormatLoader, FormatLoaderApi, FormatSpec, FormatSupportQuery};
 pub(crate) mod extension_routines;
+pub(crate) use extension_2::{Extension2, ExtensionCollection};
 
 use file_format_list::FileFormatList;
 

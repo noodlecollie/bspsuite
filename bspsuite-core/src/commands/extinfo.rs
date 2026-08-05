@@ -1,15 +1,14 @@
 use std::collections::HashMap;
-use std::ops::DerefMut;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
 use log::info;
 
-use super::types::{BaseArgs, ResultCode};
-use super::utils::wrap_residual_errors;
-use crate::extensions::FormatLoader;
-use crate::extensions::extension_routines;
-use crate::extensions::{Extension, ExtensionList, ExtensionRef};
+use crate::commands::utils::wrap_residual_errors;
+use crate::commands::{BaseArgs, ResultCode};
+use crate::extensions::{
+	Extension2, ExtensionCollection, ExtensionList, FormatLoader, FormatSupportQuery,
+};
 use crate::toolchain::Toolchain;
 use crate::{CompilerError, CompilerErrorCode};
 
@@ -26,8 +25,10 @@ pub fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 
 fn run_extinfo(args: &ExtinfoArgs) -> Result<(), CompilerError>
 {
-	let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root);
-	let extensions: ExtensionList = toolchain.find_extensions();
+	let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root)?;
+	let extensions: ExtensionCollection =
+		ExtensionCollection::load_extensions_from(toolchain.root_path().as_path())
+			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
 
 	if args.extension_name.is_none()
 	{
@@ -36,32 +37,26 @@ fn run_extinfo(args: &ExtinfoArgs) -> Result<(), CompilerError>
 	}
 
 	let ext_name: &str = args.extension_name.as_ref().unwrap();
-	let found_ext: Option<&ExtensionRef> = extensions.find_by_name(&ext_name);
 
-	if found_ext.is_none()
+	return match extensions.get_extension(&ext_name)
 	{
-		return Err(CompilerError::from_anyhow(
+		Some(ext) => extension_info(&extensions, ext)
+			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err)),
+		None => Err(CompilerError::from_anyhow(
 			CompilerErrorCode::ArgumentError,
 			anyhow!("Could not find extension with name \"{ext_name}\""),
-		));
-	}
-
-	return extension_info(found_ext.unwrap())
-		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err));
+		)),
+	};
 }
 
-fn extension_info(ext_ref: &ExtensionRef) -> Result<()>
+fn extension_info(extensions: &ExtensionCollection, extension: &Extension2) -> Result<()>
 {
-	let mut extension = ext_ref.get_extension_mut().unwrap();
-	let name: String = extension.get_name().to_string();
-	let path: PathBuf = extension.get_path().into();
+	let name: &str = extension.name();
+	let path: &Path = extension.path();
 
-	extension_routines::register_all_formats_for_ext(extension.deref_mut());
-
-	let vfs_types: Vec<String> = get_vfs_types(extension.deref_mut());
-	let resource_formats: HashMap<String, Vec<String>> =
-		get_resource_formats(extension.deref_mut());
-	let map_formats: Vec<String> = get_map_formats(extension.deref_mut());
+	let vfs_types: Vec<String> = get_vfs_types(extensions, name);
+	let resource_formats: HashMap<String, Vec<String>> = get_resource_formats(extensions, name);
+	let map_formats: Vec<String> = get_map_formats(extensions, name);
 
 	info!("Extension: {name}");
 	info!("  Path: {}", path.display());
@@ -85,22 +80,24 @@ fn extension_info(ext_ref: &ExtensionRef) -> Result<()>
 	Ok(())
 }
 
-fn get_vfs_types(extension: &Extension) -> Vec<String>
+fn get_vfs_types(extensions: &ExtensionCollection, name: &str) -> Vec<String>
 {
-	return extension
-		.get_api_endpoints()
-		.vfs_api
+	return extensions
+		.vfs_formats()
+		.implementer_from_extension(name)
+		.unwrap()
 		.get_supported_vfs_types()
 		.into_iter()
 		.map(|str| str.to_owned())
 		.collect();
 }
 
-fn get_map_formats(extension: &Extension) -> Vec<String>
+fn get_map_formats(extensions: &ExtensionCollection, name: &str) -> Vec<String>
 {
-	return extension
-		.get_api_endpoints()
-		.map_format_api
+	return extensions
+		.map_formats()
+		.implementer_from_extension(name)
+		.unwrap()
 		.supported_formats()
 		.into_iter()
 		.map(|spec| -> String {
@@ -121,13 +118,17 @@ fn get_map_formats(extension: &Extension) -> Vec<String>
 		.collect();
 }
 
-fn get_resource_formats(extension: &Extension) -> HashMap<String, Vec<String>>
+fn get_resource_formats(
+	extensions: &ExtensionCollection,
+	name: &str,
+) -> HashMap<String, Vec<String>>
 {
 	let mut formats_map: HashMap<String, Vec<String>> = HashMap::new();
 
-	let image_formats: Vec<String> = extension
-		.get_api_endpoints()
-		.resource_format_api
+	let image_formats: Vec<String> = extensions
+		.image_formats()
+		.implementer_from_extension(name)
+		.unwrap()
 		.get_supported_image_format_defs()
 		.iter()
 		.map(|(name, def)| -> String {
@@ -146,12 +147,12 @@ fn get_resource_formats(extension: &Extension) -> HashMap<String, Vec<String>>
 	return formats_map;
 }
 
-fn list_extensions(toolchain_root: &PathBuf, extensions: &ExtensionList)
+fn list_extensions(toolchain_root: &PathBuf, extensions: &ExtensionCollection)
 {
 	let ext_dir: PathBuf = ExtensionList::extensions_directory(toolchain_root);
 	info!("Extensions found in {}:", ext_dir.display());
 
-	if extensions.len() < 1
+	if extensions.num_extensions() < 1
 	{
 		info!("  None.");
 		return;
@@ -160,12 +161,9 @@ fn list_extensions(toolchain_root: &PathBuf, extensions: &ExtensionList)
 	let mut ext_paths: HashMap<String, PathBuf> = HashMap::new();
 	let mut max_name_length: usize = 0;
 
-	extensions.iter().for_each(|ext_ref| {
-		let ext_name: &str = ext_ref.get_name();
-		let ext = ext_ref
-			.get_extension()
-			.expect(&format!("Could not get ref to extension {ext_name}"));
-		let ext_path: &PathBuf = ext.get_path();
+	extensions.extensions_iter().for_each(|extension| {
+		let ext_name: &str = extension.name();
+		let ext_path: &Path = extension.path();
 
 		if ext_name.len() > max_name_length
 		{

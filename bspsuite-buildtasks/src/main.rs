@@ -12,8 +12,14 @@ use anyhow::{Context, Error, bail, ensure};
 use clap::Parser;
 use glob;
 use glob::Paths;
-use paris::LogIcon;
+use lazy_static::lazy_static;
+use paris::formatter::colorize_string;
 use target_lexicon::{HOST, OperatingSystem};
+
+lazy_static! {
+	pub static ref COPIED: String = colorize_string("<b><green>[+]</>");
+	pub static ref NOT_COPIED: String = colorize_string("<b><yellow>[=]</>");
+}
 
 // A lot of code in this file is based off
 // https://github.com/matklad/cargo-xtask/blob/master/examples/hello-world/xtask/src/main.rs
@@ -281,14 +287,14 @@ fn copy_file(source_path: &PathBuf, dest_path: &PathBuf) -> Result<(), Error>
 
 		println!(
 			"{} {} -> {}",
-			LogIcon::Tick,
+			COPIED.as_str(),
 			source_path.to_str().unwrap(),
 			dest_path.to_str().unwrap()
 		);
 	}
 	else
 	{
-		println!("• {}", dest_path.to_str().unwrap())
+		println!("{} {}", NOT_COPIED.as_str(), dest_path.to_str().unwrap())
 	}
 
 	Ok(())

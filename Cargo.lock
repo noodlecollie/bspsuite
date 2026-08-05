@@ -140,6 +140,7 @@ dependencies = [
  "anyhow",
  "clap",
  "glob",
+ "lazy_static",
  "paris",
  "strum",
  "target-lexicon",

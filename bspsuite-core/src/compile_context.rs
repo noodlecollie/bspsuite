@@ -19,7 +19,7 @@ impl CompileContext
 {
 	pub fn create(args: &CompileArgs) -> Result<Self, CompilerError>
 	{
-		let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root);
+		let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root)?;
 
 		// TODO: Make load_for_game() return compiler error?
 		let game_config: GameConfig =

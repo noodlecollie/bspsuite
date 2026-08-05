@@ -55,13 +55,31 @@ pub(crate) trait FormatLoader<LoaderInterface>
 		Callback: Fn(&LoaderInterface) -> anyhow::Result<Self::LoaderOutput>;
 
 	/// Convenience for obtaining just the format names from
-	/// [supported_formats].
+	/// [FormatLoader<LoaderInterface>::supported_formats].
 	fn supported_format_names(&self) -> Vec<String>
 	{
 		return self
 			.supported_formats()
 			.into_iter()
 			.map(|spec| spec.format_name)
+			.collect();
+	}
+
+	/// Convenience for obtaining format names and associated extensions from
+	/// [FormatLoader<LoaderInterface>::supported_formats]. Each description
+	/// string is in the form: "format (.ext1, .ext2, ...)"
+	fn supported_format_descriptions(&self) -> Vec<String>
+	{
+		return self
+			.supported_formats()
+			.into_iter()
+			.map(|spec| {
+				format!(
+					"{} ({})",
+					spec.format_name,
+					spec.associated_file_extensions.join(", ")
+				)
+			})
 			.collect();
 	}
 
@@ -93,6 +111,9 @@ pub(crate) trait FormatLoader<LoaderInterface>
 	}
 }
 
+// TODO: Make a helper type to hold the varying data types that we get back from
+// these functions, and then add helper functions to this type to convert it to
+// strings/lists of strings
 pub(crate) trait FormatSupportQuery<ApiImpl>
 {
 	/// Returns a vector of implementers which support loading the specified
@@ -108,6 +129,10 @@ pub(crate) trait FormatSupportQuery<ApiImpl>
 		file_extension: &str,
 		format_whitelist: &Option<&[&str]>,
 	) -> Vec<(Rc<ApiImpl>, Vec<String>)>;
+
+	/// Returns the API implementation struct that belongs to the given
+	/// extension, or None if there is no extension with this name.
+	fn implementer_from_extension(&self, extension_name: &str) -> Option<Rc<ApiImpl>>;
 
 	/// Returns a vector of all format names supported by any implementer.
 	fn all_supported_formats(&self) -> Vec<String>;

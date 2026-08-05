@@ -27,6 +27,7 @@
 //!   extensions, to allow a loader callback for a particular file format to be
 //!   looked up easily.
 
+use std::collections::hash_map::Values;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::marker::PhantomData;
@@ -88,13 +89,13 @@ pub(crate) type VfsFormatImplCollection = ApiImplCollection<VfsInitialiser, VfsA
 /// Struct to hold all extensions found for the current toolchain.
 pub(crate) struct ExtensionCollection
 {
-	extensions: HashMap<String, Extension>,
+	extensions: HashMap<String, Extension2>,
 	map_formats: MapFormatImplCollection,
 	image_formats: ResourceFormatImplCollection,
 	vfs_formats: VfsFormatImplCollection,
 }
 
-pub(crate) struct Extension
+pub(crate) struct Extension2
 {
 	name: String,
 	path: PathBuf,
@@ -119,7 +120,7 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>>
 	ApiImplCollection<LoaderInterface, ApiImpl>
 {
 	pub fn new<F: Fn(&ExtensionData) -> Rc<ApiImpl>>(
-		extensions: &HashMap<String, Extension>,
+		extensions: &HashMap<String, Extension2>,
 		query_fn: F,
 	) -> Self
 	{
@@ -168,6 +169,15 @@ impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatSupportQuery
 				(!formats.is_empty()).then(|| (api_impl.clone(), formats))
 			})
 			.collect();
+	}
+
+	fn implementer_from_extension(&self, extension_name: &str) -> Option<Rc<ApiImpl>>
+	{
+		return self
+			.implementers
+			.iter()
+			.find(|api_impl| api_impl.extension_name() == extension_name)
+			.map(|rc| rc.clone());
 	}
 
 	fn all_supported_formats(&self) -> Vec<String>
@@ -451,12 +461,42 @@ impl<'l> UnregisteredApiEndpoints<'l>
 
 impl ExtensionCollection
 {
-	pub fn extensions_directory(toolchain_root: &PathBuf) -> PathBuf
+	pub fn extensions_directory(toolchain_root: &Path) -> PathBuf
 	{
 		return toolchain_root.join("extensions");
 	}
 
-	fn load_extensions_from(toolchain_root: &PathBuf) -> Result<Self>
+	pub fn map_formats(&self) -> &MapFormatImplCollection
+	{
+		return &self.map_formats;
+	}
+
+	pub fn image_formats(&self) -> &ResourceFormatImplCollection
+	{
+		return &self.image_formats;
+	}
+
+	pub fn vfs_formats(&self) -> &VfsFormatImplCollection
+	{
+		return &self.vfs_formats;
+	}
+
+	pub fn extensions_iter(&self) -> Values<'_, String, Extension2>
+	{
+		return self.extensions.values();
+	}
+
+	pub fn num_extensions(&self) -> usize
+	{
+		return self.extensions.len();
+	}
+
+	pub fn get_extension(&self, name: &str) -> Option<&Extension2>
+	{
+		return self.extensions.get(name);
+	}
+
+	pub fn load_extensions_from(toolchain_root: &Path) -> Result<Self>
 	{
 		let extensions_dir: PathBuf = ExtensionCollection::extensions_directory(toolchain_root);
 		let extension_paths: Vec<PathBuf> =
@@ -470,16 +510,16 @@ impl ExtensionCollection
 		);
 
 		// Do the initial load and filter out the extensions that failed.
-		let extensions: Vec<Extension> =
+		let extensions: Vec<Extension2> =
 			ExtensionCollection::load_extension_libraries(&extension_paths)
 				.into_iter()
 				.filter_map(ExtensionCollection::log_and_prune_errors)
 				.collect();
 
 		// Then probe each extension so that we know all the APIs they register for.
-		let extensions: Vec<Extension> = extensions
+		let extensions: Vec<Extension2> = extensions
 			.into_iter()
-			.map(|mut extension| -> Result<Extension> {
+			.map(|mut extension| -> Result<Extension2> {
 				extension
 					.library_and_data
 					.with_dependent_mut(|_, data| -> Result<()> {
@@ -492,7 +532,7 @@ impl ExtensionCollection
 			.collect();
 
 		// Finally, set up a hash map by name for each extension.
-		let hash_map: HashMap<String, Extension> = extensions
+		let hash_map: HashMap<String, Extension2> = extensions
 			.into_iter()
 			.map(|extension| (extension.name.clone(), extension))
 			.collect();
@@ -500,7 +540,7 @@ impl ExtensionCollection
 		return Ok(ExtensionCollection::build_from_extensions(hash_map));
 	}
 
-	fn build_from_extensions(extensions: HashMap<String, Extension>) -> Self
+	fn build_from_extensions(extensions: HashMap<String, Extension2>) -> Self
 	{
 		return Self {
 			map_formats: ApiImplCollection::new(&extensions, |data| {
@@ -545,12 +585,12 @@ impl ExtensionCollection
 		return Ok(paths_for_file_ext);
 	}
 
-	fn load_extension_libraries(paths: &Vec<PathBuf>) -> Vec<Result<Extension>>
+	fn load_extension_libraries(paths: &Vec<PathBuf>) -> Vec<Result<Extension2>>
 	{
 		return paths
 			.iter()
 			.map(|path| {
-				Extension::load(path).map_err(|err| {
+				Extension2::load(path).map_err(|err| {
 					err.context(format!("Failed to load extension {}", path.display()))
 				})
 			})
@@ -609,11 +649,21 @@ impl ExtensionCollection
 	}
 }
 
-impl Extension
+impl Extension2
 {
-	fn load(path: &PathBuf) -> Result<Extension>
+	pub fn name(&self) -> &str
 	{
-		let name: String = Extension::compute_library_name(path.as_path());
+		return &self.name;
+	}
+
+	pub fn path(&self) -> &Path
+	{
+		return self.path.as_path();
+	}
+
+	fn load(path: &PathBuf) -> Result<Extension2>
+	{
+		let name: String = Extension2::compute_library_name(path.as_path());
 
 		// SAFETY: It is up to the library to be well-behaved when running init and
 		// shutdown routines. There's not much we can do to guarantee that from this

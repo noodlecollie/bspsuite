@@ -1,15 +1,19 @@
-use super::extensions::ExtensionList;
-use log::debug;
 use std::path::PathBuf;
 
-pub struct Toolchain
+use crate::extensions::ExtensionCollection;
+use crate::{CompilerError, CompilerErrorCode};
+use anyhow::Result;
+use log::debug;
+
+pub(crate) struct Toolchain
 {
 	root: PathBuf,
+	extension_collection: ExtensionCollection,
 }
 
 impl Toolchain
 {
-	pub fn new(toolchain_root: &Option<PathBuf>) -> Self
+	pub fn new(toolchain_root: &Option<PathBuf>) -> Result<Self, CompilerError>
 	{
 		let root_path: PathBuf = if toolchain_root.is_some()
 		{
@@ -33,9 +37,14 @@ impl Toolchain
 			}
 		);
 
-		return Self {
-			root: root_path.clone(),
-		};
+		let extensions: ExtensionCollection =
+			ExtensionCollection::load_extensions_from(root_path.as_path())
+				.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
+
+		return Ok(Self {
+			root: root_path,
+			extension_collection: extensions,
+		});
 	}
 
 	pub fn root_path(&self) -> &PathBuf
@@ -43,9 +52,9 @@ impl Toolchain
 		return &self.root;
 	}
 
-	pub fn find_extensions(&self) -> ExtensionList
+	pub fn extensions(&self) -> &ExtensionCollection
 	{
-		return ExtensionList::new(&self.root);
+		return &self.extension_collection;
 	}
 
 	fn infer_toolchain_root() -> PathBuf

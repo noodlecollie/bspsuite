@@ -4,7 +4,7 @@ use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_residual_errors;
 use crate::compile_context::CompileContext;
 use crate::compiler_error::{CompilerError, CompilerErrorCode};
-use crate::extensions::{ExtensionList, extension_routines};
+use crate::extensions::ExtensionCollection;
 use crate::io::{MapGeomFileIO, MapSourceFileIO, VersionedIOFormat};
 use crate::model::{MapGeomFile, MapSourceFile};
 use anyhow::{Context, Result};
@@ -37,30 +37,7 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 		ctx.game_config.map_formats.iter().join(", ")
 	);
 
-	let extensions: ExtensionList = ctx.toolchain.find_extensions();
-	extension_routines::register_all_formats(&extensions);
-
-	let map_format: extension_routines::ExtensionAndSupportedFormat =
-		extension_routines::choose_extension_to_parse_map(
-			&extensions,
-			ctx.input_path_metadata.full_path.as_path(),
-			&ctx.game_config
-				.map_formats
-				.iter()
-				.map(|fmt| fmt.as_str())
-				.collect::<Vec<&str>>()
-				.as_slice(),
-			&ctx.map_format_override.as_ref().map(|s| s.as_str()),
-		)
-		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err))?;
-
-	debug!(
-		"Input map format: {} ({})",
-		map_format.format_name,
-		ctx.map_format_override
-			.map(|_| "provided as argument")
-			.unwrap_or("inferred from file extension")
-	);
+	let extensions: &ExtensionCollection = ctx.toolchain.extensions();
 
 	info!("Loading {}", ctx.input_path_metadata.full_path.display());
 
@@ -75,14 +52,19 @@ fn run_compile(args: &CompileArgs) -> Result<(), CompilerError>
 
 	info!("Parsing {}", ctx.input_path_metadata.full_path.display());
 
-	let parsed_entities: Vec<Entity> = extension_routines::parse_map(
+	let parsed_entities: Vec<Entity> = extensions.map_formats().parse_map(
 		ctx.input_path_metadata.full_path.as_path(),
-		&extensions,
 		&input_file,
-		&map_format,
-	)
-	.with_context(|| "Failed to initiate map parsing")
-	.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::InternalError, err))?;
+		&Some(
+			ctx.game_config
+				.map_formats
+				.iter()
+				.map(|fmt| fmt.as_str())
+				.collect::<Vec<&str>>()
+				.as_slice(),
+		),
+		&ctx.map_format_override.as_ref().map(|s| s.as_str()),
+	)?;
 
 	let map_source: MapSourceFile =
 		MapSourceFile::create(parsed_entities, &ctx.compile_tuning_parameters);
