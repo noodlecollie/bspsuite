@@ -18,7 +18,7 @@ use target_lexicon::{HOST, OperatingSystem};
 
 lazy_static! {
 	pub static ref COPIED: String = colorize_string("<b><green>[+]</>");
-	pub static ref NOT_COPIED: String = colorize_string("<b><yellow>[=]</>");
+	pub static ref NOT_COPIED: String = colorize_string("<yellow>[=]</>");
 }
 
 // A lot of code in this file is based off

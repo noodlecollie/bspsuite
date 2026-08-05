@@ -22,11 +22,11 @@ pub struct ExtensionInfo
 
 /// Name of the library symbol that exposes the version of the extension
 /// information struct.
-pub const SYMBOL_EXTENSION_INFO_VERSION: &[u8] = b"bspsuite_ext_info_version";
+pub const SYMBOL_EXTENSION_INFO_VERSION: &[u8] = b"bspsuite_ext_info_version\0";
 
 /// Name of the library symbol that exposes the extension's interface
 /// information.
-pub const SYMBOL_EXTENSION_INFO: &[u8] = b"bspsuite_ext_info";
+pub const SYMBOL_EXTENSION_INFO: &[u8] = b"bspsuite_ext_info\0";
 
 /// Type used to report the version of the extension info struct.
 pub type ExtensionInfoVersionType = u64;

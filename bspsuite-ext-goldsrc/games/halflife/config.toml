@@ -4,3 +4,4 @@ version = 1
 game_id = "halflife"
 game_name = "Half-Life"
 map_formats = ["valve220"]
+vfs_formats = ["hlwad"]

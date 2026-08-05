@@ -104,7 +104,7 @@ pub(crate) struct Extension2
 
 pub(crate) struct ExtensionData<'l>
 {
-	extension_info: Symbol<'l, ExtensionInfo>,
+	extension_info: ExtensionInfo,
 	api_endpoints: ExtensionApis<'l>,
 }
 
@@ -674,12 +674,21 @@ impl Extension2
 		// we have no way of enforcing this. However, if the version symbol is garbage,
 		// it is very unlikely to match the expected version, which will fail the
 		// loading process.
-		let extension_info_version_symbol: Symbol<ExtensionInfoVersionType> =
+		// Important note: variable symbols are always pointers! If you deref a
+		// non-pointer symbol, you'll just get back the address of the value rather
+		// than the value itself, or the symbol will completely fail to load.
+		let extension_info_version_symbol: Symbol<*const ExtensionInfoVersionType> =
 			unsafe { library.get(SYMBOL_EXTENSION_INFO_VERSION) }.with_context(|| {
-				format!("Failed to look up extension info version symbol in extension library")
+				format!(
+					"Failed to look up extension info version symbol \"{}\" in extension library",
+					String::from_utf8_lossy(SYMBOL_EXTENSION_INFO_VERSION)
+				)
 			})?;
 
-		let extension_info_version: ExtensionInfoVersionType = *extension_info_version_symbol;
+		// SAFETY: The library for this symbol is still alive, as above, so we can
+		// deref.
+		let extension_info_version: ExtensionInfoVersionType =
+			unsafe { **extension_info_version_symbol };
 
 		ensure!(
 			extension_info_version == EXTENSION_INFO_VERSION,
@@ -690,12 +699,18 @@ impl Extension2
 			// SAFETY: Again, it is up to the library to implement this symbol properly, and
 			// we have no way of enforcing this. However, if the magic in the struct is
 			// garbage and does not match what is expected, the loading process will fail.
-			let extension_info_symbol: Symbol<ExtensionInfo> =
+			let extension_info_symbol: Symbol<*const ExtensionInfo> =
 				unsafe { lib_ref.get(SYMBOL_EXTENSION_INFO) }.with_context(|| {
-					format!("Failed to look up extension info symbol in extension library")
+					format!(
+						"Failed to look up extension info symbol \"{}\" in extension library",
+						String::from_utf8_lossy(SYMBOL_EXTENSION_INFO)
+					)
 				})?;
 
-			let extension_info: &ExtensionInfo = &*extension_info_symbol;
+			// SAFETY: The library for this symbol is still alive, as above, so we can
+			// deref.
+			let extension_info: &ExtensionInfo = unsafe { &**extension_info_symbol };
+
 			let magic: u32 = extension_info.magic;
 			let probe_api_version: usize = extension_info.probe_api_version;
 			let ffi_api_version: u64 = extension_info.ffi_version;
@@ -724,7 +739,14 @@ impl Extension2
 			// We return this from the closure, and it's added into the overall
 			// SharedLibrary struct instance.
 			Ok(ExtensionData {
-				extension_info: extension_info_symbol,
+				// Manually copy this struct, so that we don't rely on how clone() may be
+				// implemented for it.
+				extension_info: ExtensionInfo {
+					magic,
+					ffi_version: ffi_api_version,
+					probe_api_version,
+					probe_fn: extension_info.probe_fn,
+				},
 				api_endpoints: ExtensionApis::construct_empty(&name),
 			})
 		})?;

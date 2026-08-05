@@ -26,17 +26,15 @@ pub fn bspcore_run_extinfo(args: &ExtinfoArgs) -> ResultCode
 fn run_extinfo(args: &ExtinfoArgs) -> Result<(), CompilerError>
 {
 	let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root)?;
-	let extensions: ExtensionCollection =
-		ExtensionCollection::load_extensions_from(toolchain.root_path().as_path())
-			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
 
 	if args.extension_name.is_none()
 	{
-		list_extensions(toolchain.root_path(), &extensions);
+		list_extensions(&toolchain);
 		return Ok(());
 	}
 
 	let ext_name: &str = args.extension_name.as_ref().unwrap();
+	let extensions: &ExtensionCollection = toolchain.extensions();
 
 	return match extensions.get_extension(&ext_name)
 	{
@@ -147,9 +145,10 @@ fn get_resource_formats(
 	return formats_map;
 }
 
-fn list_extensions(toolchain_root: &PathBuf, extensions: &ExtensionCollection)
+fn list_extensions(toolchain: &Toolchain)
 {
-	let ext_dir: PathBuf = ExtensionList::extensions_directory(toolchain_root);
+	let extensions: &ExtensionCollection = toolchain.extensions();
+	let ext_dir: PathBuf = ExtensionList::extensions_directory(toolchain.root_path());
 	info!("Extensions found in {}:", ext_dir.display());
 
 	if extensions.num_extensions() < 1
