@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 use std::rc::Rc;
 
+use crate::extensions::{Extension, ExtensionData};
 use anyhow;
 
 /// Convenience struct to map a file format name to a list of associated file
@@ -185,5 +187,109 @@ pub(crate) trait FormatCollector<ApiEndpoint>
 			});
 
 		return out;
+	}
+}
+
+/// Helper struct that holds Rcs to all implementations of a particular
+/// [FormatLoader] API, across all loaded extensions.
+pub(crate) struct ApiCollector<LoaderInterface, ApiEndpoint: FormatLoader<LoaderInterface>>
+{
+	marker: PhantomData<LoaderInterface>,
+	endpoints: Vec<Rc<ApiEndpoint>>,
+}
+
+impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> ApiCollector<LoaderInterface, ApiImpl>
+{
+	pub fn new<F: Fn(&ExtensionData) -> Rc<ApiImpl>>(
+		extensions: &HashMap<String, Extension>,
+		query_fn: F,
+	) -> Self
+	{
+		return Self {
+			marker: PhantomData,
+			endpoints: extensions
+				.iter()
+				.map(|(_, extension)| extension.with_data(|data| query_fn(data)))
+				.collect(),
+		};
+	}
+}
+
+impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatCollector<ApiImpl>
+	for ApiCollector<LoaderInterface, ApiImpl>
+{
+	fn endpoints_supporting_format(&self, format_name: &str) -> Vec<Rc<ApiImpl>>
+	{
+		return self
+			.endpoints
+			.iter()
+			.filter_map(|api_impl| {
+				api_impl
+					.supports_loading_format(format_name)
+					.then_some(api_impl.clone())
+			})
+			.collect();
+	}
+
+	fn endpoints_supporting_file_extension(
+		&self,
+		file_extension: &str,
+		format_whitelist: &Option<&[&str]>,
+	) -> Vec<(Rc<ApiImpl>, Vec<String>)>
+	{
+		return self
+			.endpoints
+			.iter()
+			.filter_map(|api_impl| {
+				let formats =
+					api_impl.supported_formats_for_file_extension(file_extension, format_whitelist);
+				(!formats.is_empty()).then(|| (api_impl.clone(), formats))
+			})
+			.collect();
+	}
+
+	fn endpoint_from_extension(&self, extension_name: &str) -> Option<Rc<ApiImpl>>
+	{
+		return self
+			.endpoints
+			.iter()
+			.find(|api_impl| api_impl.extension_name() == extension_name)
+			.map(|rc| rc.clone());
+	}
+
+	fn all_supported_formats(&self) -> Vec<String>
+	{
+		let mut format_set: HashSet<String> = HashSet::new();
+
+		self.endpoints.iter().for_each(|endpoint| {
+			endpoint.supported_format_names().iter().for_each(|name| {
+				format_set.insert(name.clone());
+			})
+		});
+
+		return format_set.into_iter().collect();
+	}
+
+	fn all_supported_format_extensions(&self) -> HashMap<String, HashSet<String>>
+	{
+		let mut format_to_exts: HashMap<String, HashSet<String>> = HashMap::new();
+
+		self.endpoints.iter().for_each(|endpoint| {
+			endpoint.supported_formats().into_iter().for_each(|spec| {
+				if !format_to_exts.contains_key(&spec.format_name)
+				{
+					format_to_exts.insert(spec.format_name.clone(), HashSet::new());
+				}
+
+				let exts_hash: &mut HashSet<String> =
+					format_to_exts.get_mut(&spec.format_name).unwrap();
+
+				spec.associated_file_extensions.into_iter().for_each(|ext| {
+					exts_hash.insert(ext);
+				});
+			});
+		});
+
+		return format_to_exts;
 	}
 }

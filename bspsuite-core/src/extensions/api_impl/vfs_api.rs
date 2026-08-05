@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::extensions::{ExtensionFileFormatCollection, FormatLoaderEndpoint};
+use crate::extensions::{ApiCollector, ExtensionFileFormatCollection, FormatLoaderEndpoint};
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::{Result, anyhow, ensure};
 use bspextifc::vfs_api::{
@@ -10,6 +10,7 @@ use bspextifc::vfs_api::{
 use bspffi::types::{XCOption, XCSlice, XCStr};
 
 pub type VfsInitialiser = extern "C" fn(real_root_node: &XCStr) -> VfsInitResultCode;
+pub(crate) type VfsFormatImplCollection = ApiCollector<VfsInitialiser, VfsApiEndpoint>;
 
 struct VfsInstance
 {

@@ -1,4 +1,4 @@
-use super::log_api_impl;
+use crate::extensions::api_impl::log_api as log_api_impl;
 use bspextifc::ApiInfo;
 use bspextifc::log_api::{API_INFO as LOG_API_INFO, LogApi};
 use bspextifc::map_format_api::{API_INFO as MAP_FORMAT_API_INFO, MapFormatApiCallbacks};

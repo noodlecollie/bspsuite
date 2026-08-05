@@ -1,15 +1,34 @@
 use std::collections::HashMap;
+use std::path::Path;
+use std::rc::Rc;
 
 use crate::extensions::ExtensionFileFormatCollection;
-use crate::extensions::{FormatLoader, FormatLoaderEndpoint, FormatSpec};
-use anyhow::Result;
-use anyhow::anyhow;
+use crate::extensions::{
+	ApiCollector, FormatCollector, FormatLoader, FormatLoaderEndpoint, FormatSpec,
+};
+use crate::{CompilerError, CompilerErrorCode};
+use anyhow::{Result, anyhow, bail};
 use bspextifc::builders::map_source_builder::{BuilderError, Entity};
 use bspextifc::map_format_api::{MapFormatApi, MapFormatApiCallbacks, ParseMapFn};
 use bspextifc::{
 	builders::map_source_builder::MapSourceBuilder, map_format_api::MapFormatApiProvider,
 };
 use bspffi::types::{XCSlice, XCStr};
+
+pub(crate) type MapFormatImplCollection = ApiCollector<MapFormatDefinition, MapFormatApiEndpoint>;
+
+pub struct MapFormatDefinition
+{
+	pub file_extensions: Vec<String>,
+	pub parse_fn: ParseMapFn,
+}
+
+pub struct MapFormatApiEndpoint
+{
+	ext_name: String,
+	inner: Option<MapFormatApiCallbacks>,
+	map_formats: HashMap<String, MapFormatDefinition>,
+}
 
 struct MapFormatApiImpl<'l>
 {
@@ -47,19 +66,6 @@ impl<'l> MapFormatApi for MapFormatApiImpl<'l>
 			false,
 		);
 	}
-}
-
-pub struct MapFormatDefinition
-{
-	pub file_extensions: Vec<String>,
-	pub parse_fn: ParseMapFn,
-}
-
-pub struct MapFormatApiEndpoint
-{
-	ext_name: String,
-	inner: Option<MapFormatApiCallbacks>,
-	map_formats: HashMap<String, MapFormatDefinition>,
 }
 
 impl MapFormatApiEndpoint
@@ -179,5 +185,138 @@ impl FormatLoader<MapFormatDefinition> for MapFormatApiEndpoint
 			.ok_or_else(|| anyhow!(format!("Map format {format_name} is not supported")))?;
 
 		return Ok((callback)(&def)?);
+	}
+}
+
+impl MapFormatImplCollection
+{
+	pub fn parse_map(
+		&self,
+		map_path: &Path,
+		input_data: &str,
+		allowed_formats: &Option<&[&str]>,
+		map_format_override: &Option<&str>,
+	) -> Result<Vec<Entity>, CompilerError>
+	{
+		if let Some(override_format) = map_format_override
+			&& let Some(formats) = allowed_formats
+			&& !formats.contains(override_format)
+		{
+			return Err(CompilerError::from_anyhow(
+				CompilerErrorCode::ArgumentError,
+				anyhow!(
+					"Map format {override_format} was not contained within list of allowed formats: {}",
+					formats.join(", ")
+				),
+			));
+		}
+
+		let (endpoint, use_format): (Rc<MapFormatApiEndpoint>, String) = match map_format_override
+		{
+			Some(override_format) => (
+				self.get_impl_for_format(*override_format).map_err(|err| {
+					CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err)
+				})?,
+				(*override_format).to_owned(),
+			),
+			None => self
+				.get_impl_with_format_from_file_extension(map_path, allowed_formats)
+				.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err))?,
+		};
+
+		return endpoint
+			.load_if_supported(&use_format, |def| Ok(def.parse_map(input_data)?))
+			.map_err(|err| {
+				CompilerError::from_anyhow(
+					CompilerErrorCode::IoError,
+					anyhow!("Failed to parse map {}. {err}", map_path.display()),
+				)
+			});
+	}
+
+	fn get_impl_for_format(&self, format: &str) -> Result<Rc<MapFormatApiEndpoint>>
+	{
+		let implementers: Vec<Rc<MapFormatApiEndpoint>> = self.endpoints_supporting_format(format);
+
+		if implementers.len() != 1
+		{
+			// TODO: Support better disambiguation in this case.
+			if implementers.len() > 1
+			{
+				let matches_str: String = implementers
+					.iter()
+					.map(|endpoint| endpoint.extension_name())
+					.collect::<Vec<&str>>()
+					.join(", ");
+
+				bail!(
+					"Map format {format} supported by more than compiler extension: \
+					{matches_str}. Unable to deduce which one to use."
+				);
+			}
+			else
+			{
+				let indent: &'static str = "    ";
+
+				bail!(
+					"No compiler extensions supported map format {format}.\n\
+					{indent}Formats supported by compiler: {}",
+					self.all_supported_formats().join(", "),
+				);
+			}
+		}
+
+		return Ok(implementers[0].clone());
+	}
+
+	fn get_impl_with_format_from_file_extension(
+		&self,
+		map_path: &Path,
+		allowed_formats: &Option<&[&str]>,
+	) -> Result<(Rc<MapFormatApiEndpoint>, String)>
+	{
+		let map_ext: &str = map_path
+			.extension()
+			.and_then(|ext_str| ext_str.to_str())
+			.ok_or_else(|| anyhow!("Failed to deduce extension from map path"))?;
+
+		let implementers: Vec<(Rc<MapFormatApiEndpoint>, String)> =
+			self.all_formats_for_file_extension(map_ext, allowed_formats);
+
+		if implementers.len() != 1
+		{
+			// TODO: Support better disambiguation in this case.
+			if implementers.len() > 1
+			{
+				let matches_str: String = implementers
+					.iter()
+					.map(|(endpoint, format)| {
+						format!("{} (format {format})", endpoint.extension_name(),)
+					})
+					.collect::<Vec<String>>()
+					.join(", ");
+
+				bail!(
+					"Input map file extension .{map_ext} supported by more than one compiler extension: \
+						{matches_str}. Unable to deduce which one to use."
+				);
+			}
+			else
+			{
+				let indent: &'static str = "    ";
+
+				bail!(
+					"No compiler extensions recognised input map file with extension .{map_ext}\n\
+						{indent}Formats allowed for game: {}\n\
+						{indent}Formats supported by compiler: {}",
+					allowed_formats
+						.map(|list| list.join(", "))
+						.unwrap_or("any".to_owned()),
+					self.all_supported_format_extensions_desc()
+				);
+			}
+		}
+
+		return Ok(implementers[0].clone());
 	}
 }

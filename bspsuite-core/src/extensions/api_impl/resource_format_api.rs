@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
+use crate::extensions::{ApiCollector, FormatLoader, FormatSpec};
 use crate::extensions::{ExtensionFileFormatCollection, FormatLoaderEndpoint};
-use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::anyhow;
 use bspextifc::resource_format_api::{
 	LoadImageFn, ResourceFormatApi, ResourceFormatApiCallbacks, ResourceFormatApiProvider,
 };
 use bspffi::types::{XCSlice, XCStr};
+
+pub(crate) type ResourceFormatImplCollection = ApiCollector<LoadImageFn, ResourceFormatApiEndpoint>;
 
 pub struct ImageFormatDefinition
 {

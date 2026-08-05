@@ -28,30 +28,28 @@
 //!   looked up easily. This behaviour is implemented using the
 //!   [ApiImplCollection] helper struct.
 
+use std::collections::HashMap;
 use std::collections::hash_map::Values;
-use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use bspextifc::probe_api;
-use bspextifc::resource_format_api::LoadImageFn;
 use bspextifc::{
 	EXTENSION_INFO_MAGIC, EXTENSION_INFO_VERSION, FFI_VERSION, SYMBOL_EXTENSION_INFO,
 	SYMBOL_EXTENSION_INFO_VERSION,
 };
 use bspextifc::{ExtensionInfo, ExtensionInfoVersionType};
 
-use crate::extensions::api_impl::map_format_api_impl::{MapFormatApiEndpoint, MapFormatDefinition};
-use crate::extensions::api_impl::resource_format_api_impl::ResourceFormatApiEndpoint;
-use crate::extensions::api_impl::vfs_api::VfsInitialiser;
-use crate::extensions::api_impl::vfs_api_impl::VfsApiEndpoint;
+use crate::extensions::api_impl::map_format_api::{MapFormatApiEndpoint, MapFormatImplCollection};
+use crate::extensions::api_impl::resource_format_api::{
+	ResourceFormatApiEndpoint, ResourceFormatImplCollection,
+};
+use crate::extensions::api_impl::vfs_api::{VfsApiEndpoint, VfsFormatImplCollection};
 use crate::extensions::api_impl::{ProbeApiImpl, ProbeRegistrationResults};
-use crate::extensions::{FormatCollector, FormatLoader, FormatLoaderEndpoint};
-use crate::{CompilerError, CompilerErrorCode};
-use anyhow::{Context, Result, anyhow, bail, ensure};
-use bspextifc::builders::map_source_builder::Entity;
+use crate::extensions::{ApiCollector, FormatLoaderEndpoint};
+use anyhow::{Context, Result, bail, ensure};
 use libloading::{Library, Symbol};
 use log::{debug, trace, warn};
 use self_cell::self_cell;
@@ -82,12 +80,6 @@ pub const fn library_prefix_for_platform() -> &'static str
 	};
 }
 
-pub(crate) type MapFormatImplCollection = ApiCollector<MapFormatDefinition, MapFormatApiEndpoint>;
-
-pub(crate) type ResourceFormatImplCollection = ApiCollector<LoadImageFn, ResourceFormatApiEndpoint>;
-
-pub(crate) type VfsFormatImplCollection = ApiCollector<VfsInitialiser, VfsApiEndpoint>;
-
 /// Struct to hold all extensions found for the current toolchain, along with
 /// convenience maps referencing all the constructed API endpoints.
 pub(crate) struct ExtensionCollection
@@ -114,248 +106,6 @@ pub(crate) struct ExtensionData<'l>
 
 	extension_info: ExtensionInfo,
 	api_endpoints: ExtensionApis<'l>,
-}
-
-/// Helper struct that holds Rcs to all implementations of a particular
-/// [FormatLoader] API, across all loaded extensions.
-pub(crate) struct ApiCollector<LoaderInterface, ApiEndpoint: FormatLoader<LoaderInterface>>
-{
-	marker: PhantomData<LoaderInterface>,
-	endpoints: Vec<Rc<ApiEndpoint>>,
-}
-
-impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> ApiCollector<LoaderInterface, ApiImpl>
-{
-	pub fn new<F: Fn(&ExtensionData) -> Rc<ApiImpl>>(
-		extensions: &HashMap<String, Extension>,
-		query_fn: F,
-	) -> Self
-	{
-		return Self {
-			marker: PhantomData,
-			endpoints: extensions
-				.iter()
-				.map(|(_, extension)| {
-					extension
-						.library_and_data
-						.with_dependent(|_, data| query_fn(data))
-				})
-				.collect(),
-		};
-	}
-}
-
-impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> FormatCollector<ApiImpl>
-	for ApiCollector<LoaderInterface, ApiImpl>
-{
-	fn endpoints_supporting_format(&self, format_name: &str) -> Vec<Rc<ApiImpl>>
-	{
-		return self
-			.endpoints
-			.iter()
-			.filter_map(|api_impl| {
-				api_impl
-					.supports_loading_format(format_name)
-					.then_some(api_impl.clone())
-			})
-			.collect();
-	}
-
-	fn endpoints_supporting_file_extension(
-		&self,
-		file_extension: &str,
-		format_whitelist: &Option<&[&str]>,
-	) -> Vec<(Rc<ApiImpl>, Vec<String>)>
-	{
-		return self
-			.endpoints
-			.iter()
-			.filter_map(|api_impl| {
-				let formats =
-					api_impl.supported_formats_for_file_extension(file_extension, format_whitelist);
-				(!formats.is_empty()).then(|| (api_impl.clone(), formats))
-			})
-			.collect();
-	}
-
-	fn endpoint_from_extension(&self, extension_name: &str) -> Option<Rc<ApiImpl>>
-	{
-		return self
-			.endpoints
-			.iter()
-			.find(|api_impl| api_impl.extension_name() == extension_name)
-			.map(|rc| rc.clone());
-	}
-
-	fn all_supported_formats(&self) -> Vec<String>
-	{
-		let mut format_set: HashSet<String> = HashSet::new();
-
-		self.endpoints.iter().for_each(|endpoint| {
-			endpoint.supported_format_names().iter().for_each(|name| {
-				format_set.insert(name.clone());
-			})
-		});
-
-		return format_set.into_iter().collect();
-	}
-
-	fn all_supported_format_extensions(&self) -> HashMap<String, HashSet<String>>
-	{
-		let mut format_to_exts: HashMap<String, HashSet<String>> = HashMap::new();
-
-		self.endpoints.iter().for_each(|endpoint| {
-			endpoint.supported_formats().into_iter().for_each(|spec| {
-				if !format_to_exts.contains_key(&spec.format_name)
-				{
-					format_to_exts.insert(spec.format_name.clone(), HashSet::new());
-				}
-
-				let exts_hash: &mut HashSet<String> =
-					format_to_exts.get_mut(&spec.format_name).unwrap();
-
-				spec.associated_file_extensions.into_iter().for_each(|ext| {
-					exts_hash.insert(ext);
-				});
-			});
-		});
-
-		return format_to_exts;
-	}
-}
-
-// TODO: Refactor this file to relocate these bits
-impl MapFormatImplCollection
-{
-	pub fn parse_map(
-		&self,
-		map_path: &Path,
-		input_data: &str,
-		allowed_formats: &Option<&[&str]>,
-		map_format_override: &Option<&str>,
-	) -> Result<Vec<Entity>, CompilerError>
-	{
-		if let Some(override_format) = map_format_override
-			&& let Some(formats) = allowed_formats
-			&& !formats.contains(override_format)
-		{
-			return Err(CompilerError::from_anyhow(
-				CompilerErrorCode::ArgumentError,
-				anyhow!(
-					"Map format {override_format} was not contained within list of allowed formats: {}",
-					formats.join(", ")
-				),
-			));
-		}
-
-		let (endpoint, use_format): (Rc<MapFormatApiEndpoint>, String) = match map_format_override
-		{
-			Some(override_format) => (
-				self.get_impl_for_format(*override_format).map_err(|err| {
-					CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err)
-				})?,
-				(*override_format).to_owned(),
-			),
-			None => self
-				.get_impl_with_format_from_file_extension(map_path, allowed_formats)
-				.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::ArgumentError, err))?,
-		};
-
-		return endpoint
-			.load_if_supported(&use_format, |def| Ok(def.parse_map(input_data)?))
-			.map_err(|err| {
-				CompilerError::from_anyhow(
-					CompilerErrorCode::IoError,
-					anyhow!("Failed to parse map {}. {err}", map_path.display()),
-				)
-			});
-	}
-
-	fn get_impl_for_format(&self, format: &str) -> Result<Rc<MapFormatApiEndpoint>>
-	{
-		let implementers: Vec<Rc<MapFormatApiEndpoint>> = self.endpoints_supporting_format(format);
-
-		if implementers.len() != 1
-		{
-			// TODO: Support better disambiguation in this case.
-			if implementers.len() > 1
-			{
-				let matches_str: String = implementers
-					.iter()
-					.map(|endpoint| endpoint.extension_name())
-					.collect::<Vec<&str>>()
-					.join(", ");
-
-				bail!(
-					"Map format {format} supported by more than compiler extension: \
-					{matches_str}. Unable to deduce which one to use."
-				);
-			}
-			else
-			{
-				let indent: &'static str = "    ";
-
-				bail!(
-					"No compiler extensions supported map format {format}.\n\
-					{indent}Formats supported by compiler: {}",
-					self.all_supported_formats().join(", "),
-				);
-			}
-		}
-
-		return Ok(implementers[0].clone());
-	}
-
-	fn get_impl_with_format_from_file_extension(
-		&self,
-		map_path: &Path,
-		allowed_formats: &Option<&[&str]>,
-	) -> Result<(Rc<MapFormatApiEndpoint>, String)>
-	{
-		let map_ext: &str = map_path
-			.extension()
-			.and_then(|ext_str| ext_str.to_str())
-			.ok_or_else(|| anyhow!("Failed to deduce extension from map path"))?;
-
-		let implementers: Vec<(Rc<MapFormatApiEndpoint>, String)> =
-			self.all_formats_for_file_extension(map_ext, allowed_formats);
-
-		if implementers.len() != 1
-		{
-			// TODO: Support better disambiguation in this case.
-			if implementers.len() > 1
-			{
-				let matches_str: String = implementers
-					.iter()
-					.map(|(endpoint, format)| {
-						format!("{} (format {format})", endpoint.extension_name(),)
-					})
-					.collect::<Vec<String>>()
-					.join(", ");
-
-				bail!(
-					"Input map file extension .{map_ext} supported by more than one compiler extension: \
-						{matches_str}. Unable to deduce which one to use."
-				);
-			}
-			else
-			{
-				let indent: &'static str = "    ";
-
-				bail!(
-					"No compiler extensions recognised input map file with extension .{map_ext}\n\
-						{indent}Formats allowed for game: {}\n\
-						{indent}Formats supported by compiler: {}",
-					allowed_formats
-						.map(|list| list.join(", "))
-						.unwrap_or("any".to_owned()),
-					self.all_supported_format_extensions_desc()
-				);
-			}
-		}
-
-		return Ok(implementers[0].clone());
-	}
 }
 
 /// Struct that holds API callbacks and other info that an extension has
@@ -668,6 +418,13 @@ impl Extension
 	pub fn path(&self) -> &Path
 	{
 		return self.path.as_path();
+	}
+
+	pub fn with_data<Ret, F: FnOnce(&ExtensionData) -> Ret>(&self, callback: F) -> Ret
+	{
+		return self
+			.library_and_data
+			.with_dependent(|_, data| -> Ret { callback(data) });
 	}
 
 	fn load(path: &PathBuf) -> Result<Extension>
