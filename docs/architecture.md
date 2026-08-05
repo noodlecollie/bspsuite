@@ -56,8 +56,15 @@ It would certainly be useful to leverage vector instructions for the compiler, p
 
 # Extension FFI
 
-**TODO:** In future this approach might be better replaced by 
-
-A plugin-based system in Rust needs careful consideration regarding the exchange of data over the boundary between the plugin host (here, the compiler) and the plugin libraries (here, the extensions). This project makes used of [thin_trait_object](https://docs.rs/thin_trait_object/latest/thin_trait_object/), which allows for creation of traits which can be called across shared library boundaries. These traits should be sure to make use of FFI-safe data types, some of which can be found in the `bspsuite-ffi` crate.
+A plugin-based system in Rust needs careful consideration regarding the exchange of data over the boundary between the plugin host (here, the compiler) and the plugin libraries (here, the extensions). This project makes use of [thin_trait_object](https://docs.rs/thin_trait_object/latest/thin_trait_object/), which allows for creation of traits which can be called across shared library boundaries. These traits should be sure to make use of FFI-safe data types, some of which can be found in the `bspsuite-ffi` crate.
 
 Note that as of version `1.1.2` of `thin_trait_object`, there is a compilation issue which prohibits trait functions with more than one argument following `self`. For this reason, the repo has been added manually to this project, so that we can build off the `main` branch.
+
+# Extension APIs and Components
+
+There are several different pieces that need to come together in order to represent a usable API that an extension may make use of. For the purposes of example, we'll consider the map format API, which allows an extension to parse a loaded map file and construct geometry from it.
+
+1. The **API interface** is represented by an FFI-safe [thin trait object](https://docs.rs/thin_trait_object/latest/thin_trait_object/). This interface is defined in the `bspsuite-extinterface` crate, and represents the set of functions that an extension can call to interact with the interface. For the map format API, the trait would be named `MapFormatApi`, and the `thin_trait_object` interface struct would by default be named `MapFormatApiProvider`.
+2. The **implementation** of the API interface is the struct that implements the functions on the FFI-safe trait. The implementation struct belongs to the `bspsuite-core` crate, and is implemented in a module under `crate::extensions::api_impl`. The implementation struct manages any state that is required when an extension is interacting with the API interface, but it lives only as long as the API interface is being used by the extension. For the map format API, the implementation struct would be named `MapFormatApiImpl`.
+3. The **API endpoint** is the per-extension part of the API that keeps persistent state. It is part of the extension as loaded by the compiler library, and stores anything that is computed while the extension uses the API interface. For the map format API, the endpoint would store the name of each registered map format, along with the file extensions it is associated with, and the extension callback function that should be called to parse a map of this format. The map format API's endpoint struct would be named `MapFormatApiEndpoint`.
+4. The **API collector** is a struct that allows querying all endpoints of an API across all loaded extensions. For the map format API, the collector would provide an easy way to find the particular callback that should be called to load a map of a given format. The map format API's collector would be named `MapFormatApiCollector`.
