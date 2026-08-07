@@ -3,14 +3,25 @@ use std::path::Path;
 
 use crate::extensions::{ApiCollector, ExtensionFileFormatCollection, FormatLoaderEndpoint};
 use crate::extensions::{FormatLoader, FormatSpec};
-use anyhow::{Result, anyhow, ensure};
+use anyhow::{Result, anyhow, bail, ensure};
 use bspextifc::vfs_api::{
-	VfsApi, VfsApiCallbacks, VfsApiProvider, VfsImplCallbacks, VfsInitResultCode,
+	VfsApi, VfsApiCallbacks, VfsApiProvider, VfsFileErrorCode, VfsFileStats, VfsImplCallbacks,
+	VfsInitResultCode, VfsStatRecipient, VfsStatRecipientProvider,
 };
 use bspffi::types::{XCOption, XCSlice, XCStr};
+use log::warn;
 
-pub type VfsInitialiser = extern "C" fn(real_root_node: &XCStr) -> VfsInitResultCode;
 pub(crate) type VfsFormatImplCollection = ApiCollector<VfsInitialiser, VfsApiEndpoint>;
+
+pub(crate) struct VfsFileStatResult
+{
+	pub parent_path: String,
+	pub name: String,
+	pub is_directory: bool,
+	pub file_size: usize,
+}
+
+type VfsInitialiser = extern "C" fn(real_root_node: &XCStr) -> VfsInitResultCode;
 
 struct VfsInstance
 {
@@ -80,6 +91,51 @@ impl<'l> VfsApi for VfsApiImpl<'l>
 	}
 }
 
+enum VfsFileStatResultWrapper
+{
+	Ok(VfsFileStatResult),
+	Err(VfsFileErrorCode),
+}
+
+struct VfsStatRecipientImpl<'l>
+{
+	result_wrapper: &'l mut Option<VfsFileStatResultWrapper>,
+}
+
+impl<'l> VfsStatRecipientImpl<'l>
+{
+	pub fn new(result_wrapper: &'l mut Option<VfsFileStatResultWrapper>) -> Self
+	{
+		return Self { result_wrapper };
+	}
+}
+
+impl<'l> VfsStatRecipient for VfsStatRecipientImpl<'l>
+{
+	fn submit_stats(&mut self, stats: &VfsFileStats)
+	{
+		*self.result_wrapper = Some(VfsFileStatResultWrapper::Ok(stats.into()));
+	}
+
+	fn set_error(&mut self, code: VfsFileErrorCode)
+	{
+		*self.result_wrapper = Some(VfsFileStatResultWrapper::Err(code));
+	}
+}
+
+impl From<&VfsFileStats<'_>> for VfsFileStatResult
+{
+	fn from(value: &VfsFileStats) -> Self
+	{
+		return Self {
+			parent_path: value.parent_path.to_string(),
+			name: value.name.to_string(),
+			is_directory: value.is_directory,
+			file_size: value.file_size,
+		};
+	}
+}
+
 pub struct VfsApiEndpoint
 {
 	ext_name: String,
@@ -115,6 +171,42 @@ impl VfsApiEndpoint
 	pub fn get_vfs_root_file_extensions(&self, vfs_type: &str) -> Option<&Vec<String>>
 	{
 		return self.vfs_impls.get(vfs_type).map(|item| &item.1);
+	}
+
+	pub fn stat(&self, sub_path: &str) -> Option<VfsFileStatResult>
+	{
+		for vfs_impl in self.vfs_impls.iter()
+		{
+			let mut result_wrapper: Option<VfsFileStatResultWrapper> = None;
+
+			{
+				let mut recipient: VfsStatRecipientProvider =
+					VfsStatRecipientProvider::new(VfsStatRecipientImpl::new(&mut result_wrapper));
+
+				(vfs_impl.1.0.stat)(&XCStr::from(sub_path), &mut recipient);
+			}
+
+			match result_wrapper
+			{
+				None =>
+				{
+					warn!(
+						"Extension {} VFS impl {} did not provide a stat result for {sub_path} - \
+						this is an implementation error",
+						self.ext_name, vfs_impl.0
+					);
+
+					continue;
+				}
+				Some(val) => match val
+				{
+					VfsFileStatResultWrapper::Ok(stat_result) => return Some(stat_result),
+					VfsFileStatResultWrapper::Err(_) => continue,
+				},
+			}
+		}
+
+		return None;
 	}
 }
 
@@ -199,5 +291,23 @@ impl FormatLoader<VfsInitialiser> for VfsApiEndpoint
 			.ok_or_else(|| anyhow!(format!("VFS format {format_name} is not supported")))?;
 
 		Ok((callback)(&vfs.0.initialise)?)
+	}
+}
+
+impl VfsFormatImplCollection
+{
+	pub fn stat(&self, sub_path: &str) -> Result<VfsFileStatResult>
+	{
+		for endpoint in self.endpoints.iter()
+		{
+			let result: Option<VfsFileStatResult> = endpoint.stat(sub_path);
+
+			if result.is_some()
+			{
+				return Ok(result.unwrap());
+			}
+		}
+
+		bail!("{sub_path} was not found");
 	}
 }

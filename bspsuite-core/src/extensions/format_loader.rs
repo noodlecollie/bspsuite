@@ -195,7 +195,7 @@ pub(crate) trait FormatCollector<ApiEndpoint>
 pub(crate) struct ApiCollector<LoaderInterface, ApiEndpoint: FormatLoader<LoaderInterface>>
 {
 	marker: PhantomData<LoaderInterface>,
-	endpoints: Vec<Rc<ApiEndpoint>>,
+	pub endpoints: Vec<Rc<ApiEndpoint>>,
 }
 
 impl<LoaderInterface, ApiImpl: FormatLoader<LoaderInterface>> ApiCollector<LoaderInterface, ApiImpl>
