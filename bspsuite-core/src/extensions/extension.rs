@@ -158,6 +158,10 @@ struct FormatRegisterHelper<Container: FormatLoaderEndpoint>(Container);
 /// supported formats for the container.
 impl<Container: FormatLoaderEndpoint> From<FormatRegisterHelper<Container>> for Rc<Container>
 {
+	// TODO: We actually want to include some kind of accumulator with this call.
+	// The accumulator should keep track of which format names have been registered
+	// already, so that we can warn about duplicate formats provided by more than
+	// one extension.
 	fn from(mut value: FormatRegisterHelper<Container>) -> Self
 	{
 		value.0.register_supported_formats();

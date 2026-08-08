@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::ApiInfo;
 use bspffi::types::{XCBytes, XCOption, XCSlice, XCStr};
 use thin_trait_object::thin_trait_object;
@@ -104,6 +106,35 @@ pub enum VfsInitResultCode
 	RootsOverlap,
 }
 
+impl VfsInitResultCode
+{
+	fn as_str(&self) -> &str
+	{
+		return match self
+		{
+			VfsInitResultCode::Ok => "Initialised OK",
+			VfsInitResultCode::InternalError => "An internal error occurred",
+			VfsInitResultCode::InvalidRootPath => "The provided root path was not valid",
+			VfsInitResultCode::RootAlreadyInUse =>
+			{
+				"The provided root path was already submitted for a previous VFS"
+			}
+			VfsInitResultCode::RootsOverlap =>
+			{
+				"The provided root path overlapped with the root of a previous VFS"
+			}
+		};
+	}
+}
+
+impl Display for VfsInitResultCode
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+	{
+		write!(f, "{}", self.as_str())
+	}
+}
+
 /// Error code produced when interacting with a VFS file.
 #[repr(C)]
 #[derive(Debug)]
@@ -117,6 +148,27 @@ pub enum VfsFileErrorCode
 
 	/// An error occured with the underlying IO system.
 	IoError,
+}
+
+impl VfsFileErrorCode
+{
+	fn as_str(&self) -> &str
+	{
+		return match self
+		{
+			VfsFileErrorCode::InternalError => "An internal error occurred",
+			VfsFileErrorCode::InvalidPath => "The provided path was not valid",
+			VfsFileErrorCode::IoError => "An I/O error occurred when accessing the path",
+		};
+	}
+}
+
+impl Display for VfsFileErrorCode
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+	{
+		write!(f, "{}", self.as_str())
+	}
 }
 
 /// Interface that receives the contents of a file loaded from the VFS.

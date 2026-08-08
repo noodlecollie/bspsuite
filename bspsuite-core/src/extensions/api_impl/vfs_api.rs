@@ -5,10 +5,11 @@ use crate::extensions::{ApiCollector, ExtensionFileFormatCollection, FormatLoade
 use crate::extensions::{FormatLoader, FormatSpec};
 use anyhow::{Result, anyhow, bail, ensure};
 use bspextifc::vfs_api::{
-	VfsApi, VfsApiCallbacks, VfsApiProvider, VfsFileErrorCode, VfsFileStats, VfsImplCallbacks,
-	VfsInitResultCode, VfsStatRecipient, VfsStatRecipientProvider,
+	VfsApi, VfsApiCallbacks, VfsApiProvider, VfsFileErrorCode, VfsFileRecipient,
+	VfsFileRecipientProvider, VfsFileStats, VfsImplCallbacks, VfsInitResultCode, VfsStatRecipient,
+	VfsStatRecipientProvider,
 };
-use bspffi::types::{XCOption, XCSlice, XCStr};
+use bspffi::types::{XCBytes, XCOption, XCSlice, XCStr};
 use log::warn;
 
 pub(crate) type VfsFormatImplCollection = ApiCollector<VfsInitialiser, VfsApiEndpoint>;
@@ -97,6 +98,12 @@ enum VfsFileStatResultWrapper
 	Err(VfsFileErrorCode),
 }
 
+enum VfsFileLoadResultWrapper
+{
+	Ok(Vec<u8>),
+	Err(VfsFileErrorCode),
+}
+
 struct VfsStatRecipientImpl<'l>
 {
 	result_wrapper: &'l mut Option<VfsFileStatResultWrapper>,
@@ -123,6 +130,32 @@ impl<'l> VfsStatRecipient for VfsStatRecipientImpl<'l>
 	}
 }
 
+struct VfsFileRecipientImpl<'l>
+{
+	result_wrapper: &'l mut Option<VfsFileLoadResultWrapper>,
+}
+
+impl<'l> VfsFileRecipientImpl<'l>
+{
+	pub fn new(result_wrapper: &'l mut Option<VfsFileLoadResultWrapper>) -> Self
+	{
+		return Self { result_wrapper };
+	}
+}
+
+impl<'l> VfsFileRecipient for VfsFileRecipientImpl<'l>
+{
+	fn submit_bytes(&mut self, bytes: &XCBytes)
+	{
+		*self.result_wrapper = Some(VfsFileLoadResultWrapper::Ok(Vec::from(bytes.as_slice())));
+	}
+
+	fn set_error(&mut self, code: VfsFileErrorCode)
+	{
+		*self.result_wrapper = Some(VfsFileLoadResultWrapper::Err(code));
+	}
+}
+
 impl From<&VfsFileStats<'_>> for VfsFileStatResult
 {
 	fn from(value: &VfsFileStats) -> Self
@@ -136,6 +169,8 @@ impl From<&VfsFileStats<'_>> for VfsFileStatResult
 	}
 }
 
+// TODO: Order VFS impls so that those registered later take precedence over
+// those registered earlier.
 pub struct VfsApiEndpoint
 {
 	ext_name: String,
@@ -173,7 +208,7 @@ impl VfsApiEndpoint
 		return self.vfs_impls.get(vfs_type).map(|item| &item.1);
 	}
 
-	pub fn stat(&self, sub_path: &str) -> Option<VfsFileStatResult>
+	pub fn stat(&self, sub_path: &str) -> Result<Option<VfsFileStatResult>>
 	{
 		for vfs_impl in self.vfs_impls.iter()
 		{
@@ -200,13 +235,65 @@ impl VfsApiEndpoint
 				}
 				Some(val) => match val
 				{
-					VfsFileStatResultWrapper::Ok(stat_result) => return Some(stat_result),
-					VfsFileStatResultWrapper::Err(_) => continue,
+					VfsFileStatResultWrapper::Ok(stat_result) => return Ok(Some(stat_result)),
+					VfsFileStatResultWrapper::Err(err) => match err
+					{
+						// Skip VFSes where the path does not exist.
+						VfsFileErrorCode::InvalidPath => continue,
+
+						// We can't assume any other error is fine.
+						_ => bail!("{err}"),
+					},
 				},
 			}
 		}
 
-		return None;
+		// Not finding the item in any VFS is not an error.
+		return Ok(None);
+	}
+
+	pub fn load_file(&self, sub_path: &str) -> Result<Option<Vec<u8>>>
+	{
+		for vfs_impl in self.vfs_impls.iter()
+		{
+			let mut result_wrapper: Option<VfsFileLoadResultWrapper> = None;
+
+			{
+				let mut recipient: VfsFileRecipientProvider =
+					VfsFileRecipientProvider::new(VfsFileRecipientImpl::new(&mut result_wrapper));
+
+				(vfs_impl.1.0.load_file)(&XCStr::from(sub_path), &mut recipient);
+			}
+
+			match result_wrapper
+			{
+				None =>
+				{
+					warn!(
+						"Extension {} VFS impl {} did not provide a result for loading file {sub_path} - \
+						this is an implementation error",
+						self.ext_name, vfs_impl.0
+					);
+
+					continue;
+				}
+				Some(val) => match val
+				{
+					VfsFileLoadResultWrapper::Ok(bytes) => return Ok(Some(bytes)),
+					VfsFileLoadResultWrapper::Err(err) => match err
+					{
+						// Skip VFSes where the path does not exist.
+						VfsFileErrorCode::InvalidPath => continue,
+
+						// We can't assume any other error is fine.
+						_ => bail!("{err}"),
+					},
+				},
+			}
+		}
+
+		// Not finding the item in any VFS is not an error.
+		return Ok(None);
 	}
 }
 
@@ -300,7 +387,22 @@ impl VfsFormatImplCollection
 	{
 		for endpoint in self.endpoints.iter()
 		{
-			let result: Option<VfsFileStatResult> = endpoint.stat(sub_path);
+			let result: Option<VfsFileStatResult> = endpoint.stat(sub_path)?;
+
+			if result.is_some()
+			{
+				return Ok(result.unwrap());
+			}
+		}
+
+		bail!("{sub_path} was not found");
+	}
+
+	pub fn load_file(&self, sub_path: &str) -> Result<Vec<u8>>
+	{
+		for endpoint in self.endpoints.iter()
+		{
+			let result: Option<Vec<u8>> = endpoint.load_file(sub_path)?;
 
 			if result.is_some()
 			{
