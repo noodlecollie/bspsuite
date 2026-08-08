@@ -6,3 +6,4 @@ pub mod resource_format_api;
 pub mod vfs_api;
 
 pub(crate) use probe_api::{ProbeApiImpl, ProbeRegistrationResults};
+pub(crate) use vfs_api::VfsFileStatResult;

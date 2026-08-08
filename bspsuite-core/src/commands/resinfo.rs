@@ -1,10 +1,10 @@
-use anyhow::anyhow;
-
 use super::types::{BaseArgs, ResultCode};
 use super::utils::wrap_residual_errors;
 use crate::extensions::ExtensionCollection;
+use crate::extensions::VfsFileStatResult;
 use crate::toolchain::Toolchain;
 use crate::{CompilerError, CompilerErrorCode};
+use log::info;
 
 pub struct ResinfoArgs
 {
@@ -26,9 +26,20 @@ fn run_resinfo(args: &ResinfoArgs) -> Result<(), CompilerError>
 		ExtensionCollection::load_extensions_from(toolchain.root_path().as_path())
 			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
 
-	// TODO: We now want to get a stat result for the resource in question.
-	return Err(CompilerError::from_anyhow(
-		crate::CompilerErrorCode::InternalError,
-		anyhow!("TODO: Continue"),
-	));
+	let stat: VfsFileStatResult = extensions
+		.vfs_formats()
+		.stat(&args.resource_path)
+		.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
+
+	info!("Resource: {}", args.resource_path);
+	info!("  Name: {}", stat.name);
+	info!("  Parent: {}", stat.parent_path);
+	info!("  Is directory: {}", stat.is_directory);
+
+	if !stat.is_directory
+	{
+		info!("  Size: {}", stat.file_size);
+	}
+
+	Ok(())
 }
