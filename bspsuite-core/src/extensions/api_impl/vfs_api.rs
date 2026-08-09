@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::extensions::{ApiCollector, ExtensionFileFormatCollection, FormatLoaderEndpoint};
+use crate::extensions::{
+	ApiCollector, ExtensionFileFormatCollection, FormatCollector, FormatLoaderEndpoint,
+};
 use crate::extensions::{FormatLoader, FormatSpec};
+use crate::utils::path_extension;
 use anyhow::{Result, anyhow, bail};
 use bspextifc::vfs_api::{
 	VfsApi, VfsApiCallbacks, VfsApiProvider, VfsFileErrorCode, VfsFileRecipient,
@@ -354,6 +357,49 @@ impl FormatLoader<VfsInitialiser> for VfsApiEndpoint
 
 impl VfsFormatImplCollection
 {
+	pub fn initialise_specific(&self, extension_name: &str, root_path: &PathBuf) -> Result<()>
+	{
+		let root_str: &str = root_path
+			.to_str()
+			.ok_or_else(|| anyhow!("Could not convert VFS root {} to str", root_path.display()))?;
+
+		let root_ext: Option<String> = path_extension(root_path)?.map(|str| str.to_owned());
+
+		let endpoint = self
+			.endpoint_from_extension(extension_name)
+			.ok_or_else(|| anyhow!("No extension loaded with name {extension_name}"))?;
+
+		return endpoint
+			.get_registered_vfs_records()
+			.iter()
+			.try_for_each(|vfs_record| {
+				let use_vfs: bool = match &root_ext
+				{
+					Some(ext) => vfs_record.1.contains(ext),
+					None => vfs_record.1.is_empty(),
+				};
+
+				return if use_vfs
+				{
+					endpoint
+						.load_if_supported(vfs_record.0, |init_fn| {
+							VfsFormatImplCollection::run_initialiser(
+								vfs_record.0,
+								init_fn,
+								root_str,
+							)
+						})
+						// The only code that comes through will be VfsInitResultCode::Ok.
+						.map(|_| ())
+				}
+				else
+				{
+					// Skip
+					Ok(())
+				};
+			});
+	}
+
 	pub fn initialise_all(&self, game_dir: &Path) -> Result<()>
 	{
 		let game_dir_str: &str = game_dir.to_str().ok_or_else(|| {
@@ -387,18 +433,11 @@ impl VfsFormatImplCollection
 
 						endpoint
 							.load_if_supported(&format_spec.format_name, |init_fn| {
-								let result_code: VfsInitResultCode =
-									init_fn(&XCStr::from(root_str));
-
-								match result_code
-								{
-									VfsInitResultCode::Ok => Ok(VfsInitResultCode::Ok),
-									_ => Err(anyhow!(
-										"Failed to initialise {} VFS with game \
-										directory {game_dir_str}: {result_code}",
-										format_spec.format_name
-									)),
-								}
+								VfsFormatImplCollection::run_initialiser(
+									&format_spec.format_name,
+									init_fn,
+									root_str,
+								)
 							})
 							// The only code that comes through will be VfsInitResultCode::Ok.
 							.map(|_| ())
@@ -435,6 +474,23 @@ impl VfsFormatImplCollection
 		}
 
 		bail!("{sub_path} was not found");
+	}
+
+	fn run_initialiser(
+		format_name: &str,
+		init_fn: &VfsInitialiser,
+		root_str: &str,
+	) -> Result<VfsInitResultCode>
+	{
+		let result_code: VfsInitResultCode = init_fn(&XCStr::from(root_str));
+
+		return match result_code
+		{
+			VfsInitResultCode::Ok => Ok(VfsInitResultCode::Ok),
+			_ => Err(anyhow!(
+				"Failed to initialise {format_name} VFS from {root_str}: {result_code}",
+			)),
+		};
 	}
 
 	fn find_roots_with_exts(root: &str, exts: &[String]) -> Vec<PathBuf>

@@ -18,6 +18,8 @@ pub mod io;
 pub mod math;
 pub mod model;
 
+pub(crate) mod utils;
+
 pub use compiler_error::{CompilerError, CompilerErrorCode};
 
 mod compile_context;
