@@ -17,6 +17,7 @@ pub struct CompileArgs
 	pub base: BaseArgs,
 	pub input_file: PathBuf,
 	pub game: String,
+	pub game_dir: PathBuf,
 	pub map_format_override: Option<String>,
 	pub parameters_file: Option<PathBuf>,
 	pub dump_source_file: bool,

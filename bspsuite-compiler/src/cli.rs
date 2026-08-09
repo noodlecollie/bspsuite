@@ -54,6 +54,10 @@ pub struct CompileCommandArgs
 	#[arg(short, long)]
 	pub game: String,
 
+	/// Directory on disk for the target game.
+	#[arg(short('d'), long)]
+	pub game_dir: PathBuf,
+
 	/// Format of the map source file. If this is not specified, the compiler
 	/// will attempt to infer the format based on the file extension and the
 	/// target game.

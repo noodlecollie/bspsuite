@@ -1,15 +1,16 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::extensions::{ApiCollector, ExtensionFileFormatCollection, FormatLoaderEndpoint};
 use crate::extensions::{FormatLoader, FormatSpec};
-use anyhow::{Result, anyhow, bail, ensure};
+use anyhow::{Result, anyhow, bail};
 use bspextifc::vfs_api::{
 	VfsApi, VfsApiCallbacks, VfsApiProvider, VfsFileErrorCode, VfsFileRecipient,
 	VfsFileRecipientProvider, VfsFileStats, VfsImplCallbacks, VfsInitResultCode, VfsStatRecipient,
 	VfsStatRecipientProvider,
 };
 use bspffi::types::{XCBytes, XCOption, XCSlice, XCStr};
+use glob::glob;
 use log::warn;
 
 pub(crate) type VfsFormatImplCollection = ApiCollector<VfsInitialiser, VfsApiEndpoint>;
@@ -23,36 +24,6 @@ pub(crate) struct VfsFileStatResult
 }
 
 type VfsInitialiser = extern "C" fn(real_root_node: &XCStr) -> VfsInitResultCode;
-
-struct VfsInstance
-{
-	callbacks: VfsImplCallbacks,
-	initialised: bool,
-}
-
-impl VfsInstance
-{
-	pub fn new(callbacks: VfsImplCallbacks) -> Self
-	{
-		return Self {
-			callbacks,
-			initialised: false,
-		};
-	}
-
-	pub fn initialise(&mut self, root: &Path) -> Result<()>
-	{
-		ensure!(!self.initialised, "VFS was already initialised");
-
-		let path_str: &str = root
-			.to_str()
-			.ok_or_else(|| anyhow!("Failed to convert path to str"))?;
-		(self.callbacks.initialise)(&path_str.into());
-		self.initialised = true;
-
-		Ok(())
-	}
-}
 
 struct VfsApiImpl<'l>
 {
@@ -383,6 +354,59 @@ impl FormatLoader<VfsInitialiser> for VfsApiEndpoint
 
 impl VfsFormatImplCollection
 {
+	pub fn initialise_all(&self, game_dir: &Path) -> Result<()>
+	{
+		let game_dir_str: &str = game_dir.to_str().ok_or_else(|| {
+			anyhow!(
+				"Could not convert game directory {} to str",
+				game_dir.display()
+			)
+		})?;
+
+		return self.endpoints.iter().try_for_each(|endpoint| {
+			endpoint
+				.supported_formats()
+				.into_iter()
+				.try_for_each(|format_spec| {
+					let roots: Vec<PathBuf> = if !format_spec.associated_file_extensions.is_empty()
+					{
+						VfsFormatImplCollection::find_roots_with_exts(
+							game_dir_str,
+							format_spec.associated_file_extensions.as_slice(),
+						)
+					}
+					else
+					{
+						vec![game_dir.to_path_buf()]
+					};
+
+					roots.into_iter().try_for_each(|root| {
+						let root_str: &str = root.to_str().ok_or_else(|| {
+							anyhow!("Could not convert VFS root {} to str", root.display())
+						})?;
+
+						endpoint
+							.load_if_supported(&format_spec.format_name, |init_fn| {
+								let result_code: VfsInitResultCode =
+									init_fn(&XCStr::from(root_str));
+
+								match result_code
+								{
+									VfsInitResultCode::Ok => Ok(VfsInitResultCode::Ok),
+									_ => Err(anyhow!(
+										"Failed to initialise {} VFS with game \
+										directory {game_dir_str}: {result_code}",
+										format_spec.format_name
+									)),
+								}
+							})
+							// The only code that comes through will be VfsInitResultCode::Ok.
+							.map(|_| ())
+					})
+				})
+		});
+	}
+
 	pub fn stat(&self, sub_path: &str) -> Result<VfsFileStatResult>
 	{
 		for endpoint in self.endpoints.iter()
@@ -411,5 +435,38 @@ impl VfsFormatImplCollection
 		}
 
 		bail!("{sub_path} was not found");
+	}
+
+	fn find_roots_with_exts(root: &str, exts: &[String]) -> Vec<PathBuf>
+	{
+		let mut roots: Vec<PathBuf> = Vec::new();
+
+		for ext in exts.iter()
+		{
+			let glob_path: String = format!("{root}/*.{ext}");
+
+			let paths = glob(&glob_path)
+				.map(|paths| {
+					paths
+						.into_iter()
+						.filter_map(|entry| {
+							if let Err(err) = &entry
+							{
+								warn!("Error encountred in VFS root glob for {glob_path}: {err}");
+							}
+
+							entry.ok()
+						})
+						.collect()
+				})
+				.unwrap_or_else(|err| {
+					warn!("Failed to execute glob {glob_path} for VFS roots: {err}");
+					Vec::new()
+				});
+
+			roots.extend(paths);
+		}
+
+		return roots;
 	}
 }

@@ -173,6 +173,7 @@ dependencies = [
  "constcat",
  "fern",
  "glam",
+ "glob",
  "itertools 0.14.0",
  "libloading 0.9.0",
  "log",

@@ -27,7 +27,7 @@ pub struct VfsApiCallbacks
 #[thin_trait_object(drop_abi = "C", trait_object(pub VfsApiProvider))]
 pub trait VfsApi
 {
-	/// Registers support for a FVS under a given `name`. This name may be used
+	/// Registers support for a VFS under a given `name`. This name may be used
 	/// in a game config to request that resources be loaded through this VFS.
 	///
 	/// If the VFS root should be a file with a particular extension, the
@@ -55,10 +55,17 @@ pub trait VfsApi
 #[repr(C)]
 pub struct VfsImplCallbacks
 {
-	/// Called when the VFS is first initialised. `real_root_node` is the path
-	/// to a file or directory on the physical disk that should serve as the
-	/// root of the VFS. The VFS is expected to persist until the extension
-	/// library is unloaded.
+	/// Called when a VFS instance is first initialised. `real_root_node` is the
+	/// path to a file or directory on the physical disk that should serve as
+	/// the root of the VFS. The initialised VFS is expected to persist until
+	/// the extension library is unloaded.
+	///
+	/// This function may be called multiple times if multiple roots are
+	/// encountered on disk. VFS instances created later are expected to take
+	/// precedence over VFS instances created earlier. This means that if two
+	/// VFS instances contain a file with the same path, the file from the later
+	/// instance should take precedence over that from the earlier instance.
+	/// This behaviour can be thought of as analogous to a file system overlay.
 	pub initialise: extern "C" fn(real_root_node: &XCStr) -> VfsInitResultCode,
 
 	/// Returns true if a file or directory at the given `path` exists, or false

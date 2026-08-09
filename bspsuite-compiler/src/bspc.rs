@@ -56,6 +56,7 @@ fn run_compile_command(base_args: &cli::Cli, args: &cli::CompileCommandArgs) -> 
 		},
 		input_file: args.input_file.clone(),
 		game: args.game.clone(),
+		game_dir: args.game_dir.clone(),
 		map_format_override: args.map_format.clone(),
 		parameters_file: args.parameters_file.clone(),
 		dump_source_file: args.dump_source_file,

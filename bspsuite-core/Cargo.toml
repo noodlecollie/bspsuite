@@ -19,18 +19,19 @@ log.workspace = true
 glam.workspace = true
 serde.workspace = true
 toml.workspace = true
+glob.workspace = true
 strum = { workspace = true, features = ["derive"] }
-fern = { version = "0.7.1", features = ["colored"] }
-paris = { version = "1.5.15", features = ["no_logger"] }
 libloading = "0.9.0"
 target-lexicon = "0.13.3"
 constcat = "0.6.1"
 const-cstr = "0.3.0"
 itertools = "0.14.0"
-serde_json = { version = "1.0.149", features = ["preserve_order"] }
 thiserror = "2.0.18"
-serde_valid = { version = "2.0.3", features = ["serde_toml", "toml"] }
 self_cell = "1.3.0"
+serde_json = { version = "1.0.149", features = ["preserve_order"] }
+serde_valid = { version = "2.0.3", features = ["serde_toml", "toml"] }
+fern = { version = "0.7.1", features = ["colored"] }
+paris = { version = "1.5.15", features = ["no_logger"] }
 
 [build-dependencies]
 chrono = "0.4.42"

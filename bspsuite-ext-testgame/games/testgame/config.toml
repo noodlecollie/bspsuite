@@ -1,0 +1,7 @@
+format = "gameconfig"
+version = 1
+
+game_id = "testgame"
+game_name = "Test Game"
+map_formats = ["testgame_mapformat"]
+vfs_formats = ["directory"]
