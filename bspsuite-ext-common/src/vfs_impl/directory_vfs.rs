@@ -262,22 +262,22 @@ impl VfsRootContainer
 
 	pub fn exists(&self, sub_path: &str) -> bool
 	{
-		return self.vfs.iter().any(|vfs| vfs.exists(sub_path));
+		return self.vfs.iter().rev().any(|vfs| vfs.exists(sub_path));
 	}
 
 	pub fn is_file(&self, sub_path: &str) -> bool
 	{
-		return self.vfs.iter().any(|vfs| vfs.is_file(sub_path));
+		return self.vfs.iter().rev().any(|vfs| vfs.is_file(sub_path));
 	}
 
 	pub fn is_directory(&self, sub_path: &str) -> bool
 	{
-		return self.vfs.iter().any(|vfs| vfs.is_directory(sub_path));
+		return self.vfs.iter().rev().any(|vfs| vfs.is_directory(sub_path));
 	}
 
 	pub fn stat(&self, sub_path: &str) -> Result<FileStats, VfsFileErrorCode>
 	{
-		for vfs in self.vfs.iter()
+		for vfs in self.vfs.iter().rev()
 		{
 			match vfs.stat(sub_path)
 			{
@@ -300,7 +300,7 @@ impl VfsRootContainer
 
 	pub fn load_file(&self, sub_path: &str) -> Result<Vec<u8>, VfsFileErrorCode>
 	{
-		for vfs in self.vfs.iter()
+		for vfs in self.vfs.iter().rev()
 		{
 			match vfs.load_file(sub_path)
 			{
@@ -596,11 +596,11 @@ mod tests
 
 		let contents: Vec<u8> = vfs.load_file("common_file").unwrap();
 
-		// We expect the common file to be loaded from root 1, as this was the first
-		// root that was added.
+		// We expect the common file to be loaded from root 2, as this was added later
+		// and therefore overlays on top of root 1.
 		assert_eq!(
 			contents,
-			"This is a file with a common name, but in root 1".as_bytes()
+			"This is a file with a common name, but in root 2".as_bytes()
 		);
 	}
 
