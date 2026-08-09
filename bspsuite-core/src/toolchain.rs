@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::extensions::ExtensionCollection;
 use crate::{CompilerError, CompilerErrorCode};
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use log::debug;
 
 pub(crate) struct Toolchain
@@ -50,6 +50,12 @@ impl Toolchain
 	pub fn root_path(&self) -> &PathBuf
 	{
 		return &self.root;
+	}
+
+	pub fn to_abs_path(&self, relative_path: &Path) -> Result<PathBuf>
+	{
+		ensure!(relative_path.is_relative(), "Expected path to be relative");
+		return Ok(self.root.join(relative_path));
 	}
 
 	pub fn extensions(&self) -> &ExtensionCollection

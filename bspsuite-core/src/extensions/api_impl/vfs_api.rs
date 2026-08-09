@@ -6,7 +6,7 @@ use crate::extensions::{
 };
 use crate::extensions::{FormatLoader, FormatSpec};
 use crate::utils::path_extension;
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow, bail, ensure};
 use bspextifc::vfs_api::{
 	VfsApi, VfsApiCallbacks, VfsApiProvider, VfsFileErrorCode, VfsFileRecipient,
 	VfsFileRecipientProvider, VfsFileStats, VfsImplCallbacks, VfsInitResultCode, VfsStatRecipient,
@@ -402,6 +402,11 @@ impl VfsFormatImplCollection
 
 	pub fn initialise_all(&self, game_dir: &Path) -> Result<()>
 	{
+		ensure!(
+			game_dir.is_absolute(),
+			"VFS root directory must be absolute"
+		);
+
 		let game_dir_str: &str = game_dir.to_str().ok_or_else(|| {
 			anyhow!(
 				"Could not convert game directory {} to str",

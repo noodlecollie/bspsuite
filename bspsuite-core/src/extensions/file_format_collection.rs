@@ -102,14 +102,14 @@ impl<Handler> ExtensionFileFormatCollection<Handler>
 			if all_extensions.is_empty()
 			{
 				debug!(
-					"Extension {} registered support for {} {format_name}",
+					"Extension {} registered support for {} \"{format_name}\"",
 					self.extension_name, self.format_desc
 				);
 			}
 			else
 			{
 				debug!(
-					"Extension {} registered support for {} {format_name}, with \
+					"Extension {} registered support for {} \"{format_name}\", with \
 				file extensions: {all_extensions}",
 					self.extension_name, self.format_desc
 				);

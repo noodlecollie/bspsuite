@@ -92,10 +92,9 @@ pub struct ResinfoCommandArgs
 	#[arg(short, long)]
 	pub game: String,
 
-	/// Resource filesystem roots. These can be directories or package files,
-	/// depending on what the game supports.
-	#[arg(short, long, required = true)]
-	pub vfs_roots: Vec<String>,
+	/// Directory on disk for the target game.
+	#[arg(short('d'), long)]
+	pub game_dir: PathBuf,
 
 	/// Resource path to display information about.
 	#[arg()]

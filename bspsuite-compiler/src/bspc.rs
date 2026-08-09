@@ -72,7 +72,7 @@ fn run_resinfo_command(base_args: &cli::Cli, args: &cli::ResinfoCommandArgs) -> 
 			toolchain_root: base_args.toolchain_root.clone(),
 		},
 		game: args.game.clone(),
-		vfs_roots: args.vfs_roots.clone(),
+		game_dir: args.game_dir.clone(),
 		resource_path: args.resource_path.clone(),
 	};
 
