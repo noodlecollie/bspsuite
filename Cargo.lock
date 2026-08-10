@@ -184,6 +184,7 @@ dependencies = [
  "serde_valid",
  "strum",
  "target-lexicon",
+ "target-test-dir",
  "thiserror 2.0.18",
  "toml 0.9.10+spec-1.1.0",
 ]

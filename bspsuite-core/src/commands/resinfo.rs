@@ -26,7 +26,7 @@ fn run_resinfo(args: &ResinfoArgs) -> Result<(), CompilerError>
 {
 	let toolchain: Toolchain = Toolchain::new(&args.base.toolchain_root)?;
 	let extensions: ExtensionCollection =
-		ExtensionCollection::load_extensions_from(toolchain.root_path().as_path())
+		ExtensionCollection::load_extensions_in_directory(toolchain.root_path().as_path())
 			.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
 
 	let game_dir: PathBuf = args

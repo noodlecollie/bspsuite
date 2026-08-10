@@ -35,3 +35,6 @@ paris = { version = "1.5.15", features = ["no_logger"] }
 
 [build-dependencies]
 chrono = "0.4.42"
+
+[dev-dependencies]
+target-test-dir.workspace = true

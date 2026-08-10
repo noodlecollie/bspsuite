@@ -11,3 +11,6 @@ mod file_format_collection;
 mod format_loader;
 
 pub(crate) use api_impl::VfsFileStatResult;
+
+#[cfg(test)]
+mod api_tests;

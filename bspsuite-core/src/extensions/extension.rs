@@ -261,7 +261,7 @@ impl ExtensionCollection
 		return self.extensions.get(name);
 	}
 
-	pub fn load_extensions_from(toolchain_root: &Path) -> Result<Self>
+	pub fn load_extensions_in_directory(toolchain_root: &Path) -> Result<Self>
 	{
 		let extensions_dir: PathBuf = ExtensionCollection::extensions_directory(toolchain_root);
 		let extension_paths: Vec<PathBuf> =
@@ -274,15 +274,35 @@ impl ExtensionCollection
 			extensions_dir.display()
 		);
 
+		return ExtensionCollection::load_extensions(&extension_paths, false);
+	}
+
+	// If fail_on_ext_error is true, the first extension that fails to load returns
+	// its error. Otherwise, errors are logged and failed extensions are silently
+	// dropped. The former is useful for tests, the latter is better for running
+	// compile commands.
+	pub fn load_extensions(extension_paths: &[PathBuf], fail_on_ext_error: bool) -> Result<Self>
+	{
 		// Do the initial load and filter out the extensions that failed.
-		let extensions: Vec<Extension> =
-			ExtensionCollection::load_extension_libraries(&extension_paths)
+		let extension_results: Vec<Result<Extension>> =
+			ExtensionCollection::load_extension_libraries(&extension_paths);
+
+		let extensions: Vec<Extension> = if fail_on_ext_error
+		{
+			extension_results
+				.into_iter()
+				.collect::<Result<Vec<Extension>>>()?
+		}
+		else
+		{
+			extension_results
 				.into_iter()
 				.filter_map(ExtensionCollection::log_and_prune_errors)
-				.collect();
+				.collect()
+		};
 
 		// Then probe each extension so that we know all the APIs they register for.
-		let extensions: Vec<Extension> = extensions
+		let extension_results: Vec<Result<Extension>> = extensions
 			.into_iter()
 			.map(|mut extension| -> Result<Extension> {
 				extension
@@ -293,8 +313,21 @@ impl ExtensionCollection
 
 				Ok(extension)
 			})
-			.filter_map(ExtensionCollection::log_and_prune_errors)
 			.collect();
+
+		let extensions: Vec<Extension> = if fail_on_ext_error
+		{
+			extension_results
+				.into_iter()
+				.collect::<Result<Vec<Extension>>>()?
+		}
+		else
+		{
+			extension_results
+				.into_iter()
+				.filter_map(ExtensionCollection::log_and_prune_errors)
+				.collect()
+		};
 
 		// Finally, set up a hash map by name for each extension.
 		let hash_map: HashMap<String, Extension> = extensions
@@ -348,7 +381,7 @@ impl ExtensionCollection
 		return Ok(paths_for_file_ext);
 	}
 
-	fn load_extension_libraries(paths: &Vec<PathBuf>) -> Vec<Result<Extension>>
+	fn load_extension_libraries(paths: &[PathBuf]) -> Vec<Result<Extension>>
 	{
 		return paths
 			.iter()
@@ -408,7 +441,7 @@ impl ExtensionCollection
 			}
 		}
 
-		result.ok()
+		return result.ok();
 	}
 }
 

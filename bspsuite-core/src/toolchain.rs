@@ -38,7 +38,7 @@ impl Toolchain
 		);
 
 		let extensions: ExtensionCollection =
-			ExtensionCollection::load_extensions_from(root_path.as_path())
+			ExtensionCollection::load_extensions_in_directory(root_path.as_path())
 				.map_err(|err| CompilerError::from_anyhow(CompilerErrorCode::IoError, err))?;
 
 		return Ok(Self {
