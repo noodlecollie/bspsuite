@@ -111,12 +111,12 @@ impl FormatLoaderEndpoint for MapFormatApiEndpoint
 				self.map_formats = formats
 					.collect()
 					.into_iter()
-					.map(|(key, value)| {
+					.map(|(format_name, parse_fn, file_extensions)| {
 						(
-							key,
+							format_name,
 							MapFormatDefinition {
-								file_extensions: value.1,
-								parse_fn: value.0,
+								file_extensions,
+								parse_fn,
 							},
 						)
 					})

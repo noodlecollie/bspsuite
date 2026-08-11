@@ -156,12 +156,12 @@ impl FormatLoaderEndpoint for ResourceFormatApiEndpoint
 					.image_formats
 					.collect()
 					.into_iter()
-					.map(|(key, value)| {
+					.map(|(format_name, load_fn, file_extensions)| {
 						(
-							key,
+							format_name,
 							ImageFormatDefinition {
-								file_extensions: value.1,
-								load_fn: value.0,
+								file_extensions,
+								load_fn,
 							},
 						)
 					})

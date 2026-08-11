@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::extensions::{
@@ -150,7 +149,7 @@ pub struct VfsApiEndpoint
 {
 	ext_name: String,
 	inner: Option<VfsApiCallbacks>,
-	vfs_impls: HashMap<String, (VfsImplCallbacks, Vec<String>)>,
+	vfs_impls: Vec<(String, VfsImplCallbacks, Vec<String>)>,
 }
 
 impl VfsApiEndpoint
@@ -160,7 +159,7 @@ impl VfsApiEndpoint
 		return Self {
 			ext_name: extension_name,
 			inner: callbacks,
-			vfs_impls: HashMap::new(),
+			vfs_impls: Vec::new(),
 		};
 	}
 
@@ -169,25 +168,28 @@ impl VfsApiEndpoint
 		return self
 			.vfs_impls
 			.iter()
-			.map(|(key, value)| (key.as_str(), &value.1))
+			.map(|(vfs_type, _, file_extensions)| (vfs_type.as_str(), file_extensions))
 			.collect();
 	}
 
 	pub fn get_supported_vfs_types(&self) -> Vec<&str>
 	{
-		return self.vfs_impls.keys().map(|key| key.as_str()).collect();
+		return self.vfs_impls.iter().map(|item| item.0.as_str()).collect();
 	}
 
 	pub fn get_vfs_root_file_extensions(&self, vfs_type: &str) -> Option<&Vec<String>>
 	{
-		return self.vfs_impls.get(vfs_type).map(|item| &item.1);
+		return self
+			.vfs_impls
+			.iter()
+			.find_map(|item| (item.0 == vfs_type).then(|| &item.2));
 	}
 
 	pub fn exists(&self, sub_path: &str) -> bool
 	{
-		for vfs_impl in self.vfs_impls.iter()
+		for (_, callbacks, _) in self.vfs_impls.iter().rev()
 		{
-			if (vfs_impl.1.0.exists)(&XCStr::from(sub_path))
+			if (callbacks.exists)(&XCStr::from(sub_path))
 			{
 				return true;
 			}
@@ -198,12 +200,12 @@ impl VfsApiEndpoint
 
 	pub fn is_file(&self, sub_path: &str) -> bool
 	{
-		for vfs_impl in self.vfs_impls.iter()
+		for (_, callbacks, _) in self.vfs_impls.iter().rev()
 		{
 			// The first impl that contains the item gets to decide what it is.
-			if (vfs_impl.1.0.exists)(&XCStr::from(sub_path))
+			if (callbacks.exists)(&XCStr::from(sub_path))
 			{
-				return (vfs_impl.1.0.is_file)(&XCStr::from(sub_path));
+				return (callbacks.is_file)(&XCStr::from(sub_path));
 			}
 		}
 
@@ -212,12 +214,12 @@ impl VfsApiEndpoint
 
 	pub fn is_directory(&self, sub_path: &str) -> bool
 	{
-		for vfs_impl in self.vfs_impls.iter()
+		for (_, callbacks, _) in self.vfs_impls.iter().rev()
 		{
 			// The first impl that contains the item gets to decide what it is.
-			if (vfs_impl.1.0.exists)(&XCStr::from(sub_path))
+			if (callbacks.exists)(&XCStr::from(sub_path))
 			{
-				return (vfs_impl.1.0.is_directory)(&XCStr::from(sub_path));
+				return (callbacks.is_directory)(&XCStr::from(sub_path));
 			}
 		}
 
@@ -226,7 +228,7 @@ impl VfsApiEndpoint
 
 	pub fn stat(&self, sub_path: &str) -> Result<Option<VfsFileStatResult>>
 	{
-		for vfs_impl in self.vfs_impls.iter()
+		for (vfs_type, callbacks, _) in self.vfs_impls.iter().rev()
 		{
 			let mut result_wrapper: Option<VfsFileStatResultWrapper> = None;
 
@@ -234,7 +236,7 @@ impl VfsApiEndpoint
 				let mut recipient: VfsStatRecipientProvider =
 					VfsStatRecipientProvider::new(VfsStatRecipientImpl::new(&mut result_wrapper));
 
-				(vfs_impl.1.0.stat)(&XCStr::from(sub_path), &mut recipient);
+				(callbacks.stat)(&XCStr::from(sub_path), &mut recipient);
 			}
 
 			match result_wrapper
@@ -242,9 +244,9 @@ impl VfsApiEndpoint
 				None =>
 				{
 					warn!(
-						"Extension {} VFS impl {} did not provide a stat result for {sub_path} - \
+						"Extension {} VFS impl {vfs_type} did not provide a stat result for {sub_path} - \
 						this is an implementation error",
-						self.ext_name, vfs_impl.0
+						self.ext_name,
 					);
 
 					continue;
@@ -270,7 +272,7 @@ impl VfsApiEndpoint
 
 	pub fn load_file(&self, sub_path: &str) -> Result<Option<Vec<u8>>>
 	{
-		for vfs_impl in self.vfs_impls.iter()
+		for (vfs_type, callbacks, _) in self.vfs_impls.iter().rev()
 		{
 			let mut result_wrapper: Option<VfsFileLoadResultWrapper> = None;
 
@@ -278,7 +280,7 @@ impl VfsApiEndpoint
 				let mut recipient: VfsFileRecipientProvider =
 					VfsFileRecipientProvider::new(VfsFileRecipientImpl::new(&mut result_wrapper));
 
-				(vfs_impl.1.0.load_file)(&XCStr::from(sub_path), &mut recipient);
+				(callbacks.load_file)(&XCStr::from(sub_path), &mut recipient);
 			}
 
 			match result_wrapper
@@ -286,9 +288,9 @@ impl VfsApiEndpoint
 				None =>
 				{
 					warn!(
-						"Extension {} VFS impl {} did not provide a result for loading file {sub_path} - \
+						"Extension {} VFS impl {vfs_type} did not provide a result for loading file {sub_path} - \
 						this is an implementation error",
-						self.ext_name, vfs_impl.0
+						self.ext_name,
 					);
 
 					continue;
@@ -352,32 +354,42 @@ impl FormatLoader<VfsInitialiser> for VfsApiEndpoint
 		return self
 			.vfs_impls
 			.iter()
-			.map(|(key, value)| FormatSpec {
-				format_name: key.clone(),
-				associated_file_extensions: value.1.clone(),
+			.map(|(vfs_type, _, file_extensions)| FormatSpec {
+				format_name: vfs_type.clone(),
+				associated_file_extensions: file_extensions.clone(),
 			})
 			.collect();
 	}
 
 	fn supports_loading_format(&self, format_name: &str) -> bool
 	{
-		return self.vfs_impls.contains_key(format_name);
+		return self
+			.vfs_impls
+			.iter()
+			.find(|item| item.0 == format_name)
+			.is_some();
 	}
 
 	fn supports_loading_format_from_file(&self, format_name: &str, file_extension: &str) -> bool
 	{
 		return self
 			.vfs_impls
-			.get(format_name)
-			.map_or(false, |vfs| vfs.1.contains(&file_extension.to_owned()));
+			.iter()
+			.find(|item| item.0 == format_name)
+			.map_or(false, |(_, _, file_extensions)| {
+				file_extensions.contains(&file_extension.to_owned())
+			});
 	}
 
 	fn supported_file_extensions_for_format(&self, format_name: &str) -> Option<Vec<&str>>
 	{
 		return self
 			.vfs_impls
-			.get(format_name)
-			.map(|vfs| vfs.1.iter().map(|str| str.as_str()).collect());
+			.iter()
+			.find(|item| item.0 == format_name)
+			.map(|(_, _, file_extensions)| {
+				file_extensions.iter().map(|str| str.as_str()).collect()
+			});
 	}
 
 	fn load_if_supported<Callback>(
@@ -388,12 +400,13 @@ impl FormatLoader<VfsInitialiser> for VfsApiEndpoint
 	where
 		Callback: Fn(&VfsInitialiser) -> anyhow::Result<Self::LoaderOutput>,
 	{
-		let vfs = &self
+		let (_, callbacks, _) = &self
 			.vfs_impls
-			.get(format_name)
+			.iter()
+			.find(|item| item.0 == format_name)
 			.ok_or_else(|| anyhow!(format!("VFS format {format_name} is not supported")))?;
 
-		Ok((callback)(&vfs.0.initialise)?)
+		Ok((callback)(&callbacks.initialise)?)
 	}
 }
 

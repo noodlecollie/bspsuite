@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use bspffi::types::XCStr;
 use itertools::Itertools;
 use log;
@@ -9,7 +7,7 @@ pub(super) struct ExtensionFileFormatCollection<Handler>
 {
 	extension_name: String,
 	format_desc: String,
-	formats: HashMap<String, (Handler, Vec<String>)>,
+	formats: Vec<(String, Handler, Vec<String>)>,
 }
 
 impl<Handler> ExtensionFileFormatCollection<Handler>
@@ -19,7 +17,7 @@ impl<Handler> ExtensionFileFormatCollection<Handler>
 		return Self {
 			extension_name,
 			format_desc,
-			formats: HashMap::new(),
+			formats: Vec::new(),
 		};
 	}
 
@@ -85,19 +83,33 @@ impl<Handler> ExtensionFileFormatCollection<Handler>
 			);
 		}
 
-		if let Some(_) = self
+		let insertion_index: usize = match self
 			.formats
-			.insert(format_name.into(), (handler, extension_strings))
+			.iter()
+			.find_position(|item| item.0 == format_name)
+			.map(|(index, _)| index)
 		{
-			warn!(
-				"Overriding existing registration for extension {} {} \"{format_name}\"",
-				self.extension_name, self.format_desc,
-			);
-		}
+			Some(index) =>
+			{
+				warn!(
+					"Overriding existing registration for extension {} {} \"{format_name}\"",
+					self.extension_name, self.format_desc,
+				);
+
+				self.formats[index] = (format_name.to_string(), handler, extension_strings);
+				index
+			}
+			None =>
+			{
+				self.formats
+					.push((format_name.to_string(), handler, extension_strings));
+				self.formats.len() - 1
+			}
+		};
 
 		if log::max_level() >= log::LevelFilter::Debug
 		{
-			let all_extensions: String = self.formats.get(format_name).unwrap().1.join(", ");
+			let all_extensions: String = self.formats[insertion_index].2.join(", ");
 
 			if all_extensions.is_empty()
 			{
@@ -119,7 +131,7 @@ impl<Handler> ExtensionFileFormatCollection<Handler>
 		return true;
 	}
 
-	pub fn collect(self) -> HashMap<String, (Handler, Vec<String>)>
+	pub fn collect(self) -> Vec<(String, Handler, Vec<String>)>
 	{
 		return self.formats;
 	}
