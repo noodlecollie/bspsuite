@@ -9,6 +9,7 @@ use bspextifc::resource_format_api::{
 use bspffi::types::{XCSlice, XCStr};
 
 pub(crate) type ResourceFormatImplCollection = ApiCollector<LoadImageFn, ResourceFormatApiEndpoint>;
+type ExtensionImageFormatCollection = ExtensionFileFormatCollection<LoadImageFn>;
 
 pub struct ImageFormatDefinition
 {
@@ -18,7 +19,7 @@ pub struct ImageFormatDefinition
 
 struct ResourceFormatsCollector
 {
-	image_formats: ExtensionFileFormatCollection<LoadImageFn>,
+	image_formats: ExtensionImageFormatCollection,
 }
 
 struct ResourceFormatApiImpl<'l>
@@ -50,7 +51,7 @@ impl ResourceFormatsCollector
 	pub fn new(extension_name: &str) -> Self
 	{
 		return Self {
-			image_formats: ExtensionFileFormatCollection::new(
+			image_formats: ExtensionImageFormatCollection::new(
 				extension_name.into(),
 				"image format".into(),
 			),

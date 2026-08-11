@@ -83,33 +83,26 @@ impl<Handler> ExtensionFileFormatCollection<Handler>
 			);
 		}
 
-		let insertion_index: usize = match self
+		if let Some(index) = self
 			.formats
 			.iter()
 			.find_position(|item| item.0 == format_name)
 			.map(|(index, _)| index)
 		{
-			Some(index) =>
-			{
-				warn!(
-					"Overriding existing registration for extension {} {} \"{format_name}\"",
-					self.extension_name, self.format_desc,
-				);
+			warn!(
+				"Overriding existing registration for extension {} {} \"{format_name}\"",
+				self.extension_name, self.format_desc,
+			);
 
-				self.formats[index] = (format_name.to_string(), handler, extension_strings);
-				index
-			}
-			None =>
-			{
-				self.formats
-					.push((format_name.to_string(), handler, extension_strings));
-				self.formats.len() - 1
-			}
-		};
+			self.formats.remove(index);
+		}
+
+		self.formats
+			.push((format_name.to_string(), handler, extension_strings));
 
 		if log::max_level() >= log::LevelFilter::Debug
 		{
-			let all_extensions: String = self.formats[insertion_index].2.join(", ");
+			let all_extensions: String = self.formats[self.formats.len() - 1].2.join(", ");
 
 			if all_extensions.is_empty()
 			{

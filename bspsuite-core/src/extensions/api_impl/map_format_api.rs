@@ -16,6 +16,7 @@ use bspextifc::{
 use bspffi::types::{XCSlice, XCStr};
 
 pub(crate) type MapFormatImplCollection = ApiCollector<MapFormatDefinition, MapFormatApiEndpoint>;
+type ExtensionMapFormatCollection = ExtensionFileFormatCollection<ParseMapFn>;
 
 pub struct MapFormatDefinition
 {
@@ -33,15 +34,12 @@ pub struct MapFormatApiEndpoint
 struct MapFormatApiImpl<'l>
 {
 	extension_name: String,
-	formats: &'l mut ExtensionFileFormatCollection<ParseMapFn>,
+	formats: &'l mut ExtensionMapFormatCollection,
 }
 
 impl<'l> MapFormatApiImpl<'l>
 {
-	pub fn new(
-		extension_name: &str,
-		formats: &'l mut ExtensionFileFormatCollection<ParseMapFn>,
-	) -> Self
+	pub fn new(extension_name: &str, formats: &'l mut ExtensionMapFormatCollection) -> Self
 	{
 		return Self {
 			extension_name: extension_name.to_owned(),
@@ -97,8 +95,8 @@ impl FormatLoaderEndpoint for MapFormatApiEndpoint
 		self.inner
 			.as_ref()
 			.map(|callbacks| {
-				let mut formats: ExtensionFileFormatCollection<ParseMapFn> =
-					ExtensionFileFormatCollection::new(self.ext_name.clone(), "map format".into());
+				let mut formats: ExtensionMapFormatCollection =
+					ExtensionMapFormatCollection::new(self.ext_name.clone(), "map format".into());
 
 				{
 					let mut api_impl: MapFormatApiProvider = MapFormatApiProvider::new(

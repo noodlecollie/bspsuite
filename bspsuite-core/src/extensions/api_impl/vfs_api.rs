@@ -16,6 +16,7 @@ use glob::glob;
 use log::warn;
 
 pub(crate) type VfsFormatImplCollection = ApiCollector<VfsInitialiser, VfsApiEndpoint>;
+type ExtensionVfsTypeCollection = ExtensionFileFormatCollection<VfsImplCallbacks>;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct VfsFileStatResult
@@ -31,15 +32,12 @@ type VfsInitialiser = extern "C" fn(real_root_node: &XCStr) -> VfsInitResultCode
 struct VfsApiImpl<'l>
 {
 	extension_name: String,
-	vfs_impls: &'l mut ExtensionFileFormatCollection<VfsImplCallbacks>,
+	vfs_impls: &'l mut ExtensionVfsTypeCollection,
 }
 
 impl<'l> VfsApiImpl<'l>
 {
-	pub fn new(
-		extension_name: &str,
-		vfs_impls: &'l mut ExtensionFileFormatCollection<VfsImplCallbacks>,
-	) -> Self
+	pub fn new(extension_name: &str, vfs_impls: &'l mut ExtensionVfsTypeCollection) -> Self
 	{
 		return Self {
 			extension_name: extension_name.into(),
@@ -143,12 +141,13 @@ impl From<&VfsFileStats<'_>> for VfsFileStatResult
 	}
 }
 
-// TODO: Order VFS impls so that those registered later take precedence over
-// those registered earlier.
 pub struct VfsApiEndpoint
 {
 	ext_name: String,
 	inner: Option<VfsApiCallbacks>,
+
+	// Each impl here is a different type of VFS (eg. directory, ZIP, WAD, etc.), by the order in
+	// which they were registered.. Earlier impls will be queried before later impls.
 	vfs_impls: Vec<(String, VfsImplCallbacks, Vec<String>)>,
 }
 
@@ -322,8 +321,8 @@ impl FormatLoaderEndpoint for VfsApiEndpoint
 		self.inner
 			.as_ref()
 			.map(|callbacks| {
-				let mut impls: ExtensionFileFormatCollection<VfsImplCallbacks> =
-					ExtensionFileFormatCollection::new(self.ext_name.clone(), "VFS type".into());
+				let mut impls: ExtensionVfsTypeCollection =
+					ExtensionVfsTypeCollection::new(self.ext_name.clone(), "VFS type".into());
 
 				{
 					let mut api_impl: VfsApiProvider =
