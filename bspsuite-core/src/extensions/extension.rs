@@ -49,7 +49,7 @@ use crate::extensions::api_impl::resource_format_api::{
 use crate::extensions::api_impl::vfs_api::{VfsApiEndpoint, VfsFormatImplCollection};
 use crate::extensions::api_impl::{ProbeApiImpl, ProbeRegistrationResults};
 use crate::extensions::{ApiCollector, FormatLoaderEndpoint};
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, anyhow, bail, ensure};
 use libloading::{Library, Symbol};
 use log::{debug, trace, warn};
 use self_cell::self_cell;
@@ -154,6 +154,49 @@ self_cell!(
 		dependent: ExtensionData,
 	}
 );
+
+// TODO: This isn't enough on its own! This should really be part of the
+// ExtensionFileFormatCollection.
+struct FormatRegistrationTracker
+{
+	// The key of the outer hash map is the name of the API.
+	// Each key of the inner hash map is the name of a format that was registered with this API.
+	// Each value of the inner hash map is the extension that had registered a format of this
+	// name using the API.
+	registrations_by_api_name: HashMap<String, HashMap<String, String>>,
+}
+
+impl FormatRegistrationTracker
+{
+	pub fn record_registration(
+		&mut self,
+		api_name: &str,
+		format_name: &str,
+		extension_name: &str,
+	) -> Result<()>
+	{
+		// TODO: Swap these options for results?
+		let result: Option<anyhow::Error> = self.registrations_by_api_name
+			.get_mut(api_name)
+			.and_then(|regs_for_api| {
+				regs_for_api
+					.get_mut(format_name)
+					.map(|existing_extension| {
+						anyhow!("{api_name} had a format \"{format_name}\" already registered by extension {existing_extension}")
+					}).or_else(|| {
+						regs_for_api.insert(format_name.into(), extension_name.into());
+						None
+					})
+			}).or_else(||{
+				let mut inner_map: HashMap<String, String> = HashMap::new();
+				inner_map.insert(format_name.into(), extension_name.into());
+				self.registrations_by_api_name.insert(api_name.into(), inner_map);
+				None
+			});
+
+		return result.map(|err| Err(err)).unwrap_or(Ok(()));
+	}
+}
 
 /// Helper for registering formats for a loader. When this helper is unwrapped
 /// by calling register_and_consume(), it ensures that the format loader asks
