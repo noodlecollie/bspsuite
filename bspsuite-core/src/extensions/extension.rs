@@ -80,6 +80,15 @@ pub const fn library_prefix_for_platform() -> &'static str
 	};
 }
 
+pub fn full_shared_library_name(extension_name: &str) -> String
+{
+	return format!(
+		"{}{extension_name}.{}",
+		library_prefix_for_platform(),
+		library_extension_for_platform()
+	);
+}
+
 /// Struct to hold all extensions found for the current toolchain, along with
 /// convenience maps referencing all the constructed API endpoints.
 pub(crate) struct ExtensionCollection
@@ -525,7 +534,7 @@ impl Extension
 
 			ensure!(
 				magic == EXTENSION_INFO_MAGIC,
-				"Required magic {EXTENSION_INFO_MAGIC:0>8}, but extension provided magic {magic:0>8}.",
+				"Required magic 0x{EXTENSION_INFO_MAGIC:08X}, but extension provided magic 0x{magic:08X}.",
 			);
 
 			ensure!(

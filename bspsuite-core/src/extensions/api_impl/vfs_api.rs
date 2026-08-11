@@ -18,6 +18,7 @@ use log::warn;
 
 pub(crate) type VfsFormatImplCollection = ApiCollector<VfsInitialiser, VfsApiEndpoint>;
 
+#[derive(Debug, PartialEq)]
 pub(crate) struct VfsFileStatResult
 {
 	pub parent_path: String,
@@ -180,6 +181,47 @@ impl VfsApiEndpoint
 	pub fn get_vfs_root_file_extensions(&self, vfs_type: &str) -> Option<&Vec<String>>
 	{
 		return self.vfs_impls.get(vfs_type).map(|item| &item.1);
+	}
+
+	pub fn exists(&self, sub_path: &str) -> bool
+	{
+		for vfs_impl in self.vfs_impls.iter()
+		{
+			if (vfs_impl.1.0.exists)(&XCStr::from(sub_path))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	pub fn is_file(&self, sub_path: &str) -> bool
+	{
+		for vfs_impl in self.vfs_impls.iter()
+		{
+			// The first impl that contains the item gets to decide what it is.
+			if (vfs_impl.1.0.exists)(&XCStr::from(sub_path))
+			{
+				return (vfs_impl.1.0.is_file)(&XCStr::from(sub_path));
+			}
+		}
+
+		return false;
+	}
+
+	pub fn is_directory(&self, sub_path: &str) -> bool
+	{
+		for vfs_impl in self.vfs_impls.iter()
+		{
+			// The first impl that contains the item gets to decide what it is.
+			if (vfs_impl.1.0.exists)(&XCStr::from(sub_path))
+			{
+				return (vfs_impl.1.0.is_directory)(&XCStr::from(sub_path));
+			}
+		}
+
+		return false;
 	}
 
 	pub fn stat(&self, sub_path: &str) -> Result<Option<VfsFileStatResult>>
@@ -449,6 +491,45 @@ impl VfsFormatImplCollection
 					})
 				})
 		});
+	}
+
+	pub fn exists(&self, sub_path: &str) -> bool
+	{
+		for endpoint in self.endpoints.iter()
+		{
+			if endpoint.exists(sub_path)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	pub fn is_directory(&self, sub_path: &str) -> bool
+	{
+		for endpoint in self.endpoints.iter()
+		{
+			if endpoint.is_directory(sub_path)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	pub fn is_file(&self, sub_path: &str) -> bool
+	{
+		for endpoint in self.endpoints.iter()
+		{
+			if endpoint.is_file(sub_path)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	pub fn stat(&self, sub_path: &str) -> Result<VfsFileStatResult>
